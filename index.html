@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Osler AI Landing</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="frame">
+    <div class="logo-top">
+      <div class="logo-box">
+        <img src="resource/logo.png" alt="MAQ-SCREEN logo">
+      </div>
+    </div>
+    <header class="topbar"></header>
+
+    <div class="layout">
+      <nav class="menu" aria-label="Primary">
+        <ul>
+          <li class="active" data-section="homepage" tabindex="0">Homepage</li>
+          <li data-section="services" tabindex="0">Services</li>
+          <li data-section="about" tabindex="0">About Us</li>
+          <li data-section="contact" tabindex="0">Contact Us</li>
+        </ul>
+      </nav>
+
+      <section class="content" id="content" aria-live="polite"></section>
+    </div>
+
+    <footer class="footer">
+      <div class="footer-left">
+        <button class="link-like" id="open-privacy">Privacy Policy</button>
+        <div class="divider" aria-hidden="true"></div>
+        <button class="link-like" id="open-legal">Legal Notice</button>
+        <div class="divider" aria-hidden="true"></div>
+        <span>Terms &amp; Conditions</span>
+      </div>
+      <div class="footer-right" aria-label="Social links">
+        <a class="social" href="#" aria-label="Facebook">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M14 9h2.5l.5-3H14V4.5C14 3.67 14.67 3 15.5 3H17V0h-1.5A4.5 4.5 0 0 0 11 4.5V6H8v3h3v12h3V9Z"/>
+          </svg>
+        </a>
+        <a class="social" href="#" aria-label="YouTube">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M21.58 7.2c-.23-.86-.9-1.53-1.76-1.76C18.25 5 12 5 12 5s-6.25 0-7.82.44c-.86.23-1.53.9-1.76 1.76C2 8.75 2 12 2 12s0 3.25.42 4.82c.23.86.9 1.53 1.76 1.76C5.75 19 12 19 12 19s6.25 0 7.82-.42c.86-.23 1.53-.9 1.76-1.76C22 15.25 22 12 22 12s0-3.25-.42-4.8ZM10 15.5v-7l6 3.5-6 3.5Z"/>
+          </svg>
+        </a>
+        <a class="social" href="#" aria-label="Instagram">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5Zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7Zm11.25 1.75a1 1 0 1 1 0 2 1 1 0 0 1 0-2ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/>
+          </svg>
+        </a>
+        <a class="social" href="#" aria-label="LinkedIn">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M4.5 3.5a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5ZM3 9.25h3v11.5H3V9.25Zm6.25 0h2.86v1.58h.04c.4-.76 1.37-1.56 2.82-1.56 3.02 0 3.58 1.99 3.58 4.58v6.4h-3v-5.66c0-1.35-.03-3.09-1.88-3.09-1.88 0-2.17 1.47-2.17 3v5.75h-3V9.25Z"/>
+          </svg>
+        </a>
+      </div>
+    </footer>
+  </div>
+
+  <div class="modal-backdrop" id="privacy-modal" aria-modal="true" role="dialog" aria-labelledby="privacy-title">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="privacy-title">Privacy Policy for MAQ-SCREEN</h2>
+        <button class="modal-close" id="close-privacy" aria-label="Close privacy policy">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p><strong>Effective Date:</strong> 2025</p>
+        <p>MAQ-SCREEN (“we”, “our”, or “the system”) is committed to protecting your personal data. This Privacy Policy explains how we collect, use, store, and safeguard your information when you use our questionnaire, risk assessment, and report generation services. This policy is designed in accordance with the Malaysia Personal Data Protection Act (PDPA).</p>
+        <h3>1. Information We Collect</h3>
+        <p>We may collect the following types of information when you interact with our platform, including the web UI, Node.js backend, and Python-based intelligent questionnaire system.</p>
+        <h4>1.1 Account Information (via Node.js + MySQL)</h4>
+        <ul>
+          <li>Username or email</li>
+          <li>Password (stored in encrypted format)</li>
+          <li>Registration timestamp</li>
+          <li>Login timestamp</li>
+        </ul>
+        <h4>1.2 Questionnaire and Health Assessment Data</h4>
+        <p>Processed by the intelligent agent system (Python):</p>
+        <ul>
+          <li>Basic demographic and health-related answers (e.g., age, gender, smoking history, symptoms, lifestyle factors)</li>
+          <li>Responses to screening questions</li>
+          <li>AI-generated analysis and risk assessment outputs</li>
+        </ul>
+        <h4>1.3 Automatically Collected Information</h4>
+        <ul>
+          <li>Access logs (date, time, and basic technical information)</li>
+          <li>Browser and device information</li>
+          <li>System error logs</li>
+        </ul>
+        <p>We do NOT collect extremely sensitive data such as NRIC/IC number, home address, bank information, or biometric data.</p>
+        <h3>2. How We Use Your Information</h3>
+        <h4>2.1 To Provide Core Services</h4>
+        <ul>
+          <li>Account creation and login authentication</li>
+          <li>Questionnaire delivery and automated screening</li>
+          <li>Risk estimation and personalized report generation</li>
+          <li>Improving accuracy and responsiveness of the system</li>
+        </ul>
+        <h4>2.2 To Improve System Performance</h4>
+        <ul>
+          <li>Usage analytics for service quality enhancement</li>
+          <li>Debugging and fixing errors</li>
+          <li>Enhancing question relevance and flow</li>
+        </ul>
+        <h4>2.3 Compliance With Legal Obligations</h4>
+        <p>If required under applicable laws, we may disclose information to regulatory authorities.</p>
+        <h3>3. Data Storage and Protection</h3>
+        <h4>3.1 Storage</h4>
+        <ul>
+          <li>Account credentials are stored in a local MySQL database.</li>
+          <li>Questionnaire responses and generated reports are stored on secure backend servers.</li>
+        </ul>
+        <h4>3.2 Security Measures</h4>
+        <p>We implement industry-standard security practices, including:</p>
+        <ul>
+          <li>Password hashing (secure, irreversible encryption)</li>
+          <li>Restricted access control for server environments</li>
+          <li>Secure communication protocols (e.g., HTTPS, encrypted transport)</li>
+          <li>Regular system updates and security patches</li>
+        </ul>
+        <h4>3.3 Data Retention</h4>
+        <p>We retain data only as long as necessary to provide our services or comply with legal requirements. Users may request data deletion at any time.</p>
+        <h3>4. Data Sharing and Disclosure</h3>
+        <p>We do not:</p>
+        <ul>
+          <li>Sell your personal data</li>
+          <li>Share your data with advertisers or marketing companies</li>
+          <li>Upload your questionnaire content to third-party AI platforms</li>
+        </ul>
+        <p>Data may only be shared under the following circumstances:</p>
+        <ul>
+          <li>With your explicit consent</li>
+          <li>If required by law or regulatory authorities</li>
+          <li>To ensure system security (e.g., detecting malicious access attempts)</li>
+        </ul>
+        <h3>5. Your Rights (Under PDPA)</h3>
+        <p>You have the following rights:</p>
+        <ul>
+          <li>Right to access your personal data</li>
+          <li>Right to correct inaccurate or outdated information</li>
+          <li>Right to withdraw consent</li>
+          <li>Right to request deletion of your account and related records</li>
+        </ul>
+        <p>Requests may be submitted via email (see Section 9).</p>
+        <h3>6. Cookies</h3>
+        <p>We may use cookies to:</p>
+        <ul>
+          <li>Maintain login sessions</li>
+          <li>Analyse anonymized usage patterns</li>
+          <li>Improve user experience</li>
+        </ul>
+        <p>You may disable cookies in your browser at any time. Cookies do not store sensitive data.</p>
+        <h3>7. Third-Party Services</h3>
+        <p>Our system may interact with:</p>
+        <ul>
+          <li>Standard web technologies</li>
+          <li>Node.js backend services</li>
+          <li>MySQL database</li>
+          <li>Python-based analytical modules</li>
+        </ul>
+        <p>However, your questionnaire data is never shared with external AI providers unless explicitly stated.</p>
+        <h3>8. Changes to This Privacy Policy</h3>
+        <p>We may update this Privacy Policy from time to time to reflect system improvements or legal requirements. Updates will take effect immediately upon publication on the platform or accompanying documentation.</p>
+        <h3>9. Contact Information</h3>
+        <p>If you have any questions about this Privacy Policy or wish to exercise your data rights, please contact us at:</p>
+        <p>Email: hbw9698397@outlook.com</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="legal-modal" aria-modal="true" role="dialog" aria-labelledby="legal-title">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="legal-title">Legal Notice</h2>
+        <button class="modal-close" id="close-legal" aria-label="Close legal notice">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p><strong>Last Updated:</strong> 2025</p>
+        <p>MAQ-SCREEN (“the System”) provides AI-assisted questionnaire, early risk estimation and report generation for educational and screening-support purposes only. By accessing or using the System, you agree to the terms described below.</p>
+
+        <h3>1. Non-Medical Disclaimer</h3>
+        <p>The System is not a medical device and does not provide medical diagnosis, medical treatment, or professional healthcare advice. All results are preliminary, AI-generated assessments based on the information you provide. They must not be used as a substitute for consultation with qualified healthcare professionals.</p>
+        <p>Always seek medical advice from a licensed doctor or visit a healthcare facility if you have symptoms, concerns, or require clinical evaluation.</p>
+
+        <h3>2. Accuracy and Limitations</h3>
+        <p>The System may not always produce fully accurate or complete outputs. Results depend on user input quality and the inherent limitations of AI models. The System cannot detect omissions, misleading information, or incorrect data provided by users. You agree to use the System at your own discretion and risk.</p>
+
+        <h3>3. No Warranty</h3>
+        <p>The System is provided “as is” and “as available”. No warranties are given regarding accuracy, reliability, completeness, or fitness for any particular purpose. We do not guarantee uninterrupted access or error-free performance.</p>
+
+        <h3>4. Limitation of Liability</h3>
+        <p>To the fullest extent permitted by law, the developers and maintainers of MAQ-SCREEN shall not be liable for any direct, indirect, incidental, or consequential damages arising from your use of the System, including but not limited to:</p>
+        <ul>
+          <li>Misinterpretation of results</li>
+          <li>Health consequences resulting from reliance on assessments</li>
+          <li>Loss of data or system interruption</li>
+        </ul>
+        <p>If you do not agree with these terms, you must stop using the System immediately.</p>
+
+        <h3>5. User Responsibility</h3>
+        <ul>
+          <li>You are responsible for the accuracy of the information you submit.</li>
+          <li>You will not misuse or abuse the System.</li>
+          <li>You understand that the System does not replace professional medical advice or diagnosis.</li>
+        </ul>
+
+        <h3>6. Intellectual Property</h3>
+        <p>All system components—including code, algorithms, UI design, documentation, and screening logic—are the intellectual property of the MAQ-SCREEN development team. Unauthorized copying, modification, distribution, or sublicensing is prohibited unless permitted under an official open-source license.</p>
+
+        <h3>7. Compliance with PDPA (Malaysia)</h3>
+        <p>The System adheres to principles of the Malaysia Personal Data Protection Act (PDPA). Personal data is collected solely for authentication and screening purposes and will be processed securely in accordance with PDPA requirements.</p>
+
+        <h3>8. Updates to This Legal Notice</h3>
+        <p>This Legal Notice may be revised periodically. Continued use of the System indicates your acceptance of the latest version.</p>
+
+        <h3>9. Contact Information</h3>
+        <p>For legal or privacy-related enquiries, please contact:</p>
+        <p>Email: hbw9698397@outlook.com</p>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="script.js"></script>
+</body>
+</html>

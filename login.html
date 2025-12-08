@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | Osler AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="login.css">
+</head>
+<body class="auth-body">
+  <div class="auth-shell">
+    <div class="auth-card">
+      <div class="auth-header">
+        <h1>Sign In</h1>
+        <p>Access your account to manage telehealth sessions and reports.</p>
+      </div>
+      <form class="auth-form" id="loginForm">
+        <label class="field">
+          <span>Email</span>
+          <input type="email" id="loginEmail" name="email" autocomplete="username" placeholder="you@example.com" required>
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input type="password" id="loginPassword" name="password" autocomplete="current-password" placeholder="********" required>
+        </label>
+        <button type="submit" class="btn-primary">Login</button>
+        <button type="button" class="btn-ghost" onclick="window.location.href='register.html'">Create Account</button>
+        <div style="margin-top: 10px; text-align: center;">
+          <a href="forgot.html">Forgot password?</a>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script type="module" src="script.js"></script>
+</body>
+</html>

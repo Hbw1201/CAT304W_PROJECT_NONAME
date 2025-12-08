@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Osler Profile</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body class="dash-body">
+  <div class="dash-shell">
+    <aside class="sidebar">
+      <div class="brand-row">
+        <div class="brand-mark" id="brand-avatar">O</div>
+        <span class="brand-name" id="brand-name">Profile</span>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title">Primary Menu</div>
+        <ul class="nav-list">
+          <li>
+            <a class="nav-item" href="dashboard.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 11.5 12 4l9 7.5v7a1.5 1.5 0 0 1-1.5 1.5H4.5A1.5 1.5 0 0 1 3 18.5v-7Z"/>
+                  <path d="M9 21V12h6v9"/>
+                </svg>
+              </span>
+              Dashboard
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="report.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16v16H4z" />
+                  <path d="M8 8h8M8 12h5M8 16h3" />
+                </svg>
+              </span>
+              Report
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="chatbot.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16v12H5.5L4 18V4Z" />
+                  <path d="M8 9h8M8 12h5" />
+                </svg>
+              </span>
+              Chatbot
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="question.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M9.5 10.5a2.5 2.5 0 1 1 5 0c0 2-2.5 2-2.5 4" />
+                  <path d="M12 17h.01" />
+                </svg>
+              </span>
+              Question
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="appointment.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="4" y="4" width="16" height="16" rx="4" />
+                  <path d="M8 7v4h4M10 11v6" />
+                </svg>
+              </span>
+              Appointment
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="screening.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="4" width="14" height="16" rx="3" />
+                  <path d="M9 8h6M9 12h3" />
+                  <path d="M9 15.5 11 17l4-5" />
+                </svg>
+              </span>
+              screening
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="nav-group settings">
+        <div class="nav-title">Settings</div>
+        <ul class="nav-list">
+          <li>
+            <a class="nav-item" href="index.html" id="logout-link">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                  <polyline points="10 17 15 12 10 7"/>
+                  <line x1="15" y1="12" x2="3" y2="12"/>
+                </svg>
+              </span>
+              Logout
+            </a>
+          </li>
+          <li>
+            <a class="nav-item active" href="profile.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="7" r="4"/>
+                  <path d="M5 21a7 7 0 0 1 14 0"/>
+                </svg>
+              </span>
+              Profile Settings
+            </a>
+          </li>
+        </ul>
+      </div>
+
+    </aside>
+
+    <main class="main-panel">
+      <section class="card hero">
+        <div>
+          <p class="eyebrow">Profile Settings</p>
+          <p class="lede">View and update user information.</p>
+        </div>
+        <div class="hero-pattern" aria-hidden="true"></div>
+      </section>
+
+      <section class="card profile-card" id="profile-card">
+        <div class="card-head spaced">
+          <div>
+            <p class="value">User Information</p>
+            <p class="label">Basic profile details</p>
+          </div>
+          <div class="edit-buttons">
+            <button type="button" class="pill plain" id="edit-toggle">Edit</button>
+            <div class="edit-actions" id="edit-actions" hidden>
+              <button type="button" class="pill plain" id="edit-cancel">Cancel</button>
+              <button type="button" class="pill" id="edit-save">Save</button>
+            </div>
+          </div>
+        </div>
+        <div class="profile-grid">
+          <div class="field-row">
+            <strong>Name:</strong>
+            <span class="field-value" data-field="name">--</span>
+            <input class="field-input" data-input="name" type="text" value="" hidden>
+          </div>
+          <div class="field-row">
+            <strong>Age:</strong>
+            <span class="field-value" data-field="age">--</span>
+            <input class="field-input" data-input="age" type="number" min="0" value="" hidden>
+          </div>
+          <div class="field-row">
+            <strong>Gender:</strong>
+            <span class="field-value" data-field="gender">--</span>
+            <input class="field-input" data-input="gender" type="text" value="" hidden>
+          </div>
+          <div class="field-row">
+            <strong>Email:</strong>
+            <span class="field-value" data-field="email">--</span>
+            <input class="field-input" data-input="email" type="email" value="" hidden>
+          </div>
+          <div class="field-row">
+            <strong>Password:</strong>
+            <span class="field-value" id="password-value" data-secret="Auth password (hidden)" data-field="password">••••••••</span>
+            <button type="button" class="inline-btn" id="password-toggle">Show</button>
+            <input class="field-input" data-input="password" type="text" value="" hidden>
+          </div>
+          <div class="field-row">
+            <strong>Risk Level:</strong>
+            <span class="field-value" data-field="risk">--</span>
+            <input class="field-input" data-input="risk" type="text" value="" hidden>
+          </div>
+          <div class="field-row">
+            <strong>Last Screening:</strong>
+            <span class="field-value" data-field="lastScreening">--</span>
+            <input class="field-input" data-input="lastScreening" type="date" value="" hidden>
+          </div>
+          <div class="field-row">
+            <strong>Family Doctor:</strong>
+            <a href="#" class="doctor-link field-value" id="doctor-link" data-field="doctor">--</a>
+            <input class="field-input" data-input="doctor" type="text" value="" hidden>
+          </div>
+        </div>
+      </section>
+
+      <div class="modal-overlay" id="doctor-modal" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="doctor-modal-title">
+          <div class="modal-head">
+            <p class="value" id="doctor-modal-title">Doctor Info</p>
+            <button class="icon-btn ghost" type="button" id="doctor-close" aria-label="Close dialog">x</button>
+          </div>
+          <p class="label">Hospital: --</p>
+          <p class="label">Email: --</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "./firebase-config.js";
+    import { doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const link = document.getElementById("doctor-link");
+    const modal = document.getElementById("doctor-modal");
+    const closeBtn = document.getElementById("doctor-close");
+
+    const open = (event) => {
+      event.preventDefault();
+      modal?.removeAttribute("hidden");
+    };
+
+    const close = () => {
+      modal?.setAttribute("hidden", "");
+    };
+
+    link?.addEventListener("click", open);
+    closeBtn?.addEventListener("click", close);
+    modal?.addEventListener("click", (event) => {
+      if (event.target === modal) close();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !modal?.hasAttribute("hidden")) close();
+    });
+
+    const passwordValue = document.getElementById("password-value");
+    const passwordToggle = document.getElementById("password-toggle");
+    let secret = passwordValue?.dataset.secret || "Auth password (hidden)";
+    let isMasked = true;
+
+    const renderPassword = () => {
+      if (!passwordValue || !passwordToggle) return;
+      passwordValue.textContent = isMasked ? "********" : secret;
+      passwordToggle.textContent = isMasked ? "Show" : "Hide";
+    };
+
+    passwordToggle?.addEventListener("click", () => {
+      isMasked = !isMasked;
+      renderPassword();
+    });
+
+    renderPassword();
+
+    const card = document.getElementById("profile-card");
+    const editToggle = document.getElementById("edit-toggle");
+    const editActions = document.getElementById("edit-actions");
+    const editSave = document.getElementById("edit-save");
+    const editCancel = document.getElementById("edit-cancel");
+    const inputs = card?.querySelectorAll("[data-input]");
+    const values = card?.querySelectorAll("[data-field]");
+
+    const brandAvatar = document.getElementById("brand-avatar");
+    const brandName = document.getElementById("brand-name");
+
+    const setBrand = (fullName) => {
+      const name = (fullName || "").trim() || "Profile";
+      const initial = name.charAt(0).toUpperCase() || "P";
+      if (brandAvatar) brandAvatar.textContent = initial;
+      if (brandName) brandName.textContent = name;
+    };
+
+    const setFieldValue = (key, value) => {
+      const span = card?.querySelector(`[data-field="${key}"]`);
+      const input = card?.querySelector(`[data-input="${key}"]`);
+      if (span) span.textContent = value ?? "--";
+      if (input) input.value = value ?? "";
+    };
+
+    const loadInputsFromFields = () => {
+      inputs?.forEach((input) => {
+        const key = input.dataset.input;
+        if (key === "password") {
+          input.value = secret;
+        } else if (key === "doctor") {
+          input.value = link?.textContent?.trim() || "";
+        } else {
+          const field = card.querySelector(`[data-field="${key}"]`);
+          input.value = field?.textContent?.trim() || "";
+        }
+      });
+    };
+
+    const applyInputsToFields = () => {
+      inputs?.forEach((input) => {
+        const key = input.dataset.input;
+        if (key === "password") {
+          secret = input.value || "Auth password (hidden)";
+          passwordValue.dataset.secret = secret;
+        } else if (key === "doctor") {
+          link.textContent = input.value || "--";
+        } else {
+          const field = card.querySelector(`[data-field="${key}"]`);
+          if (field) field.textContent = input.value || "--";
+        }
+      });
+      renderPassword();
+    };
+
+    const setEditMode = (on) => {
+      if (!card) return;
+      if (on) {
+        card.classList.add("edit-mode");
+        editToggle?.setAttribute("hidden", "");
+        editActions?.removeAttribute("hidden");
+        inputs?.forEach((input) => input.removeAttribute("hidden"));
+        values?.forEach((value) => value.setAttribute("hidden", ""));
+        passwordToggle?.setAttribute("hidden", "");
+        loadInputsFromFields();
+      } else {
+        card.classList.remove("edit-mode");
+        editToggle?.removeAttribute("hidden");
+        editActions?.setAttribute("hidden", "");
+        inputs?.forEach((input) => input.setAttribute("hidden", ""));
+        values?.forEach((value) => value.removeAttribute("hidden"));
+        passwordToggle?.removeAttribute("hidden");
+        renderPassword();
+      }
+    };
+
+    editToggle?.addEventListener("click", () => setEditMode(true));
+    editCancel?.addEventListener("click", () => setEditMode(false));
+
+    editSave?.addEventListener("click", async () => {
+      if (!db) {
+        alert("Firebase not configured");
+        return;
+      }
+      const uid = localStorage.getItem("uid") || auth?.currentUser?.uid;
+      if (!uid) {
+        alert("User not found, please log in again");
+        return;
+      }
+      applyInputsToFields();
+
+      const payload = {
+        name: card.querySelector('[data-input="name"]')?.value.trim() || "",
+        age: Number(card.querySelector('[data-input="age"]')?.value) || null,
+        gender: card.querySelector('[data-input="gender"]')?.value.trim() || "",
+        email: card.querySelector('[data-input="email"]')?.value.trim() || "",
+        riskLevel: card.querySelector('[data-input="risk"]')?.value.trim() || "",
+        lastScreening: card.querySelector('[data-input="lastScreening"]')?.value || null,
+        doctor: card.querySelector('[data-input="doctor"]')?.value.trim() || "",
+        updatedAt: serverTimestamp(),
+      };
+
+      try {
+        await updateDoc(doc(db, "users", uid), payload);
+        alert("Profile updated");
+        setEditMode(false);
+      } catch (error) {
+        console.error(error);
+        alert(error?.message || "Failed to update profile");
+      }
+    });
+
+    const hydrateProfile = async () => {
+      if (!db) {
+        setFieldValue("name", "Firebase 未配置");
+        return;
+      }
+      const uid = localStorage.getItem("uid") || auth?.currentUser?.uid;
+      if (!uid) {
+        setFieldValue("name", "未登录");
+        return;
+      }
+
+      try {
+        const snapshot = await getDoc(doc(db, "users", uid));
+        if (!snapshot.exists()) {
+          setFieldValue("name", "未找到用户档案");
+          return;
+        }
+        const data = snapshot.data() || {};
+        const nameVal = data.name || "--";
+        setFieldValue("name", nameVal);
+        setFieldValue("age", data.age ?? "--");
+        setFieldValue("gender", data.gender || "--");
+        setFieldValue("email", data.email || "--");
+        setFieldValue("risk", data.riskLevel || "--");
+        setFieldValue("lastScreening", data.lastScreening || "--");
+        const doctorVal = data.doctor || "--";
+        setFieldValue("doctor", doctorVal);
+        link.textContent = doctorVal;
+        setBrand(nameVal);
+      } catch (error) {
+        console.error(error);
+        alert(error?.message || "Failed to load profile info");
+      }
+    };
+
+    const cachedProfile = (() => {
+      try {
+        return JSON.parse(localStorage.getItem("userProfile") || "null");
+      } catch {
+        return null;
+      }
+    })();
+    if (cachedProfile?.name) {
+      setBrand(cachedProfile.name);
+    }
+
+    const logoutLink = document.getElementById("logout-link");
+    logoutLink?.addEventListener("click", (e) => {
+      e.preventDefault();
+      localStorage.clear();
+      window.location.href = "index.html";
+    });
+
+    hydrateProfile();
+  </script>
+</body>
+</html>
