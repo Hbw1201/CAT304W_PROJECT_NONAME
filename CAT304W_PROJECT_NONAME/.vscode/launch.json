@@ -1,0 +1,15 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "type": "Microsoft Edge",
+            "request": "launch",
+            "name": "Open dashboard.html",
+            "file": "c:\\Users\\30490\\Desktop\\304\\CAT304W_PROJECT_NONAME-1.0\\CAT304W_PROJECT_NONAME-1.0\\dashboard.html"
+        }
+    ]
+}

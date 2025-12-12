@@ -1,0 +1,282 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Osler Screening</title>
+  <script>
+    const role = localStorage.getItem("userRole");
+    if (!role) {
+      window.location.href = "../login.html";
+    } else if (role !== "patient") {
+      window.location.href = "../doctor/dashboard.html";
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../dashboard.css">
+  <link rel="stylesheet" href="../shared-layout.css">
+</head>
+<body class="dash-body">
+  <div class="page-layout">
+    <aside class="sidebar">
+      <div class="brand-row">
+        <div class="brand-mark" id="brand-avatar">O</div>
+        <span class="brand-name" id="brand-name">osler</span>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title">Primary Menu</div>
+        <ul class="nav-list">
+          <li>
+            <a class="nav-item" href="dashboard.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 11.5 12 4l9 7.5v7a1.5 1.5 0 0 1-1.5 1.5H4.5A1.5 1.5 0 0 1 3 18.5v-7Z"/>
+                  <path d="M9 21V12h6v9"/>
+                </svg>
+              </span>
+              Dashboard
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="report.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16v16H4z" />
+                  <path d="M8 8h8M8 12h5M8 16h3" />
+                </svg>
+              </span>
+              Report
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="chatbot.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16v12H5.5L4 18V4Z" />
+                  <path d="M8 9h8M8 12h5" />
+                </svg>
+              </span>
+              Chatbot
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="question.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M9.5 10.5a2.5 2.5 0 1 1 5 0c0 2-2.5 2-2.5 4" />
+                  <path d="M12 17h.01" />
+                </svg>
+              </span>
+              Question
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="appointment.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="4" y="4" width="16" height="16" rx="4" />
+                  <path d="M8 7v4h4M10 11v6" />
+                </svg>
+              </span>
+              Appointment
+            </a>
+          </li>
+          <li>
+            <a class="nav-item active" href="screening.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="4" width="14" height="16" rx="3" />
+                  <path d="M9 8h6M9 12h3" />
+                  <path d="M9 15.5 11 17l4-5" />
+                </svg>
+              </span>
+              screening
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="nav-group settings">
+        <div class="nav-title">Settings</div>
+        <ul class="nav-list">
+          <li>
+            <a class="nav-item" href="index.html" id="logout-link">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                  <polyline points="10 17 15 12 10 7"/>
+                  <line x1="15" y1="12" x2="3" y2="12"/>
+                </svg>
+              </span>
+              Logout
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="profile.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="7" r="4"/>
+                  <path d="M5 21a7 7 0 0 1 14 0"/>
+                </svg>
+              </span>
+              Profile Settings
+            </a>
+          </li>
+        </ul>
+      </div>
+
+    </aside>
+
+    <main class="main-content main-panel">
+      <section class="card hero">
+        <div>
+          <p class="eyebrow">Screening</p>
+          <p class="lede">Manage screening workflows and reviews here.</p>
+        </div>
+        <div class="hero-pattern" aria-hidden="true"></div>
+      </section>
+
+      <section class="card screening-shell">
+        <div class="chat-head">
+          <div>
+            <p class="value">Voice screening Q&A</p>
+            <p class="label">Question is played aloud; answer by speaking, we鈥檒l transcribe it.</p>
+          </div>
+          <span class="pill plain">Voice</span>
+        </div>
+
+        <div class="qa-window" id="qa-window">
+          <div class="qa-item question">
+            <div class="qa-meta">
+              <span class="pill plain">Question</span>
+              <button type="button" class="pill muted" id="play-question">Play</button>
+            </div>
+            <p class="qa-text" id="qa-question">Please describe any symptoms or discomfort you felt in the last 24 hours.</p>
+          </div>
+          <div class="qa-item answer">
+            <div class="qa-meta">
+              <span class="pill plain">Your answer</span>
+              <span class="record-indicator" id="record-status">Idle</span>
+            </div>
+            <p class="qa-text" id="qa-answer">Tap the mic and speak your answer. We鈥檒l show the transcription here.</p>
+          </div>
+        </div>
+
+        <div class="qa-controls">
+          <button type="button" class="pill" id="record-toggle">馃帳 Start Recording</button>
+          <button type="button" class="pill plain" id="next-question">Next Question</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      const profile = (() => {
+        try {
+          return JSON.parse(localStorage.getItem("userProfile") || "null");
+        } catch {
+          return null;
+        }
+      })();
+      const name = (profile?.name || "osler").trim() || "osler";
+      const initial = name.charAt(0).toUpperCase() || "O";
+      const brandName = document.getElementById("brand-name");
+      const brandAvatar = document.getElementById("brand-avatar");
+      if (brandName) brandName.textContent = name;
+      if (brandAvatar) brandAvatar.textContent = initial;
+
+      const logoutLink = document.getElementById("logout-link");
+      logoutLink?.addEventListener("click", (e) => {
+        e.preventDefault();
+        localStorage.clear();
+        window.location.href = "index.html";
+      });
+
+      const playBtn = document.getElementById('play-question');
+      const recordBtn = document.getElementById('record-toggle');
+      const statusEl = document.getElementById('record-status');
+      const answerEl = document.getElementById('qa-answer');
+      const questionEl = document.getElementById('qa-question');
+      const nextBtn = document.getElementById('next-question');
+
+      const questions = [
+        'Please describe any symptoms or discomfort you felt in the last 24 hours.',
+        'Have you experienced dizziness or shortness of breath recently?',
+        'Rate your current pain level from zero to ten and describe where it is located.'
+      ];
+      let qIndex = 0;
+
+      const speakQuestion = () => {
+        const text = questionEl?.textContent || '';
+        if (!text || !window.speechSynthesis) return;
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'en-US';
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utter);
+      };
+
+      const updateQuestion = () => {
+        qIndex = (qIndex + 1) % questions.length;
+        questionEl.textContent = questions[qIndex];
+        answerEl.textContent = 'Tap the mic and speak your answer. We鈥檒l show the transcription here.';
+        statusEl.textContent = 'Idle';
+      };
+
+      let recognition;
+      let recognizing = false;
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRec();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => {
+          recognizing = true;
+          statusEl.textContent = 'Listening...';
+          recordBtn.textContent = '鈻?Stop';
+        };
+        recognition.onend = () => {
+          recognizing = false;
+          statusEl.textContent = 'Idle';
+          recordBtn.textContent = '馃帳 Start Recording';
+        };
+        recognition.onresult = (event) => {
+          let transcript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
+          }
+          answerEl.textContent = transcript.trim() || 'Listening...';
+        };
+        recognition.onerror = () => {
+          recognizing = false;
+          statusEl.textContent = 'Error';
+          recordBtn.textContent = '馃帳 Start Recording';
+        };
+      }
+
+      playBtn?.addEventListener('click', speakQuestion);
+
+      recordBtn?.addEventListener('click', () => {
+        if (!recognition) {
+          statusEl.textContent = 'Speech recognition not supported';
+          return;
+        }
+        if (recognizing) {
+          recognition.stop();
+        } else {
+          recognition.start();
+        }
+      });
+
+      nextBtn?.addEventListener('click', updateQuestion);
+    })();
+  </script>
+</body>
+</html>
+

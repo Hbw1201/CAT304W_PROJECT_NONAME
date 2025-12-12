@@ -1,0 +1,229 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doctor | Appointments</title>
+  <script>
+    const role = localStorage.getItem("userRole");
+    if (role !== "doctor") {
+      window.location.href = "../patient/dashboard.html";
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../dashboard.css">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="../shared-layout.css">
+</head>
+<body class="dash-body doctor-theme">
+  <div class="page-layout">
+    <aside class="sidebar">
+      <div class="brand-row">
+        <div class="brand-mark" id="brand-avatar">D</div>
+        <span class="brand-name" id="brand-name">Doctor</span>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title">Doctor Menu</div>
+        <ul class="nav-list">
+          <li>
+            <a class="nav-item" href="dashboard.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 11.5 12 4l9 7.5v7a1.5 1.5 0 0 1-1.5 1.5H4.5A1.5 1.5 0 0 1 3 18.5v-7Z"/>
+                  <path d="M9 21V12h6v9"/>
+                </svg>
+              </span>
+              Dashboard
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="question.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16v12H5.5L4 18V4Z" />
+                  <path d="M8 9h8M8 12h5" />
+                </svg>
+              </span>
+              Patient Chats
+            </a>
+          </li>
+          <li>
+            <a class="nav-item active" href="appointments.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="4" y="4" width="16" height="16" rx="4" />
+                  <path d="M8 7v4h4M10 11v6" />
+                </svg>
+              </span>
+              Appointments
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="report.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16v16H4z" />
+                  <path d="M8 8h8M8 12h5M8 16h3" />
+                </svg>
+              </span>
+              Reports
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="profile.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="7" r="4"/>
+                  <path d="M5 21a7 7 0 0 1 14 0"/>
+                </svg>
+              </span>
+              Profile
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="../login.html" id="logout-link">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                  <polyline points="10 17 15 12 10 7"/>
+                  <line x1="15" y1="12" x2="3" y2="12"/>
+                </svg>
+              </span>
+              Logout
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="nav-group settings">
+        <div class="nav-title">Doctor Info</div>
+        <ul class="nav-list">
+          <li>
+            <div class="nav-item">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="7" r="4"/>
+                  <path d="M5 21a7 7 0 0 1 14 0"/>
+                </svg>
+              </span>
+              <span id="doctor-name-display">Doctor</span>
+            </div>
+          </li>
+          <li>
+            <div class="nav-item">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2c-3.86 0-7 2.86-7 6.4 0 4.62 6.12 12.5 6.39 12.83a1 1 0 0 0 1.56 0C12.62 20.9 19 13.2 19 8.4 19 4.86 15.86 2 12 2Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z"/>
+                </svg>
+              </span>
+              <span id="doctor-hospital-display">Unknown hospital</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <main class="main-content main-panel">
+      <section class="card hero">
+        <div>
+          <p class="value">Clinic schedule</p>
+          <p class="lede">Review upcoming visits and keep patients on time.</p>
+        </div>
+        <div class="hero-pattern" aria-hidden="true"></div>
+      </section>
+
+      <section class="appointments-grid">
+        <article class="card appointments-card">
+          <div class="card-head">
+            <div class="card-title-row">
+              <p class="card-title">Today's appointments</p>
+              <span class="pill">5 patients</span>
+            </div>
+            <p class="card-text">Quick glance at times, visit types, and context.</p>
+          </div>
+          <div class="agenda-list">
+            <div class="agenda-item">
+              <div class="agenda-time">09:00</div>
+              <div class="agenda-body">
+                <p class="agenda-title">Alex Chen</p>
+                <p class="agenda-sub">Follow-up on hypertension plan.</p>
+              </div>
+              <span class="pill blue">In person</span>
+            </div>
+            <div class="agenda-item">
+              <div class="agenda-time">10:30</div>
+              <div class="agenda-body">
+                <p class="agenda-title">Priya Das</p>
+                <p class="agenda-sub">Lab review + medication adjustment.</p>
+              </div>
+              <span class="pill green">Virtual</span>
+            </div>
+            <div class="agenda-item">
+              <div class="agenda-time">13:00</div>
+              <div class="agenda-body">
+                <p class="agenda-title">Mateo Rivera</p>
+                <p class="agenda-sub">Post-screening consult.</p>
+              </div>
+              <span class="pill blue">In person</span>
+            </div>
+            <div class="agenda-item">
+              <div class="agenda-time">15:00</div>
+              <div class="agenda-body">
+                <p class="agenda-title">Aisha Malik</p>
+                <p class="agenda-sub">Diabetes education session.</p>
+              </div>
+              <span class="pill green">Virtual</span>
+            </div>
+            <div class="agenda-item">
+              <div class="agenda-time">16:30</div>
+              <div class="agenda-body">
+                <p class="agenda-title">Daniel Kim</p>
+                <p class="agenda-sub">Clearance for sports participation.</p>
+              </div>
+              <span class="pill blue">In person</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="card prep-card">
+          <div class="card-head">
+            <div class="card-title-row">
+              <p class="card-title">Preparation checklist</p>
+              <span class="pill">3 items</span>
+            </div>
+            <p class="card-text">Stay ahead of labs, notes, and imaging bookings.</p>
+          </div>
+          <ul class="prep-list">
+            <li class="prep-item">
+              <div>
+                <p class="prep-title">Review labs before noon</p>
+                <p class="prep-text">CBC and lipid panel for morning cohort.</p>
+              </div>
+              <span class="pill">Due 11:30</span>
+            </li>
+            <li class="prep-item">
+              <div>
+                <p class="prep-title">Share prep notes</p>
+                <p class="prep-text">Send visit summaries to nursing team.</p>
+              </div>
+              <span class="pill green">Ready</span>
+            </li>
+            <li class="prep-item">
+              <div>
+                <p class="prep-title">Confirm imaging slots</p>
+                <p class="prep-text">Two patients require chest CT scheduling.</p>
+              </div>
+              <span class="pill blue">Pending</span>
+            </li>
+          </ul>
+        </article>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="./script.js"></script>
+</body>
+</html>
+

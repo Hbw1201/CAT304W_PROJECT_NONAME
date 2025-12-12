@@ -1,0 +1,84 @@
+:root {
+  --sidebar-width: 280px;
+  --layout-padding: 24px;
+  --layout-gap: 24px;
+  --sidebar-radius: 28px;
+  --main-radius: 32px;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow-y: auto; /* 【修改】恢复整页纵向滚动 */
+  overflow-x: hidden; /* 【新增】禁止横向滚动 */
+}
+
+.page-layout {
+  display: flex;
+  width: 100%;
+  padding: var(--layout-padding);
+  gap: var(--layout-gap);
+  box-sizing: border-box;
+  align-items: flex-start; /* 【修改】避免拉伸锁死高度 */
+  min-width: 0; /* 【保留】防止子元素在 flex 下撑爆 */
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  height: calc(100vh - (var(--layout-padding) * 2)); /* 【修改】贴合视口高度减去外边距 */
+  max-height: calc(100vh - (var(--layout-padding) * 2)); /* 【修改】限制最大高度 */
+  flex: 0 0 var(--sidebar-width); /* 【保留】固定宽度且不压缩 */
+  position: sticky;
+  top: var(--layout-padding); /* 【修改】随外层留白贴顶 */
+  overflow-y: auto;
+  border-radius: var(--sidebar-radius);
+  padding: 24px 20px;
+  background: linear-gradient(150deg, #08131f 0%, #0f2238 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 30px 70px rgba(5, 15, 30, 0.55);
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.main-content {
+  flex: 1; /* 【保留】可伸展区域 */
+  min-width: 0; /* 【保留】防止内容挤压布局 */
+  height: auto; /* 【修改】整页滚动，不锁定视口高度 */
+  max-height: none; /* 【修改】解除高度上限 */
+  overflow: visible; /* 【修改】由整页承担滚动 */
+  overflow-x: hidden; /* 【保留】兜底防止子元素撑出横向滚动 */
+  border-radius: var(--main-radius);
+  box-sizing: border-box;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 900px) {
+  .page-layout {
+    --layout-padding: 16px;
+    --layout-gap: 16px;
+    padding: var(--layout-padding);
+    gap: var(--layout-gap);
+  }
+}

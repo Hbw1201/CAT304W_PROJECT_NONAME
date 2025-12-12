@@ -1,0 +1,541 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Osler Dashboard</title>
+  <script>
+    const role = localStorage.getItem("userRole");
+    if (!role) {
+      window.location.href = "../login.html";
+    } else if (role !== "patient") {
+      window.location.href = "../doctor/dashboard.html";
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../dashboard.css">
+  <link rel="stylesheet" href="../shared-layout.css">
+</head>
+<body class="dash-body">
+  <div class="page-layout">
+    <aside class="sidebar">
+      <div class="brand-row">
+        <div class="brand-mark" id="brand-avatar">O</div>
+        <span class="brand-name" id="brand-name">osler</span>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title">Primary Menu</div>
+        <ul class="nav-list">
+          <li>
+            <a class="nav-item active" href="dashboard.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 11.5 12 4l9 7.5v7a1.5 1.5 0 0 1-1.5 1.5H4.5A1.5 1.5 0 0 1 3 18.5v-7Z"/>
+                  <path d="M9 21V12h6v9"/>
+                </svg>
+              </span>
+              Dashboard
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="report.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16v16H4z" />
+                  <path d="M8 8h8M8 12h5M8 16h3" />
+                </svg>
+              </span>
+              Report
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="chatbot.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16v12H5.5L4 18V4Z" />
+                  <path d="M8 9h8M8 12h5" />
+                </svg>
+              </span>
+              Chatbot
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="question.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M9.5 10.5a2.5 2.5 0 1 1 5 0c0 2-2.5 2-2.5 4" />
+                  <path d="M12 17h.01" />
+                </svg>
+              </span>
+              Question
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="appointment.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="4" y="4" width="16" height="16" rx="4" />
+                  <path d="M8 7v4h4M10 11v6" />
+                </svg>
+              </span>
+              Appointment
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="screening.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="4" width="14" height="16" rx="3" />
+                  <path d="M9 8h6M9 12h3" />
+                  <path d="M9 15.5 11 17l4-5" />
+                </svg>
+              </span>
+              screening
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="nav-group settings">
+        <div class="nav-title">Settings</div>
+        <ul class="nav-list">
+          <li>
+            <a class="nav-item" href="index.html" id="logout-link">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                  <polyline points="10 17 15 12 10 7"/>
+                  <line x1="15" y1="12" x2="3" y2="12"/>
+                </svg>
+              </span>
+              Logout
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="profile.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="7" r="4"/>
+                  <path d="M5 21a7 7 0 0 1 14 0"/>
+                </svg>
+              </span>
+              Profile Settings
+            </a>
+          </li>
+        </ul>
+      </div>
+
+    </aside>
+
+    <main class="main-content main-panel">
+      <section class="card hero overview-card">
+        <div class="overview-top">
+          <div>
+            <p class="eyebrow">Lung Health Overview</p>
+            <p class="lede">Overall status: Stable 路 Low risk</p>
+            <div class="chip-row">
+              <span class="chip success">Lung status: Stable</span>
+              <span class="chip calm">Risk level: Low</span>
+              <span class="chip ghost">Recommendation: Follow-up within 3 months</span>
+            </div>
+          </div>
+          <div class="health-score" aria-hidden="true">
+            <div class="ring">
+              <div class="ring-center">
+                <p class="score-number">82</p>
+                <p class="score-label">Health score</p>
+              </div>
+            </div>
+            <p class="meta">Based on recent CT, questionnaire, and follow-up data</p>
+          </div>
+        </div>
+        <div class="overview-stats">
+          <div class="stat-block">
+            <p class="label">Last screening</p>
+            <p class="value">2025-04-10</p>
+            <p class="meta">Low-dose CT 路 No suspicious nodules</p>
+          </div>
+          <div class="stat-block">
+            <p class="label">Next step</p>
+            <p class="value">Update questionnaire</p>
+            <p class="meta">About 5 minutes</p>
+          </div>
+          <div class="stat-block">
+            <p class="label">Follow-up cycle</p>
+            <p class="value">Week 2 / 8 weeks</p>
+            <div class="progress mini"><div class="progress-fill" style="width: 25%;"></div></div>
+          </div>
+          <div class="stat-block">
+            <p class="label">Smoke-free days</p>
+            <p class="value">36 days</p>
+            <p class="meta">Keep going; lung function is recovering</p>
+          </div>
+        </div>
+        <div class="hero-pattern" aria-hidden="true"></div>
+      </section>
+
+      <section class="grid-row flow-reminder">
+        <article class="card flow-card">
+          <div class="card-head">
+            <p class="value">Screening flow</p>
+            <span class="pill ghost small">Progress 3 / 6</span>
+          </div>
+          <div class="flow-progress" style="--flow-progress: 58%;">
+            <div class="flow-step done">
+              <span class="flow-dot"></span>
+              <p class="flow-title">Questionnaire</p>
+              <p class="meta">Done 路 2025-04-02</p>
+            </div>
+            <div class="flow-step done">
+              <span class="flow-dot"></span>
+              <p class="flow-title">Appointment</p>
+              <p class="meta">Hospital locked in</p>
+            </div>
+            <div class="flow-step active">
+              <span class="flow-dot"></span>
+              <p class="flow-title">CT scan</p>
+              <p class="meta">Scheduled: Jul 22</p>
+            </div>
+            <div class="flow-step">
+              <span class="flow-dot"></span>
+              <p class="flow-title">AI analysis</p>
+              <p class="meta">Awaiting image upload</p>
+            </div>
+            <div class="flow-step">
+              <span class="flow-dot"></span>
+              <p class="flow-title">Doctor review</p>
+              <p class="meta">Scheduling</p>
+            </div>
+            <div class="flow-step">
+              <span class="flow-dot"></span>
+              <p class="flow-title">Follow-up</p>
+              <p class="meta">Track symptoms and meds</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card reminder-card">
+          <div class="card-head">
+            <p class="value">Next screening reminder</p>
+            <a class="primary-btn" href="appointment.html">Book now</a>
+          </div>
+          <div class="reminder-body">
+            <p class="lede small">Suggested: 2025-08-12 (Tue morning)</p>
+            <p class="meta">Based on last low-dose CT, please recheck within 3 months.</p>
+            <div class="reminder-tags">
+              <span class="chip success">No abnormal symptoms in past 30 days</span>
+              <span class="chip calm">Choose a nearby tertiary hospital</span>
+            </div>
+            <div class="next-slot">
+              <div>
+                <p class="label">Earliest slot</p>
+                <p class="value">Jul 22 路 09:30-10:00</p>
+                <p class="meta">Shanghai Pulmonary Hospital</p>
+              </div>
+              <button class="pill plain">Reschedule</button>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="grid-row meds-advice">
+        <article class="card med-card">
+          <div class="card-head">
+            <div>
+              <p class="value">Medication reminders</p>
+              <p class="meta">Today 2 / 3 done</p>
+            </div>
+            <span class="pill ghost small">Daily list</span>
+          </div>
+          <ul class="med-list">
+            <li class="med-item done">
+              <span class="med-check" aria-hidden="true">&#10003;</span>
+              <div>
+                <p class="flow-title">Acetylcysteine 200mg</p>
+                <p class="meta">08:00 路 With warm water</p>
+              </div>
+              <span class="pill muted">Taken</span>
+            </li>
+            <li class="med-item done">
+              <span class="med-check" aria-hidden="true">&#10003;</span>
+              <div>
+                <p class="flow-title">Salbutamol nebulization 脳1</p>
+                <p class="meta">12:30 路 After lunch</p>
+              </div>
+              <span class="pill muted">Done</span>
+            </li>
+            <li class="med-item pending">
+              <span class="med-check" aria-hidden="true">&#9675;</span>
+              <div>
+                <p class="flow-title">Vitamin D3 800IU</p>
+                <p class="meta">21:00 路 Before bed 路 Log in follow-up</p>
+              </div>
+              <button class="pill plain">Mark taken</button>
+            </li>
+          </ul>
+          <div class="meta note">If chest tightness, palpitations, or nausea occur, pause and contact your doctor.</div>
+        </article>
+
+        <article class="card advice-card">
+          <div class="card-head">
+            <p class="value">AI Personalized Health Tips</p>
+            <span class="pill plain">Based on recent habits</span>
+          </div>
+          <ul class="advice-list">
+            <li>
+              <div class="advice-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2v20m6-10H6"/>
+                </svg>
+              </div>
+              <div>
+                <p class="flow-title">Smoking cessation tracking</p>
+                <p class="meta">Smoke-free 36 days; cravings may peak for ~1 more week. Use sugar-free gum as a substitute.</p>
+              </div>
+            </li>
+            <li>
+              <div class="advice-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 3h6l1 7H8l1-7Z"/><path d="M5 21h14l-2-11H7L5 21Z"/>
+                </svg>
+              </div>
+              <div>
+                <p class="flow-title">Activity suggestion</p>
+                <p class="meta">Fast walk 30 mins, 3x per week; keep heart rate under 120 bpm.</p>
+              </div>
+            </li>
+            <li>
+              <div class="advice-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 12a8 8 0 1 1 16 0c0 2-1 3-2 4l-6 6-6-6c-1-1-2-2-2-4Z"/>
+                  <path d="M9.5 10.5a2.5 2.5 0 1 1 5 0c0 2-2.5 2-2.5 4"/>
+                </svg>
+              </div>
+              <div>
+                <p class="flow-title">Sleep & mood</p>
+                <p class="meta">Sleep before 23:30; if coughing >3 times at night, log it in follow-up.</p>
+              </div>
+            </li>
+            <li>
+              <div class="advice-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 9a8 8 0 0 1 16 0v8a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V9Z"/>
+                  <path d="M9 10h6M9 13h6"/>
+                </svg>
+              </div>
+              <div>
+                <p class="flow-title">Home environment</p>
+                <p class="meta">Air out twice daily for 10 minutes; avoid kitchen fumes buildup.</p>
+              </div>
+            </li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="grid-row knowledge-report">
+        <article class="card knowledge-card">
+          <div class="card-head">
+            <p class="value">Health knowledge cards</p>
+            <span class="pill ghost small">Featured</span>
+          </div>
+          <div class="knowledge-grid">
+            <div class="knowledge-tile">
+              <p class="flow-title">What is a lung nodule?</p>
+              <p class="meta">A focal shadow 鈮?cm. Most are benign inflammatory or fibrous nodules; growth rate and density inform risk.</p>
+              <button class="pill plain">View details</button>
+            </div>
+            <div class="knowledge-tile">
+              <p class="flow-title">Low-dose CT basics</p>
+              <p class="meta">About 1/5 the radiation of standard CT; helps find tiny lesions early. Annual scan suggested for checkup populations.</p>
+              <button class="pill plain">Review follow-up frequency</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card report-card">
+          <div class="card-head">
+            <p class="value">Latest reports preview</p>
+            <a class="pill plain" href="report.html">View all</a>
+          </div>
+          <ul class="report-list">
+            <li>
+              <div>
+                <p class="flow-title">AI image analysis</p>
+                <p class="meta">2025-04-10 路 Max nodule 2.8mm, soft density, no suspicious vascular pattern.</p>
+              </div>
+              <span class="chip success">Low risk</span>
+            </li>
+            <li>
+              <div>
+                <p class="flow-title">Doctor interpretation</p>
+                <p class="meta">2025-04-11 路 Recheck in 3 months + log symptoms; no invasive workup recommended.</p>
+              </div>
+              <span class="chip calm">In follow-up</span>
+            </li>
+          </ul>
+        </article>
+      </section>
+
+      <aside class="right-rail">
+      <div class="profile card dark">
+        <div class="profile-top">
+          <div class="avatar large">B</div>
+          <div>
+            <p class="value">Bocchi The Rock</p>
+            <div class="tag-row">
+              <span class="tag success">87% Healthy</span>
+              <span class="tag pro">PRO</span>
+            </div>
+          </div>
+          <button class="icon-btn ghost" aria-label="Open profile menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m6 9 6 6 6-6"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="calendar">
+          <div class="cal-head">
+            <span class="value">July 2025</span>
+            <div class="cal-nav">
+              <button class="pill ghost">&larr;</button>
+              <button class="pill ghost">&rarr;</button>
+            </div>
+          </div>
+          <div class="cal-days">
+            <div class="day muted">
+              <span>Mon</span><strong>12</strong>
+            </div>
+            <div class="day active">
+              <span>Tue</span><strong>13</strong>
+            </div>
+            <div class="day muted">
+              <span>Wed</span><strong>14</strong>
+            </div>
+            <div class="day muted">
+              <span>Thu</span><strong>15</strong>
+            </div>
+            <div class="day muted">
+              <span>Fri</span><strong>16</strong>
+            </div>
+            <div class="day muted">
+              <span>Sat</span><strong>17</strong>
+            </div>
+            <div class="day muted">
+              <span>Sun</span><strong>18</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="upcoming">
+          <div class="card-head tight">
+            <span class="value">Upcoming Appointments</span>
+            <a class="see-all" href="#">See All</a>
+          </div>
+          <ul class="appt-list">
+            <li>
+              <div class="icon-pill">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 6c-7 0-9 3-9 6s2 6 9 6 9-3 9-6-2-6-9-6Z"/>
+                  <path d="M12 6v12"/>
+                </svg>
+              </div>
+              <div>
+                <p class="value">General Checkup Dr. White</p>
+                <p class="meta">Cardiologist 路 242m</p>
+              </div>
+              <button class="icon-btn ghost">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m9 18 6-6-6-6"/>
+                </svg>
+              </button>
+            </li>
+            <li>
+              <div class="icon-pill">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2v20m10-10H2"/>
+                </svg>
+              </div>
+              <div>
+                <p class="value">Regular Meeting with Dr. Phos</p>
+                <p class="meta">Neurologist 路 1.2km</p>
+              </div>
+              <button class="icon-btn ghost">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m9 18 6-6-6-6"/>
+                </svg>
+              </button>
+            </li>
+            <li>
+              <div class="icon-pill">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6 4h12a2 2 0 0 1 2 2v13l-4-3-4 3-4-3-4 3V6a2 2 0 0 1 2-2Z"/>
+                </svg>
+              </div>
+              <div>
+                <p class="value">Regular Meeting with Dr. Green</p>
+                <p class="meta">Pediatrics 路 52km</p>
+              </div>
+              <button class="icon-btn ghost">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m9 18 6-6-6-6"/>
+                </svg>
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <div class="upgrade card dark">
+          <div class="upgrade-body">
+            <div class="badge">Pro Upgrade</div>
+            <p class="value">Unlimited AI Chatbot Now!</p>
+            <p class="meta">Get faster responses and richer insights for every visit.</p>
+            <button class="cta">Go Pro!</button>
+          </div>
+          <div class="bot" aria-hidden="true">
+            <div class="bot-face"></div>
+            <div class="bot-body"></div>
+          </div>
+        </div>
+      </div>
+      </aside>
+    </main>
+  </div>
+  <script>
+    (function () {
+      const profile = (() => {
+        try {
+          return JSON.parse(localStorage.getItem("userProfile") || "null");
+        } catch {
+          return null;
+        }
+      })();
+      const name = (profile?.name || "osler").trim() || "osler";
+      const initial = name.charAt(0).toUpperCase() || "O";
+      const brandName = document.getElementById("brand-name");
+      const brandAvatar = document.getElementById("brand-avatar");
+      if (brandName) brandName.textContent = name;
+      if (brandAvatar) brandAvatar.textContent = initial;
+
+      const logoutLink = document.getElementById("logout-link");
+      logoutLink?.addEventListener("click", (e) => {
+        e.preventDefault();
+        localStorage.clear();
+        window.location.href = "index.html";
+      });
+    })();
+
+    const navItems = document.querySelectorAll(".nav-item");
+    navItems.forEach((item) => {
+      item.addEventListener("click", () => {
+        navItems.forEach((el) => el.classList.remove("active"));
+        item.classList.add("active");
+      });
+    });
+  </script>
+</body>
+</html>

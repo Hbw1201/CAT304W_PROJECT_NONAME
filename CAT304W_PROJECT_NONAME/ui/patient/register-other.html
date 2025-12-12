@@ -1,0 +1,88 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Account (For Others) | MAQ-SCREEN</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="../login.css">
+</head>
+<body class="auth-body">
+  <div class="auth-shell">
+    <div class="auth-card">
+      <div class="auth-header">
+        <h1>Create Account for Someone Else</h1>
+        <p>Enter the patient details you are registering for.</p>
+      </div>
+      <form class="auth-form" id="registerOtherForm">
+        <label class="field">
+          <span>Patient Name</span>
+          <input type="text" id="patientNameOther" name="patientName" autocomplete="name" placeholder="John Doe" required>
+        </label>
+        <label class="field">
+          <span>Email</span>
+          <input type="email" id="registerEmailOther" name="email" autocomplete="email" placeholder="patient@example.com" required>
+        </label>
+        <label class="field">
+          <span>Gender</span>
+          <select id="genderOther" name="gender" class="select" required>
+            <option value="" disabled selected>Select gender</option>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Relationship to Patient</span>
+          <select id="relationshipOther" name="relationship" class="select" required>
+            <option value="" disabled selected>Select relationship</option>
+            <option>Father</option>
+            <option>Mother</option>
+            <option>Son</option>
+            <option>Daughter</option>
+            <option>Grandfather</option>
+            <option>Grandmother</option>
+            <option>Grandson</option>
+            <option>Granddaughter</option>
+            <option>Brother</option>
+            <option>Sister</option>
+            <option>Relative</option>
+            <option>Friend</option>
+            <option>Other</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Age</span>
+          <input type="number" id="ageOther" name="age" min="0" max="120" inputmode="numeric" placeholder="e.g. 60" required>
+        </label>
+        <label class="field">
+          <span>Height (cm)</span>
+          <input type="number" id="heightOther" name="height" min="50" max="250" step="0.1" inputmode="decimal" placeholder="e.g. 168" required>
+        </label>
+        <label class="field">
+          <span>Weight (kg)</span>
+          <input type="number" id="weightOther" name="weight" min="1" max="400" step="0.1" inputmode="decimal" placeholder="e.g. 70.0" required>
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input type="password" id="registerPasswordOther" name="password" autocomplete="new-password" placeholder="********" required>
+        </label>
+        <label class="field">
+          <span>Confirm Password</span>
+          <input type="password" id="confirmPasswordOther" name="confirm" autocomplete="new-password" placeholder="********" required>
+        </label>
+        <label class="field" style="flex-direction: row; align-items: center; gap: 10px;">
+          <input type="checkbox" id="termsOther" name="terms" style="width:18px;height:18px;" required>
+          <span>I agree to the Terms &amp; Privacy Policy.</span>
+        </label>
+        <button type="submit" class="btn-primary">Create Account</button>
+        <button type="button" class="btn-ghost" onclick="window.location.href='../login.html'">Back to Login</button>
+      </form>
+    </div>
+  </div>
+  <script type="module" src="../script.js"></script>
+</body>
+</html>

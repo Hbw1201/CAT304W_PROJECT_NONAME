@@ -1,0 +1,397 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Osler Chatbot</title>
+  <script>
+    const role = localStorage.getItem("userRole");
+    if (!role) {
+      window.location.href = "../login.html";
+    } else if (role !== "patient") {
+      window.location.href = "../doctor/dashboard.html";
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../dashboard.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <!-- 璁╁姪鎵嬫秷鎭洿鏄撹鐨勭畝鍗曟牱寮?-->
+  <style>
+    .chat-bubble.assistant {
+      line-height: 1.6;
+    }
+    .chat-bubble.assistant p {
+      margin: 0.35rem 0;
+    }
+    .chat-bubble.assistant ul,
+    .chat-bubble.assistant ol {
+      padding-left: 1.3rem;
+      margin: 0.35rem 0;
+    }
+  </style>
+  <link rel="stylesheet" href="../shared-layout.css">
+  <link rel="stylesheet" href="chatbot.css">
+</head>
+<body class="dash-body">
+  <div class="page-layout">
+    <aside class="sidebar">
+      <div class="brand-row">
+        <div class="brand-mark" id="brand-avatar">O</div>
+        <span class="brand-name" id="brand-name">osler</span>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title">Primary Menu</div>
+        <ul class="nav-list">
+          <li>
+            <a class="nav-item" href="dashboard.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 11.5 12 4l9 7.5v7a1.5 1.5 0 0 1-1.5 1.5H4.5A1.5 1.5 0 0 1 3 18.5v-7Z"/>
+                  <path d="M9 21V12h6v9"/>
+                </svg>
+              </span>
+              Dashboard
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="report.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16v16H4z" />
+                  <path d="M8 8h8M8 12h5M8 16h3" />
+                </svg>
+              </span>
+              Report
+            </a>
+          </li>
+          <li>
+            <a class="nav-item active" href="chatbot.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16v12H5.5L4 18V4Z" />
+                  <path d="M8 9h8M8 12h5" />
+                </svg>
+              </span>
+              Chatbot
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="question.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M9.5 10.5a2.5 2.5 0 1 1 5 0c0 2-2.5 2-2.5 4" />
+                  <path d="M12 17h.01" />
+                </svg>
+              </span>
+              Question
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="appointment.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="4" y="4" width="16" height="16" rx="4" />
+                  <path d="M8 7v4h4M10 11v6" />
+                </svg>
+              </span>
+              Appointment
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="screening.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="4" width="14" height="16" rx="3" />
+                  <path d="M9 8h6M9 12h3" />
+                  <path d="M9 15.5 11 17l4-5" />
+                </svg>
+              </span>
+              screening
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="nav-group settings">
+        <div class="nav-title">Settings</div>
+        <ul class="nav-list">
+          <li>
+            <a class="nav-item" href="index.html" id="logout-link">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                  <polyline points="10 17 15 12 10 7"/>
+                  <line x1="15" y1="12" x2="3" y2="12"/>
+                </svg>
+              </span>
+              Logout
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="profile.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="7" r="4"/>
+                  <path d="M5 21a7 7 0 0 1 14 0"/>
+                </svg>
+              </span>
+              Profile Settings
+            </a>
+          </li>
+        </ul>
+      </div>
+
+    </aside>
+
+    <main class="main-content main-panel">
+      <section class="card hero">
+        <div>
+          <p class="eyebrow">Chatbot</p>
+          <p class="lede">LungCare AI Assistant - Evidence-based lung cancer screening guidance.</p>
+        </div>
+        <div class="hero-pattern" aria-hidden="true"></div>
+      </section>
+
+      <section class="card chat-shell">
+        <div class="chat-header">
+          <div>
+            <p class="value">LungCare AI Assistant</p>
+            <p class="label">Friendly, concise answers about lung health, screening, and next steps.</p>
+          </div>
+          <span class="pill plain">Live</span>
+        </div>
+
+        <div class="chat-body" id="chatMessages" aria-live="polite">
+          <div class="chat-suggestions" id="chat-suggestions">
+            <button type="button" class="pill plain" data-question="Am I at risk for lung cancer?">Am I at risk for lung cancer?</button>
+            <button type="button" class="pill plain" data-question="How is lung cancer detected?">How is lung cancer detected?</button>
+            <button type="button" class="pill plain" data-question="What does a lung nodule mean?">What does a lung nodule mean?</button>
+            <button type="button" class="pill plain" data-question="What should I do after a CT scan?">What should I do after a CT scan?</button>
+          </div>
+        </div>
+
+        <form class="chat-footer" id="chat-form">
+          <textarea id="chatInput" name="message" rows="1" placeholder="Ask anything about lung cancer screening or your lung health..." autocomplete="off" required></textarea>
+          <button class="pill" id="chatSend" type="submit">Send</button>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <script>
+  (function () {
+    const profile = (() => {
+      try {
+        return JSON.parse(localStorage.getItem("userProfile") || "null");
+      } catch {
+        return null;
+      }
+    })();
+    const name = (profile?.name || "osler").trim() || "osler";
+    const initial = name.charAt(0).toUpperCase() || "O";
+    const brandName = document.getElementById("brand-name");
+    const brandAvatar = document.getElementById("brand-avatar");
+    if (brandName) brandName.textContent = name;
+    if (brandAvatar) brandAvatar.textContent = initial;
+
+    const logoutLink = document.getElementById("logout-link");
+    logoutLink?.addEventListener("click", (e) => {
+      e.preventDefault();
+      localStorage.clear();
+      window.location.href = "index.html";
+    });
+
+    const form = document.getElementById('chat-form');
+    const input = document.getElementById('chatInput');
+    const messagesEl = document.getElementById('chatMessages');
+    const suggestionsEl = document.getElementById('chat-suggestions');
+    const sendBtn = document.getElementById('chatSend') || form?.querySelector('button');
+    let isSending = false;
+    const messages = [];
+
+    // 棣栨潯娆㈣繋璇紙Markdown锛?
+    const initialAssistantMarkdown = `
+Hi, I am **LungCare AI Assistant**. I can help with lung cancer screening questions and next steps.
+
+- What I can do: explain screening, CT findings, risk factors, and follow-up options.
+- What I cannot do: give personal diagnoses, replace your doctor, or review imaging directly.
+- Tip: share your context (age, smoking history, recent scans) for more tailored guidance.
+
+How can I help today?
+    `.trim();
+
+    const renderMarkdown = (text) => {
+      const safe = text || '';
+      try {
+        return marked.parse(safe);
+      } catch {
+        return safe.replace(/\n/g, '<br>');
+      }
+    };
+
+    const scrollChatToBottom = () => {
+      if (!messagesEl) return;
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    };
+
+    const appendMessage = (role, text, options = {}) => {
+      if (!messagesEl) return null;
+      const row = document.createElement('div');
+      row.className = `chat-row ${role}`;
+
+      const avatar = document.createElement('div');
+      avatar.className = 'chat-avatar';
+      avatar.textContent = role === 'assistant' ? 'AI' : initial;
+
+      const bubble = document.createElement('div');
+      bubble.className = `chat-bubble ${role}`;
+
+      if (options.thinking) {
+        // 馃煝 AI 鎬濊€冧腑鐨勪笁涓皬鐐瑰姩鐢?
+        bubble.innerHTML = `
+          <div class="typing-indicator">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+          </div>
+        `;
+      } else if (options.plain) {
+        // 绾枃鏈?
+        bubble.textContent = text;
+      } else if (role === 'assistant') {
+        // 鎵€鏈夊姪鎵嬫秷鎭敤 Markdown 娓叉煋
+        bubble.innerHTML = renderMarkdown(text);
+      } else {
+        // 鐢ㄦ埛娑堟伅锛氱函鏂囨湰
+        bubble.textContent = text;
+      }
+
+      row.appendChild(avatar);
+      row.appendChild(bubble);
+      messagesEl.appendChild(row);
+      scrollChatToBottom();
+      return { row, bubble };
+    };
+
+    const ensureInitialMessage = () => {
+      if (!messages.length) {
+        messages.push({ role: 'assistant', content: initialAssistantMarkdown });
+        appendMessage('assistant', initialAssistantMarkdown);
+      }
+    };
+
+    const parseReply = (payload) => {
+      if (!payload) return '';
+      return (
+        payload.reply ||
+        payload.message ||
+        payload.output?.text ||
+        payload.output?.choices?.[0]?.message?.content ||
+        payload.choices?.[0]?.message?.content ||
+        ''
+      );
+    };
+
+    const sendToBackend = async () => {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ messages }),
+      });
+
+      const contentType = res.headers.get('content-type') || '';
+      const data = contentType.includes('application/json') ? await res.json() : await res.text();
+
+      if (!res.ok) {
+        const message = typeof data === 'string' ? data : data?.message || data?.error || `HTTP ${res.status}`;
+        throw new Error(message);
+      }
+
+      const reply = typeof data === 'string' ? data : parseReply(data);
+      if (!reply) throw new Error('No text was returned by the assistant.');
+      return reply;
+    };
+
+    const hideSuggestions = () => {
+      suggestionsEl?.classList.add('hidden');
+    };
+
+    const handleSubmit = async (text) => {
+      const trimmed = text.trim();
+      if (!trimmed || isSending) return;
+      hideSuggestions();
+
+      messages.push({ role: 'user', content: trimmed });
+      appendMessage('user', trimmed);
+
+      input.value = '';
+      autoResize();
+
+      isSending = true;
+      sendBtn?.setAttribute('disabled', 'true');
+
+      // 鍗犱綅绗︼細鎵撳瓧鍔ㄧ敾
+      const placeholder = appendMessage('assistant', '', { thinking: true });
+
+      try {
+        const reply = await sendToBackend();
+        messages.push({ role: 'assistant', content: reply });
+        if (placeholder?.bubble) {
+          // 鎶婂崰浣嶇鏇挎崲鎴?Markdown 娓叉煋鍚庣殑鐪熸鍥炵瓟
+          placeholder.bubble.innerHTML = renderMarkdown(reply);
+        }
+      } catch (err) {
+        const message = err?.message || String(err);
+        if (placeholder?.bubble) {
+          placeholder.bubble.textContent = `Sorry, something went wrong: ${message}`;
+        }
+      } finally {
+        scrollChatToBottom();
+        isSending = false;
+        sendBtn?.removeAttribute('disabled');
+        input?.focus();
+      }
+    };
+
+    const autoResize = () => {
+      if (!input) return;
+      input.style.height = 'auto';
+      input.style.height = `${Math.min(input.scrollHeight, 160)}px`;
+    };
+
+    suggestionsEl?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-question]');
+      if (!btn) return;
+      const question = btn.getAttribute('data-question') || '';
+      handleSubmit(question);
+    });
+
+    input?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSubmit(input.value);
+      } else {
+        setTimeout(autoResize, 0);
+      }
+    });
+
+    form?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      handleSubmit(input?.value || '');
+    });
+
+    ensureInitialMessage();
+    scrollChatToBottom();
+    autoResize();
+  })();
+</script>
+</body>
+</html>
