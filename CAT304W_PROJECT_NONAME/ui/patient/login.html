@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patient Login | Osler AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="../login.css">
+</head>
+<body class="auth-body">
+  <div class="auth-shell">
+    <section class="auth-hero">
+      <div class="hero-glow"></div>
+      <p class="hero-eyebrow">Osler AI platform</p>
+      <h1>Welcome back.</h1>
+      <p class="hero-text">
+        Continue your lung screening journey, review assessments, and stay in touch with your care team.
+      </p>
+      <ul class="hero-highlights">
+        <li>Secure screening history and appointments.</li>
+        <li>Share updates with your assigned doctor.</li>
+        <li>Download and review AI-generated reports.</li>
+      </ul>
+    </section>
+
+    <div class="auth-card">
+      <div class="auth-header">
+        <h1>Patient Sign In</h1>
+        <p>Use the email and password from your registration.</p>
+      </div>
+      <form class="auth-form" id="loginForm">
+        <label class="field">
+          <span>Email</span>
+          <input type="email" id="email" name="email" autocomplete="username" placeholder="you@example.com" required>
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input type="password" id="password" name="password" autocomplete="current-password" placeholder="********" required>
+        </label>
+        <button id="loginBtn" type="button" class="btn-primary login-btn">Login</button>
+        <button type="button" class="btn-ghost" onclick="window.location.href='register.html'">Create Account</button>
+        <div class="auth-footer-link">
+          <a href="forgot.html">Forgot password?</a>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script type="module" src="./firebase-config.js"></script>
+  <script type="module" src="../script.js"></script>
+</body>
+</html>

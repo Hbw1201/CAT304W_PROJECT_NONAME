@@ -16,6 +16,10 @@ const fetchFn =
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(UI_DIR));
 
+app.get('/health', (req, res) => {
+  return res.json({ status: 'ok', port: Number(PORT) });
+});
+
 app.post('/api/chat', async (req, res) => {
   try {
     if (!API_KEY || !APP_ID) {
@@ -85,6 +89,6 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+app.listen(PORT, '127.0.0.1', () => {
+  console.log(`Server running on http://127.0.0.1:${PORT}`);
 });

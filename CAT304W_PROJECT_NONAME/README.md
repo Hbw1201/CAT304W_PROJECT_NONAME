@@ -35,6 +35,35 @@ Osler AI（MAQ-SCREEN）是一个远程医疗风格的 AI 助手前端，涵盖�
 4. Visit `http://localhost:3000` (or your chosen port) and use the landing "Start" button to begin.  
    在浏览器打开本地域名，点击首页 "Start" 进入流程。
 
+
+
+## Screening Backend Integration
+The patient screening workflow now connects to the dedicated screening backend (Volcano ASR + MetaGPT). Run both services:
+
+1. **Screen backend**
+   ```bash
+   cd screen/feiaiagent
+   set SCREEN_PORT=5100  # use `export` on macOS/Linux
+   python app.py
+   ```
+   This exposes `/voice/*`, `/metagpt/*`, and `/health` on `http://127.0.0.1:5100`.
+
+2. **Main UI server**
+   ```bash
+   set PORT=8000
+   set SCREEN_BACKEND_URL=http://127.0.0.1:5100
+   python main.py
+   ```
+
+3. Browse `http://127.0.0.1:8000/patient/screening.html` for the patient experience (doctor UI is unaffected).
+
+Sample `.env` entries:
+```
+PORT=8000
+SCREEN_PORT=5100
+SCREEN_BACKEND_URL=http://127.0.0.1:5100
+```
+
 ## Firebase Notes / Firebase 说明
 - Auth: `login.html` and `register.html` call Firebase Auth; `register` writes a `users/{uid}` document with `{ uid, name, email, age, gender, riskLevel, createdAt }`.
 - Firestore/Storage: `firebase-config.js` exports shared instances; extend usage in feature pages as needed.

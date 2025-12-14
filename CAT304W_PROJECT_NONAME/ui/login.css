@@ -22,6 +22,8 @@ body.auth-body {
 }
 
 .auth-card {
+  position: relative;
+  z-index: 1;
   background: rgba(8, 29, 15, 0.82);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 28px;
@@ -276,6 +278,22 @@ body.auth-body {
   border-radius: inherit;
   border: 1px solid rgba(255, 255, 255, 0.05);
   pointer-events: none;
+}
+
+.auth-card::before,
+.auth-card::after,
+.auth-shell::before,
+.auth-shell::after,
+.auth-body::before,
+.auth-body::after {
+  pointer-events: none;
+}
+
+#loginBtn,
+.login-btn {
+  position: relative;
+  z-index: 5;
+  pointer-events: auto;
 }
 
 @media (max-width: 540px) {

@@ -144,9 +144,12 @@
         <div class="chat-head">
           <div>
             <p class="value">Voice screening Q&A</p>
-            <p class="label">Question is played aloud; answer by speaking, we鈥檒l transcribe it.</p>
+            <p class="label">Question is played aloud; answer by speaking and we'll transcribe it.</p>
           </div>
-          <span class="pill plain">Voice</span>
+          <div class="pill-row">
+            <span class="pill plain">Voice</span>
+            <button type="button" class="pill plain" id="metagptBtn">MetaGPT</button>
+          </div>
         </div>
 
         <div class="qa-window" id="qa-window">
@@ -155,19 +158,22 @@
               <span class="pill plain">Question</span>
               <button type="button" class="pill muted" id="play-question">Play</button>
             </div>
-            <p class="qa-text" id="qa-question">Please describe any symptoms or discomfort you felt in the last 24 hours.</p>
+            <p class="qa-text" id="questionText">Please describe any symptoms or discomfort you felt in the last 24 hours.</p>
           </div>
           <div class="qa-item answer">
             <div class="qa-meta">
               <span class="pill plain">Your answer</span>
               <span class="record-indicator" id="record-status">Idle</span>
             </div>
-            <p class="qa-text" id="qa-answer">Tap the mic and speak your answer. We鈥檒l show the transcription here.</p>
+            <p class="qa-text" id="qa-answer">Tap the mic and speak your answer. We'll show the transcription here.</p>
+            <textarea id="answerInput" class="answer-input" rows="3" placeholder="Or type your answer here..."></textarea>
           </div>
         </div>
 
+        <div id="screenError" class="error-text" aria-live="polite" style="display:none;"></div>
+
         <div class="qa-controls">
-          <button type="button" class="pill" id="record-toggle">馃帳 Start Recording</button>
+          <button type="button" class="pill" id="record-toggle">Start Recording</button>
           <button type="button" class="pill plain" id="next-question">Next Question</button>
         </div>
       </section>
@@ -201,82 +207,187 @@
       const recordBtn = document.getElementById('record-toggle');
       const statusEl = document.getElementById('record-status');
       const answerEl = document.getElementById('qa-answer');
-      const questionEl = document.getElementById('qa-question');
+      const answerInput = document.getElementById('answerInput');
+      const questionEl = document.getElementById('questionText');
       const nextBtn = document.getElementById('next-question');
 
-      const questions = [
+      const defaultQuestions = [
         'Please describe any symptoms or discomfort you felt in the last 24 hours.',
         'Have you experienced dizziness or shortness of breath recently?',
         'Rate your current pain level from zero to ten and describe where it is located.'
       ];
-      let qIndex = 0;
+      let defaultQuestionIndex = 0;
 
-      const speakQuestion = () => {
+      const state = {
+        voiceSessionId: null,
+        mediaStream: null,
+        mediaRecorder: null,
+        chunks: [],
+        recording: false
+      };
+
+      function showStatus(message, isError = false) {
+        statusEl.textContent = message;
+        statusEl.style.color = isError ? "#c0392b" : "";
+      }
+
+      function resetAnswerPlaceholder() {
+        answerEl.textContent = "Tap the mic and speak your answer. We'll show the transcription here.";
+        if (answerInput) {
+          answerInput.value = "";
+        }
+      }
+
+      function speakQuestion() {
         const text = questionEl?.textContent || '';
         if (!text || !window.speechSynthesis) return;
         const utter = new SpeechSynthesisUtterance(text);
         utter.lang = 'en-US';
         window.speechSynthesis.cancel();
         window.speechSynthesis.speak(utter);
-      };
-
-      const updateQuestion = () => {
-        qIndex = (qIndex + 1) % questions.length;
-        questionEl.textContent = questions[qIndex];
-        answerEl.textContent = 'Tap the mic and speak your answer. We鈥檒l show the transcription here.';
-        statusEl.textContent = 'Idle';
-      };
-
-      let recognition;
-      let recognizing = false;
-      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SpeechRec();
-        recognition.continuous = false;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
-
-        recognition.onstart = () => {
-          recognizing = true;
-          statusEl.textContent = 'Listening...';
-          recordBtn.textContent = '鈻?Stop';
-        };
-        recognition.onend = () => {
-          recognizing = false;
-          statusEl.textContent = 'Idle';
-          recordBtn.textContent = '馃帳 Start Recording';
-        };
-        recognition.onresult = (event) => {
-          let transcript = '';
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript;
-          }
-          answerEl.textContent = transcript.trim() || 'Listening...';
-        };
-        recognition.onerror = () => {
-          recognizing = false;
-          statusEl.textContent = 'Error';
-          recordBtn.textContent = '馃帳 Start Recording';
-        };
       }
 
-      playBtn?.addEventListener('click', speakQuestion);
+      async function handleResponse(resp, path) {
+        let data = {};
+        try {
+          data = await resp.json();
+        } catch {
+          data = {};
+        }
+        if (!resp.ok || data?.ok === false) {
+          const msg = data?.error || data?.message || `Request failed (${resp.status})`;
+          console.error(`[API] ${path} error`, msg);
+          throw new Error(msg);
+        }
+        console.log(`[API] ${path}`, data);
+        return data;
+      }
 
-      recordBtn?.addEventListener('click', () => {
-        if (!recognition) {
-          statusEl.textContent = 'Speech recognition not supported';
+      async function postJson(path, payload) {
+        try {
+          const resp = await fetch(path, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload || {})
+          });
+          return await handleResponse(resp, path);
+        } catch (err) {
+          showStatus(err.message || "Request failed", true);
+          throw err;
+        }
+      }
+
+      async function postForm(path, formData) {
+        try {
+          const resp = await fetch(path, {
+            method: "POST",
+            body: formData
+          });
+          return await handleResponse(resp, path);
+        } catch (err) {
+          showStatus(err.message || "Upload failed", true);
+          throw err;
+        }
+      }
+
+      async function ensureMediaStream() {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error("Microphone access is not supported in this browser.");
+        }
+        if (!state.mediaStream) {
+          state.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        }
+      }
+
+      async function beginVoiceRecording() {
+        recordBtn.disabled = true;
+        try {
+          await ensureMediaStream();
+          const startResp = await postJson("/api/screen/voice/start", {
+            session_id: state.voiceSessionId,
+            language: "en"
+          });
+          state.voiceSessionId = startResp.session_id;
+
+          state.chunks = [];
+          state.mediaRecorder = new MediaRecorder(state.mediaStream, { mimeType: "audio/webm" });
+          state.mediaRecorder.ondataavailable = (evt) => {
+            if (evt.data && evt.data.size) state.chunks.push(evt.data);
+          };
+          state.mediaRecorder.onstop = handleRecordingStop;
+          state.mediaRecorder.start();
+          state.recording = true;
+          recordBtn.textContent = "Stop Recording";
+          showStatus("Recording...");
+        } catch (err) {
+          console.error("voice start error", err);
+          showStatus(err.message || "Unable to start recording", true);
+        } finally {
+          recordBtn.disabled = false;
+        }
+      }
+
+      async function handleRecordingStop() {
+        state.recording = false;
+        recordBtn.textContent = "Start Recording";
+        if (!state.chunks.length) {
+          showStatus("No audio captured", true);
           return;
         }
-        if (recognizing) {
-          recognition.stop();
-        } else {
-          recognition.start();
+        const blob = new Blob(state.chunks, { type: "audio/webm" });
+        const form = new FormData();
+        if (state.voiceSessionId) form.append("session_id", state.voiceSessionId);
+        form.append("audio", blob, "answer.webm");
+        try {
+          const data = await postForm("/api/screen/voice/stop", form);
+          const transcript = data.text?.trim() || "No speech detected.";
+          answerEl.textContent = transcript;
+          if (answerInput) {
+            answerInput.value = transcript;
+          }
+          showStatus("Transcription complete");
+        } catch (err) {
+          console.error("voice stop error", err);
+        } finally {
+          state.chunks = [];
         }
-      });
+      }
 
-      nextBtn?.addEventListener('click', updateQuestion);
+      async function stopVoiceRecording() {
+        if (!state.mediaRecorder) return;
+        state.recording = false;
+        recordBtn.disabled = true;
+        try {
+          state.mediaRecorder.stop();
+        } catch (err) {
+          showStatus("Unable to stop recorder", true);
+        } finally {
+          recordBtn.disabled = false;
+          recordBtn.textContent = "Start Recording";
+        }
+      }
+
+      async function handleRecordToggle() {
+        if (state.recording) {
+          await stopVoiceRecording();
+        } else {
+          await beginVoiceRecording();
+        }
+      }
+
+      function cycleDefaultQuestion() {
+        if (!questionEl) return;
+        defaultQuestionIndex = (defaultQuestionIndex + 1) % defaultQuestions.length;
+        questionEl.textContent = defaultQuestions[defaultQuestionIndex];
+        resetAnswerPlaceholder();
+        showStatus("Idle");
+      }
+
+      playBtn?.addEventListener("click", speakQuestion);
+      recordBtn?.addEventListener("click", handleRecordToggle);
+      nextBtn?.addEventListener("click", cycleDefaultQuestion);
     })();
   </script>
+  <script type="module" src="screening.metagpt.js"></script>
 </body>
 </html>
-

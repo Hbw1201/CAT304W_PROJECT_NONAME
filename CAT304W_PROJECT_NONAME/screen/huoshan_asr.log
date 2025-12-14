@@ -1,0 +1,409 @@
+2025-09-24 22:19:15,447 - __main__ - INFO - 成功加载火伞ASR
+2025-09-24 22:19:15,454 - config - INFO - ✅ 已加载配置文件: D:\feiaiagent_1.0\.env
+2025-09-24 22:19:15,476 - report_manager - INFO - 报告管理器初始化，保存目录: report
+2025-09-24 22:19:15,477 - config - INFO - ========== 配置自检 ==========
+2025-09-24 22:19:15,477 - config - INFO - ZHIPU_API_MODE = open_app_v3
+2025-09-24 22:19:15,477 - config - INFO - ZHIPU_APP_ID   = 1952963926488719360
+2025-09-24 22:19:15,477 - config - INFO - ZHIPU_API_KEY  = <set> (长度: 49)
+2025-09-24 22:19:15,477 - config - INFO - ZHIPU_MOCK     = False
+2025-09-24 22:19:15,477 - config - INFO - XFYUN_APPID    = 3536bab1
+2025-09-24 22:19:15,477 - config - INFO - XFYUN_APIKEY   = <set> (长度: 32)
+2025-09-24 22:19:15,477 - config - INFO - XFYUN_APISECRET = <set> (长度: 32)
+2025-09-24 22:19:15,477 - config - INFO - STATIC_DIR     = D:\feiaiagent_1.0\feiaiagent\static
+2025-09-24 22:19:15,477 - config - INFO - TTS_OUT_DIR    = D:\feiaiagent_1.0\feiaiagent\static\tts (exists=True)
+2025-09-24 22:19:15,477 - config - INFO - PLACEHOLDER_BEEP = D:\feiaiagent_1.0\feiaiagent\static\tts\beep.wav (exists=False)
+2025-09-24 22:19:15,477 - config - INFO - FFMPEG_PATH    = D:\ffmpeg-7.1.1-essentials_build\bin\ffmpeg.EXE
+2025-09-24 22:19:15,477 - config - INFO - ✅ 使用系统PATH中的FFMPEG: D:\ffmpeg-7.1.1-essentials_build\bin\ffmpeg.EXE
+2025-09-24 22:19:15,477 - config - INFO - SPEEXDEC_PATH  = <not found>
+2025-09-24 22:19:15,496 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8080
+ * Running on http://172.18.247.122:8080
+2025-09-24 22:19:15,496 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-09-24 22:19:18,253 - werkzeug - INFO - 127.0.0.1 - - [24/Sep/2025 22:19:18] "[36mGET / HTTP/1.1[0m" 304 -
+2025-09-24 22:19:18,261 - werkzeug - INFO - 127.0.0.1 - - [24/Sep/2025 22:19:18] "[36mGET /static/style.css?v=1.1 HTTP/1.1[0m" 304 -
+2025-09-24 22:19:18,381 - werkzeug - INFO - 127.0.0.1 - - [24/Sep/2025 22:19:18] "[36mGET /static/script.js?v=1.1 HTTP/1.1[0m" 304 -
+2025-09-24 22:19:18,693 - werkzeug - INFO - 127.0.0.1 - - [24/Sep/2025 22:19:18] "GET /api/questionnaire_status HTTP/1.1" 200 -
+2025-09-24 22:19:18,718 - werkzeug - INFO - 127.0.0.1 - - [24/Sep/2025 22:19:18] "GET /api/reports HTTP/1.1" 200 -
+2025-09-24 22:19:19,617 - __main__ - INFO - 🚀 开始初始化 MetaGPT 问卷工作流...
+2025-09-24 22:19:19,617 - __main__ - INFO - ✅ MetaGPT 路径已确认: D:\feiaiagent_1.0\feiaiagent\metagpt_questionnaire
+2025-09-24 22:19:19,628 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 问卷设计专家 DeepSeek配置加载成功
+2025-09-24 22:19:19,629 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 问卷设计专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-24 22:19:19,629 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 问卷设计专家
+2025-09-24 22:19:19,629 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 风险评估专家 DeepSeek配置加载成功
+2025-09-24 22:19:19,630 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 风险评估专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-24 22:19:19,630 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 风险评估专家
+2025-09-24 22:19:19,630 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 数据分析专家 DeepSeek配置加载成功
+2025-09-24 22:19:19,631 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 数据分析专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-24 22:19:19,631 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 数据分析专家
+2025-09-24 22:19:19,632 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 报告生成专家 DeepSeek配置加载成功
+2025-09-24 22:19:19,632 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 报告生成专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-24 22:19:19,632 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 报告生成专家
+2025-09-24 22:19:19,632 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能问题选择专家 DeepSeek配置加载成功
+2025-09-24 22:19:19,633 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 智能问题选择专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-24 22:19:19,633 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 智能问题选择专家
+2025-09-24 22:19:19,633 - __main__ - INFO - ✅ 核心模块导入成功
+2025-09-24 22:19:19,633 - metagpt_questionnaire.agents.base_agent - INFO - ✅ Dr. Aiden DeepSeek配置加载成功
+2025-09-24 22:19:19,634 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ Dr. Aiden 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-24 22:19:19,634 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: Dr. Aiden
+2025-09-24 22:19:19,640 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 答案审核专家 DeepSeek配置加载成功
+2025-09-24 22:19:19,640 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 答案审核专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-24 22:19:19,642 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 答案审核专家
+2025-09-24 22:19:19,642 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 问卷设计专家 DeepSeek配置加载成功
+2025-09-24 22:19:19,642 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 问卷设计专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-24 22:19:19,643 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 问卷设计专家
+2025-09-24 22:19:19,643 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 风险评估专家 DeepSeek配置加载成功
+2025-09-24 22:19:19,643 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 风险评估专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-24 22:19:19,643 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 风险评估专家
+2025-09-24 22:19:19,643 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 数据分析专家 DeepSeek配置加载成功
+2025-09-24 22:19:19,644 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 数据分析专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-24 22:19:19,644 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 数据分析专家
+2025-09-24 22:19:19,644 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 报告生成专家 DeepSeek配置加载成功
+2025-09-24 22:19:19,644 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 报告生成专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-24 22:19:19,644 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 报告生成专家
+2025-09-24 22:19:19,644 - metagpt_questionnaire.agents.base_agent - INFO - ✅ Dr. Aiden DeepSeek配置加载成功
+2025-09-24 22:19:19,644 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ Dr. Aiden 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-24 22:19:19,644 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: Dr. Aiden
+2025-09-24 22:19:19,644 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 答案审核专家 DeepSeek配置加载成功
+2025-09-24 22:19:19,644 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 答案审核专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-24 22:19:19,644 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 答案审核专家
+2025-09-24 22:19:19,645 - __main__ - INFO - ✅ 已注册 6 个智能体
+2025-09-24 22:19:19,645 - __main__ - INFO - ✅ MetaGPT 配置验证通过
+2025-09-24 22:19:19,645 - metagpt_questionnaire.workflows.questionnaire_workflow - INFO - ✅ 工作流初始化完成，智能体数量: 5
+2025-09-24 22:19:19,645 - __main__ - INFO - ✅ 工作流创建成功，智能体数量: 5
+2025-09-24 22:19:19,646 - __main__ - INFO - 🎉 MetaGPT 问卷工作流初始化完成
+2025-09-24 22:19:19,647 - __main__ - INFO - 已清理 TTS 文件 2 个
+2025-09-24 22:19:19,647 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 问卷设计专家 DeepSeek配置加载成功
+2025-09-24 22:19:19,647 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 问卷设计专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-24 22:19:19,662 - metagpt_questionnaire.agents.questionnaire_designer - INFO - 🎨 问卷设计专家 开始设计问卷: {'source': 'local', 'local_questionnaire_path': 'D:\\feiaiagent_1.0\\feiaiagent\\local_questionnaire.py'}
+2025-09-24 22:19:19,663 - metagpt_questionnaire.agents.questionnaire_designer - INFO - ✅ 问卷验证通过: 28 个问题
+2025-09-24 22:19:19,664 - metagpt_questionnaire.agents.questionnaire_designer - INFO - ✅ 问卷设计专家 已根据医院本地问卷生成: 肺癌早筛风险评估问卷
+2025-09-24 22:19:19,667 - metagpt_questionnaire.simple_questionnaire_manager - INFO - ✅ 问卷初始化成功: 28个问题
+2025-09-24 22:19:19,667 - metagpt_questionnaire.simple_questionnaire_manager - INFO - [OK] 找到下一个问题: name (索引: 0)
+2025-09-24 22:19:23,890 - metagpt_questionnaire.agents.base_agent - INFO - [OK] Dr. Aiden DeepSeek调用成功
+2025-09-24 22:19:24,000 - websocket - INFO - Websocket connected
+2025-09-24 22:19:24,222 - __main__ - INFO - TTS音频生成成功: /static/tts/session_1758723559615_ace61a8dbabf4b85ba7513720a0c74d7.mp3
+2025-09-24 22:19:24,223 - werkzeug - INFO - 127.0.0.1 - - [24/Sep/2025 22:19:24] "POST /api/metagpt_agent/start_conversational HTTP/1.1" 200 -
+2025-09-24 22:19:24,535 - werkzeug - INFO - 127.0.0.1 - - [24/Sep/2025 22:19:24] "[35m[1mGET /static/video/human.mp4 HTTP/1.1[0m" 206 -
+2025-09-24 22:19:24,535 - werkzeug - INFO - 127.0.0.1 - - [24/Sep/2025 22:19:24] "[35m[1mGET /static/tts/session_1758723559615_ace61a8dbabf4b85ba7513720a0c74d7.mp3 HTTP/1.1[0m" 206 -
+2025-09-24 22:19:24,788 - werkzeug - INFO - 127.0.0.1 - - [24/Sep/2025 22:19:24] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-09-24 22:19:33,204 - __main__ - INFO - === ASR接口开始处理 ===
+2025-09-24 22:19:33,259 - huoshan_asr - INFO - 火伞ASR开始处理音频文件: C:\Users\ADMINI~1\AppData\Local\Temp\asr_nctx741y\converted.wav, 大小: 124878 bytes
+2025-09-24 22:19:33,459 - huoshan_asr - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel
+2025-09-24 22:19:33,459 - huoshan_asr - INFO - Sent full client request with seq: 1
+2025-09-24 22:19:33,568 - huoshan_asr - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 1, 'payload_size': 110, 'payload_msg': {'audio_info': {'duration': 0}, 'result': {'additions': {'log_id': '202509242219313BCA8A81E7C0E3569D50'}, 'text': ''}}}
+2025-09-24 22:19:33,569 - huoshan_asr - INFO - Sent audio segment with seq: 2 (last: False)
+2025-09-24 22:19:33,779 - huoshan_asr - INFO - Sent audio segment with seq: 3 (last: False)
+2025-09-24 22:19:33,993 - huoshan_asr - INFO - Sent audio segment with seq: 4 (last: False)
+2025-09-24 22:19:34,186 - huoshan_asr - INFO - Sent audio segment with seq: 5 (last: False)
+2025-09-24 22:19:34,390 - huoshan_asr - INFO - Sent audio segment with seq: 6 (last: False)
+2025-09-24 22:19:34,593 - huoshan_asr - INFO - Sent audio segment with seq: 7 (last: False)
+2025-09-24 22:19:34,792 - huoshan_asr - INFO - Sent audio segment with seq: 8 (last: False)
+2025-09-24 22:19:34,991 - huoshan_asr - INFO - Sent audio segment with seq: 9 (last: False)
+2025-09-24 22:19:35,211 - huoshan_asr - INFO - Sent audio segment with seq: 10 (last: False)
+2025-09-24 22:19:35,412 - huoshan_asr - INFO - Sent audio segment with seq: 11 (last: False)
+2025-09-24 22:19:35,613 - huoshan_asr - INFO - Sent audio segment with seq: 12 (last: False)
+2025-09-24 22:19:35,823 - huoshan_asr - INFO - Sent audio segment with seq: 13 (last: False)
+2025-09-24 22:19:36,011 - huoshan_asr - INFO - Sent audio segment with seq: 14 (last: False)
+2025-09-24 22:19:36,202 - huoshan_asr - INFO - Sent audio segment with seq: 15 (last: False)
+2025-09-24 22:19:36,401 - huoshan_asr - INFO - Sent audio segment with seq: 16 (last: False)
+2025-09-24 22:19:36,606 - huoshan_asr - INFO - Sent audio segment with seq: 17 (last: False)
+2025-09-24 22:19:36,801 - huoshan_asr - INFO - Sent audio segment with seq: 18 (last: False)
+2025-09-24 22:19:37,007 - huoshan_asr - INFO - Sent audio segment with seq: 19 (last: False)
+2025-09-24 22:19:37,215 - huoshan_asr - INFO - Sent audio segment with seq: 20 (last: False)
+2025-09-24 22:19:37,409 - huoshan_asr - INFO - Sent audio segment with seq: 21 (last: True)
+2025-09-24 22:19:37,513 - huoshan_asr - INFO - 火伞ASR识别完成，结果: '张张三张三张三张三张三张三张三。张三。张三。张三。张三。'
+2025-09-24 22:19:37,514 - werkzeug - INFO - 127.0.0.1 - - [24/Sep/2025 22:19:37] "POST /api/asr HTTP/1.1" 200 -
+2025-09-24 22:19:37,830 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 答案审核专家 DeepSeek配置加载成功
+2025-09-24 22:19:37,830 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 答案审核专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-24 22:19:37,830 - __main__ - INFO - ✅ 共享答案验证器初始化成功
+2025-09-24 22:19:37,830 - metagpt_questionnaire.agents.answer_validator - INFO - [INFO] 答案审核专家 开始分析用户意图和答案质量
+2025-09-24 22:19:42,271 - metagpt_questionnaire.agents.base_agent - INFO - [OK] 答案审核专家 DeepSeek调用成功
+2025-09-24 22:19:42,272 - metagpt_questionnaire.agents.answer_validator - INFO - [OK] 答案审核通过：用户提供了姓名内容，虽然存在重复但符合宽松验证标准
+2025-09-24 22:19:42,272 - __main__ - INFO - 🔍 答案验证结果: {'redo': False, 'valid': True, 'quality_score': 0.8, 'relevance_score': 0.8, 'reason': '用户提供了姓名内容，虽然存在重复但符合宽松验证标准', 'retry': False}
+2025-09-24 22:19:42,272 - metagpt_questionnaire.agents.answer_validator - INFO - [INFO] 答案审核专家 开始分析用户意图和答案质量
+2025-09-24 22:19:47,711 - metagpt_questionnaire.agents.base_agent - INFO - [OK] 答案审核专家 DeepSeek调用成功
+2025-09-24 22:19:47,711 - metagpt_questionnaire.agents.answer_validator - INFO - [OK] 答案审核通过：用户提供了姓名内容，虽然存在重复和格式问题，但符合极度宽松标准下的有效回答
+2025-09-24 22:19:47,711 - metagpt_questionnaire.simple_questionnaire_manager - INFO - [OK] 找到下一个问题: gender (索引: 1)
+2025-09-24 22:19:51,000 - metagpt_questionnaire.agents.base_agent - INFO - [OK] Dr. Aiden DeepSeek调用成功
+2025-09-24 22:19:51,088 - websocket - INFO - Websocket connected
+2025-09-24 22:19:51,330 - __main__ - INFO - TTS音频生成成功: /static/tts/session_1758723559615_e1db5ba0a6f840bb8b37ff9365f40d54.mp3
+2025-09-24 22:19:51,330 - werkzeug - INFO - 127.0.0.1 - - [24/Sep/2025 22:19:51] "POST /api/metagpt_agent/reply_conversational HTTP/1.1" 200 -
+2025-09-24 22:19:51,349 - werkzeug - INFO - 127.0.0.1 - - [24/Sep/2025 22:19:51] "[35m[1mGET /static/tts/session_1758723559615_e1db5ba0a6f840bb8b37ff9365f40d54.mp3 HTTP/1.1[0m" 206 -
+2025-09-24 22:20:04,352 - werkzeug - INFO - 127.0.0.1 - - [24/Sep/2025 22:20:04] "[35m[1mGET /static/video/human.mp4 HTTP/1.1[0m" 206 -
+2025-09-24 22:20:04,624 - werkzeug - INFO - 127.0.0.1 - - [24/Sep/2025 22:20:04] "[35m[1mGET /static/video/human.mp4 HTTP/1.1[0m" 206 -
+2025-09-25 21:19:20,678 - __main__ - INFO - 成功加载火伞ASR
+2025-09-25 21:19:20,678 - config - INFO - ✅ 已加载配置文件: D:\feiaiagent_1.0\.env
+2025-09-25 21:19:20,712 - report_manager - INFO - 报告管理器初始化，保存目录: report
+2025-09-25 21:19:20,714 - config - INFO - ========== 配置自检 ==========
+2025-09-25 21:19:20,714 - config - INFO - ZHIPU_API_MODE = open_app_v3
+2025-09-25 21:19:20,714 - config - INFO - ZHIPU_APP_ID   = 1952963926488719360
+2025-09-25 21:19:20,714 - config - INFO - ZHIPU_API_KEY  = <set> (长度: 49)
+2025-09-25 21:19:20,714 - config - INFO - ZHIPU_MOCK     = False
+2025-09-25 21:19:20,714 - config - INFO - XFYUN_APPID    = 3536bab1
+2025-09-25 21:19:20,714 - config - INFO - XFYUN_APIKEY   = <set> (长度: 32)
+2025-09-25 21:19:20,714 - config - INFO - XFYUN_APISECRET = <set> (长度: 32)
+2025-09-25 21:19:20,714 - config - INFO - STATIC_DIR     = D:\feiaiagent_1.0\feiaiagent\static
+2025-09-25 21:19:20,714 - config - INFO - TTS_OUT_DIR    = D:\feiaiagent_1.0\feiaiagent\static\tts (exists=True)
+2025-09-25 21:19:20,714 - config - INFO - PLACEHOLDER_BEEP = D:\feiaiagent_1.0\feiaiagent\static\tts\beep.wav (exists=False)
+2025-09-25 21:19:20,714 - config - INFO - FFMPEG_PATH    = D:\ffmpeg-7.1.1-essentials_build\bin\ffmpeg.EXE
+2025-09-25 21:19:20,714 - config - INFO - ✅ 使用系统PATH中的FFMPEG: D:\ffmpeg-7.1.1-essentials_build\bin\ffmpeg.EXE
+2025-09-25 21:19:20,714 - config - INFO - SPEEXDEC_PATH  = <not found>
+2025-09-25 21:19:20,746 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8080
+ * Running on http://172.18.247.122:8080
+2025-09-25 21:19:20,746 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-09-25 21:19:28,188 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:19:28] "[36mGET / HTTP/1.1[0m" 304 -
+2025-09-25 21:19:28,208 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:19:28] "[36mGET /static/style.css?v=1.1 HTTP/1.1[0m" 304 -
+2025-09-25 21:19:28,338 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:19:28] "[36mGET /static/script.js?v=1.1 HTTP/1.1[0m" 304 -
+2025-09-25 21:19:28,653 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:19:28] "GET /api/questionnaire_status HTTP/1.1" 200 -
+2025-09-25 21:19:28,672 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:19:28] "GET /api/reports HTTP/1.1" 200 -
+2025-09-25 21:19:28,674 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:19:28] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-09-25 21:19:29,256 - __main__ - INFO - 🚀 开始初始化 MetaGPT 问卷工作流...
+2025-09-25 21:19:29,256 - __main__ - INFO - ✅ MetaGPT 路径已确认: D:\feiaiagent_1.0\feiaiagent\metagpt_questionnaire
+2025-09-25 21:19:29,280 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 问卷设计专家 DeepSeek配置加载成功
+2025-09-25 21:19:29,280 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 问卷设计专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:19:29,280 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 问卷设计专家
+2025-09-25 21:19:29,282 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 风险评估专家 DeepSeek配置加载成功
+2025-09-25 21:19:29,282 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 风险评估专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:19:29,282 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 风险评估专家
+2025-09-25 21:19:29,284 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 数据分析专家 DeepSeek配置加载成功
+2025-09-25 21:19:29,284 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 数据分析专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:19:29,284 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 数据分析专家
+2025-09-25 21:19:29,285 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 报告生成专家 DeepSeek配置加载成功
+2025-09-25 21:19:29,285 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 报告生成专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:19:29,286 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 报告生成专家
+2025-09-25 21:19:29,287 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能问题选择专家 DeepSeek配置加载成功
+2025-09-25 21:19:29,288 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 智能问题选择专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:19:29,289 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 智能问题选择专家
+2025-09-25 21:19:29,289 - __main__ - INFO - ✅ 核心模块导入成功
+2025-09-25 21:19:29,289 - metagpt_questionnaire.agents.base_agent - INFO - ✅ Dr. Aiden DeepSeek配置加载成功
+2025-09-25 21:19:29,289 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ Dr. Aiden 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:19:29,289 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: Dr. Aiden
+2025-09-25 21:19:29,293 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 答案审核专家 DeepSeek配置加载成功
+2025-09-25 21:19:29,293 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 答案审核专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:19:29,296 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 答案审核专家
+2025-09-25 21:19:29,296 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 问卷设计专家 DeepSeek配置加载成功
+2025-09-25 21:19:29,296 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 问卷设计专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:19:29,296 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 问卷设计专家
+2025-09-25 21:19:29,296 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 风险评估专家 DeepSeek配置加载成功
+2025-09-25 21:19:29,296 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 风险评估专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:19:29,297 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 风险评估专家
+2025-09-25 21:19:29,297 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 数据分析专家 DeepSeek配置加载成功
+2025-09-25 21:19:29,297 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 数据分析专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:19:29,297 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 数据分析专家
+2025-09-25 21:19:29,297 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 报告生成专家 DeepSeek配置加载成功
+2025-09-25 21:19:29,297 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 报告生成专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:19:29,297 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 报告生成专家
+2025-09-25 21:19:29,297 - metagpt_questionnaire.agents.base_agent - INFO - ✅ Dr. Aiden DeepSeek配置加载成功
+2025-09-25 21:19:29,298 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ Dr. Aiden 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:19:29,298 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: Dr. Aiden
+2025-09-25 21:19:29,298 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 答案审核专家 DeepSeek配置加载成功
+2025-09-25 21:19:29,298 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 答案审核专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:19:29,298 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 答案审核专家
+2025-09-25 21:19:29,298 - __main__ - INFO - ✅ 已注册 6 个智能体
+2025-09-25 21:19:29,298 - __main__ - INFO - ✅ MetaGPT 配置验证通过
+2025-09-25 21:19:29,298 - metagpt_questionnaire.workflows.questionnaire_workflow - INFO - ✅ 工作流初始化完成，智能体数量: 5
+2025-09-25 21:19:29,298 - __main__ - INFO - ✅ 工作流创建成功，智能体数量: 5
+2025-09-25 21:19:29,298 - __main__ - INFO - 🎉 MetaGPT 问卷工作流初始化完成
+2025-09-25 21:19:29,300 - __main__ - INFO - 已清理 TTS 文件 2 个
+2025-09-25 21:19:29,300 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 问卷设计专家 DeepSeek配置加载成功
+2025-09-25 21:19:29,300 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 问卷设计专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:19:29,301 - metagpt_questionnaire.agents.questionnaire_designer - INFO - 🎨 问卷设计专家 开始设计问卷: {'source': 'local', 'local_questionnaire_path': 'D:\\feiaiagent_1.0\\feiaiagent\\local_questionnaire.py'}
+2025-09-25 21:19:29,302 - metagpt_questionnaire.agents.questionnaire_designer - INFO - ✅ 问卷验证通过: 28 个问题
+2025-09-25 21:19:29,302 - metagpt_questionnaire.agents.questionnaire_designer - INFO - ✅ 问卷设计专家 已根据医院本地问卷生成: 肺癌早筛风险评估问卷
+2025-09-25 21:19:29,322 - metagpt_questionnaire.simple_questionnaire_manager - INFO - ✅ 问卷初始化成功: 28个问题
+2025-09-25 21:19:29,322 - metagpt_questionnaire.simple_questionnaire_manager - INFO - [OK] 找到下一个问题: name (索引: 0)
+2025-09-25 21:19:39,058 - metagpt_questionnaire.agents.base_agent - ERROR - [ERROR] Dr. Aiden DeepSeek调用失败: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /chat/completions (Caused by ProxyError('Cannot connect to proxy.', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000002A74F9BBAC0>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。')))
+2025-09-25 21:19:39,058 - metagpt_questionnaire.agents.conversational_interviewer - WARNING - ⚠️ LLM问题优化失败: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /chat/completions (Caused by ProxyError('Cannot connect to proxy.', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000002A74F9BBAC0>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。')))
+2025-09-25 21:19:39,115 - websocket - INFO - Websocket connected
+2025-09-25 21:19:40,663 - __main__ - INFO - TTS音频生成成功: /static/tts/session_1758806369260_60b61e4c3f8b4163afe508bd372fba69.mp3
+2025-09-25 21:19:40,664 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:19:40] "POST /api/metagpt_agent/start_conversational HTTP/1.1" 200 -
+2025-09-25 21:19:40,978 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:19:40] "[35m[1mGET /static/tts/session_1758806369260_60b61e4c3f8b4163afe508bd372fba69.mp3 HTTP/1.1[0m" 206 -
+2025-09-25 21:19:40,990 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:19:40] "[35m[1mGET /static/video/human.mp4 HTTP/1.1[0m" 206 -
+2025-09-25 21:19:41,228 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:19:41] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-09-25 21:19:48,064 - __main__ - INFO - === ASR接口开始处理 ===
+2025-09-25 21:19:48,590 - huoshan_asr - INFO - 火伞ASR开始处理音频文件: C:\Users\ADMINI~1\AppData\Local\Temp\asr_jspn1m8j\converted.wav, 大小: 161358 bytes
+2025-09-25 21:19:48,730 - huoshan_asr - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel
+2025-09-25 21:19:48,730 - huoshan_asr - INFO - Sent full client request with seq: 1
+2025-09-25 21:19:48,828 - huoshan_asr - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 1, 'payload_size': 110, 'payload_msg': {'audio_info': {'duration': 0}, 'result': {'additions': {'log_id': '20250925211948FD9CE0F9D7B5FAB3ED93'}, 'text': ''}}}
+2025-09-25 21:19:48,828 - huoshan_asr - INFO - Sent audio segment with seq: 2 (last: False)
+2025-09-25 21:19:49,040 - huoshan_asr - INFO - Sent audio segment with seq: 3 (last: False)
+2025-09-25 21:19:49,245 - huoshan_asr - INFO - Sent audio segment with seq: 4 (last: False)
+2025-09-25 21:19:49,452 - huoshan_asr - INFO - Sent audio segment with seq: 5 (last: False)
+2025-09-25 21:19:49,673 - huoshan_asr - INFO - Sent audio segment with seq: 6 (last: False)
+2025-09-25 21:19:49,883 - huoshan_asr - INFO - Sent audio segment with seq: 7 (last: False)
+2025-09-25 21:19:50,092 - huoshan_asr - INFO - Sent audio segment with seq: 8 (last: False)
+2025-09-25 21:19:50,312 - huoshan_asr - INFO - Sent audio segment with seq: 9 (last: False)
+2025-09-25 21:19:50,523 - huoshan_asr - INFO - Sent audio segment with seq: 10 (last: False)
+2025-09-25 21:19:50,730 - huoshan_asr - INFO - Sent audio segment with seq: 11 (last: False)
+2025-09-25 21:19:50,933 - huoshan_asr - INFO - Sent audio segment with seq: 12 (last: False)
+2025-09-25 21:19:51,144 - huoshan_asr - INFO - Sent audio segment with seq: 13 (last: False)
+2025-09-25 21:19:51,352 - huoshan_asr - INFO - Sent audio segment with seq: 14 (last: False)
+2025-09-25 21:19:51,569 - huoshan_asr - INFO - Sent audio segment with seq: 15 (last: False)
+2025-09-25 21:19:51,784 - huoshan_asr - INFO - Sent audio segment with seq: 16 (last: False)
+2025-09-25 21:19:51,992 - huoshan_asr - INFO - Sent audio segment with seq: 17 (last: False)
+2025-09-25 21:19:52,194 - huoshan_asr - INFO - Sent audio segment with seq: 18 (last: False)
+2025-09-25 21:19:52,396 - huoshan_asr - INFO - Sent audio segment with seq: 19 (last: False)
+2025-09-25 21:19:52,606 - huoshan_asr - INFO - Sent audio segment with seq: 20 (last: False)
+2025-09-25 21:19:52,823 - huoshan_asr - INFO - Sent audio segment with seq: 21 (last: False)
+2025-09-25 21:19:53,032 - huoshan_asr - INFO - Sent audio segment with seq: 22 (last: False)
+2025-09-25 21:19:53,232 - huoshan_asr - INFO - Sent audio segment with seq: 23 (last: False)
+2025-09-25 21:19:53,446 - huoshan_asr - INFO - Sent audio segment with seq: 24 (last: False)
+2025-09-25 21:19:53,643 - huoshan_asr - INFO - Sent audio segment with seq: 25 (last: False)
+2025-09-25 21:19:53,841 - huoshan_asr - INFO - Sent audio segment with seq: 26 (last: False)
+2025-09-25 21:19:54,047 - huoshan_asr - INFO - Sent audio segment with seq: 27 (last: True)
+2025-09-25 21:19:54,132 - huoshan_asr - INFO - 火伞ASR识别完成，结果: '张三张三张三张三张三张三张三张三张三。张三。张三。张三。张三。'
+2025-09-25 21:19:54,136 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:19:54] "POST /api/asr HTTP/1.1" 200 -
+2025-09-25 21:19:54,460 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 答案审核专家 DeepSeek配置加载成功
+2025-09-25 21:19:54,460 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 答案审核专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:19:54,460 - __main__ - INFO - ✅ 共享答案验证器初始化成功
+2025-09-25 21:19:54,460 - metagpt_questionnaire.agents.answer_validator - INFO - [INFO] 答案审核专家 开始分析用户意图和答案质量
+2025-09-25 21:20:04,232 - metagpt_questionnaire.agents.base_agent - ERROR - [ERROR] 答案审核专家 DeepSeek调用失败: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /chat/completions (Caused by ProxyError('Cannot connect to proxy.', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000002A74F9BB9D0>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。')))
+2025-09-25 21:20:04,232 - metagpt_questionnaire.agents.answer_validator - WARNING - ⚠️ 综合分析失败: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /chat/completions (Caused by ProxyError('Cannot connect to proxy.', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000002A74F9BB9D0>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。')))
+2025-09-25 21:20:04,232 - metagpt_questionnaire.agents.answer_validator - INFO - [OK] 答案审核通过：综合分析失败，使用默认验证
+2025-09-25 21:20:04,232 - __main__ - INFO - 🔍 答案验证结果: {'redo': False, 'valid': True, 'quality_score': 0.7, 'relevance_score': 0.7, 'reason': '综合分析失败，使用默认验证', 'retry': False}
+2025-09-25 21:20:04,232 - metagpt_questionnaire.agents.answer_validator - INFO - [INFO] 答案审核专家 开始分析用户意图和答案质量
+2025-09-25 21:20:07,856 - __main__ - INFO - 所有资源清理完成
+2025-09-25 21:20:26,595 - __main__ - INFO - 成功加载火伞ASR
+2025-09-25 21:20:26,601 - config - INFO - ✅ 已加载配置文件: D:\feiaiagent_1.0\.env
+2025-09-25 21:20:26,622 - report_manager - INFO - 报告管理器初始化，保存目录: report
+2025-09-25 21:20:26,624 - config - INFO - ========== 配置自检 ==========
+2025-09-25 21:20:26,624 - config - INFO - ZHIPU_API_MODE = open_app_v3
+2025-09-25 21:20:26,624 - config - INFO - ZHIPU_APP_ID   = 1952963926488719360
+2025-09-25 21:20:26,624 - config - INFO - ZHIPU_API_KEY  = <set> (长度: 49)
+2025-09-25 21:20:26,625 - config - INFO - ZHIPU_MOCK     = False
+2025-09-25 21:20:26,625 - config - INFO - XFYUN_APPID    = 3536bab1
+2025-09-25 21:20:26,625 - config - INFO - XFYUN_APIKEY   = <set> (长度: 32)
+2025-09-25 21:20:26,625 - config - INFO - XFYUN_APISECRET = <set> (长度: 32)
+2025-09-25 21:20:26,625 - config - INFO - STATIC_DIR     = D:\feiaiagent_1.0\feiaiagent\static
+2025-09-25 21:20:26,625 - config - INFO - TTS_OUT_DIR    = D:\feiaiagent_1.0\feiaiagent\static\tts (exists=True)
+2025-09-25 21:20:26,626 - config - INFO - PLACEHOLDER_BEEP = D:\feiaiagent_1.0\feiaiagent\static\tts\beep.wav (exists=False)
+2025-09-25 21:20:26,626 - config - INFO - FFMPEG_PATH    = D:\ffmpeg-7.1.1-essentials_build\bin\ffmpeg.EXE
+2025-09-25 21:20:26,626 - config - INFO - ✅ 使用系统PATH中的FFMPEG: D:\ffmpeg-7.1.1-essentials_build\bin\ffmpeg.EXE
+2025-09-25 21:20:26,626 - config - INFO - SPEEXDEC_PATH  = <not found>
+2025-09-25 21:20:26,643 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8080
+ * Running on http://172.18.247.122:8080
+2025-09-25 21:20:26,643 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-09-25 21:20:29,168 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:20:29] "[36mGET / HTTP/1.1[0m" 304 -
+2025-09-25 21:20:29,168 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:20:29] "[36mGET /static/style.css?v=1.1 HTTP/1.1[0m" 304 -
+2025-09-25 21:20:29,292 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:20:29] "[36mGET /static/script.js?v=1.1 HTTP/1.1[0m" 304 -
+2025-09-25 21:20:29,596 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:20:29] "GET /api/questionnaire_status HTTP/1.1" 200 -
+2025-09-25 21:20:29,618 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:20:29] "GET /api/reports HTTP/1.1" 200 -
+2025-09-25 21:20:30,113 - __main__ - INFO - 🚀 开始初始化 MetaGPT 问卷工作流...
+2025-09-25 21:20:30,113 - __main__ - INFO - ✅ MetaGPT 路径已确认: D:\feiaiagent_1.0\feiaiagent\metagpt_questionnaire
+2025-09-25 21:20:30,126 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 问卷设计专家 DeepSeek配置加载成功
+2025-09-25 21:20:30,127 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 问卷设计专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:20:30,127 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 问卷设计专家
+2025-09-25 21:20:30,127 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 风险评估专家 DeepSeek配置加载成功
+2025-09-25 21:20:30,128 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 风险评估专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:20:30,128 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 风险评估专家
+2025-09-25 21:20:30,129 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 数据分析专家 DeepSeek配置加载成功
+2025-09-25 21:20:30,129 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 数据分析专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:20:30,130 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 数据分析专家
+2025-09-25 21:20:30,131 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 报告生成专家 DeepSeek配置加载成功
+2025-09-25 21:20:30,132 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 报告生成专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:20:30,132 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 报告生成专家
+2025-09-25 21:20:30,133 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能问题选择专家 DeepSeek配置加载成功
+2025-09-25 21:20:30,133 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 智能问题选择专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:20:30,133 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 智能问题选择专家
+2025-09-25 21:20:30,134 - __main__ - INFO - ✅ 核心模块导入成功
+2025-09-25 21:20:30,135 - metagpt_questionnaire.agents.base_agent - INFO - ✅ Dr. Aiden DeepSeek配置加载成功
+2025-09-25 21:20:30,135 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ Dr. Aiden 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:20:30,135 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: Dr. Aiden
+2025-09-25 21:20:30,137 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 答案审核专家 DeepSeek配置加载成功
+2025-09-25 21:20:30,137 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 答案审核专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:20:30,139 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 答案审核专家
+2025-09-25 21:20:30,139 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 问卷设计专家 DeepSeek配置加载成功
+2025-09-25 21:20:30,139 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 问卷设计专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:20:30,140 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 问卷设计专家
+2025-09-25 21:20:30,140 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 风险评估专家 DeepSeek配置加载成功
+2025-09-25 21:20:30,140 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 风险评估专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:20:30,140 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 风险评估专家
+2025-09-25 21:20:30,140 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 数据分析专家 DeepSeek配置加载成功
+2025-09-25 21:20:30,141 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 数据分析专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:20:30,141 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 数据分析专家
+2025-09-25 21:20:30,141 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 报告生成专家 DeepSeek配置加载成功
+2025-09-25 21:20:30,141 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 报告生成专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:20:30,141 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 报告生成专家
+2025-09-25 21:20:30,141 - metagpt_questionnaire.agents.base_agent - INFO - ✅ Dr. Aiden DeepSeek配置加载成功
+2025-09-25 21:20:30,141 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ Dr. Aiden 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:20:30,141 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: Dr. Aiden
+2025-09-25 21:20:30,141 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 答案审核专家 DeepSeek配置加载成功
+2025-09-25 21:20:30,142 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 答案审核专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:20:30,142 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 智能体已注册: 答案审核专家
+2025-09-25 21:20:30,143 - __main__ - INFO - ✅ 已注册 6 个智能体
+2025-09-25 21:20:30,143 - __main__ - INFO - ✅ MetaGPT 配置验证通过
+2025-09-25 21:20:30,144 - metagpt_questionnaire.workflows.questionnaire_workflow - INFO - ✅ 工作流初始化完成，智能体数量: 5
+2025-09-25 21:20:30,145 - __main__ - INFO - ✅ 工作流创建成功，智能体数量: 5
+2025-09-25 21:20:30,145 - __main__ - INFO - 🎉 MetaGPT 问卷工作流初始化完成
+2025-09-25 21:20:30,146 - __main__ - INFO - 已清理 TTS 文件 1 个
+2025-09-25 21:20:30,146 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 问卷设计专家 DeepSeek配置加载成功
+2025-09-25 21:20:30,146 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 问卷设计专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:20:30,147 - metagpt_questionnaire.agents.questionnaire_designer - INFO - 🎨 问卷设计专家 开始设计问卷: {'source': 'local', 'local_questionnaire_path': 'D:\\feiaiagent_1.0\\feiaiagent\\local_questionnaire.py'}
+2025-09-25 21:20:30,148 - metagpt_questionnaire.agents.questionnaire_designer - INFO - ✅ 问卷验证通过: 28 个问题
+2025-09-25 21:20:30,149 - metagpt_questionnaire.agents.questionnaire_designer - INFO - ✅ 问卷设计专家 已根据医院本地问卷生成: 肺癌早筛风险评估问卷
+2025-09-25 21:20:30,163 - metagpt_questionnaire.simple_questionnaire_manager - INFO - ✅ 问卷初始化成功: 28个问题
+2025-09-25 21:20:30,164 - metagpt_questionnaire.simple_questionnaire_manager - INFO - [OK] 找到下一个问题: name (索引: 0)
+2025-09-25 21:20:39,887 - metagpt_questionnaire.agents.base_agent - ERROR - [ERROR] Dr. Aiden DeepSeek调用失败: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /chat/completions (Caused by ProxyError('Cannot connect to proxy.', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000002501D4C9AF0>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。')))
+2025-09-25 21:20:39,887 - metagpt_questionnaire.agents.conversational_interviewer - WARNING - ⚠️ LLM问题优化失败: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /chat/completions (Caused by ProxyError('Cannot connect to proxy.', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000002501D4C9AF0>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。')))
+2025-09-25 21:20:39,945 - websocket - INFO - Websocket connected
+2025-09-25 21:20:40,061 - __main__ - INFO - TTS音频生成成功: /static/tts/session_1758806430111_c20bdaa2b938432193045c018de24cc8.mp3
+2025-09-25 21:20:40,066 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:20:40] "POST /api/metagpt_agent/start_conversational HTTP/1.1" 200 -
+2025-09-25 21:20:40,379 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:20:40] "[35m[1mGET /static/tts/session_1758806430111_c20bdaa2b938432193045c018de24cc8.mp3 HTTP/1.1[0m" 206 -
+2025-09-25 21:20:40,380 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:20:40] "[35m[1mGET /static/video/human.mp4 HTTP/1.1[0m" 206 -
+2025-09-25 21:20:40,632 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:20:40] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-09-25 21:20:40,684 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:20:40] "[35m[1mGET /static/video/human.mp4 HTTP/1.1[0m" 206 -
+2025-09-25 21:20:46,625 - __main__ - INFO - === ASR接口开始处理 ===
+2025-09-25 21:20:46,677 - huoshan_asr - INFO - 火伞ASR开始处理音频文件: C:\Users\ADMINI~1\AppData\Local\Temp\asr_dbul6vt1\converted.wav, 大小: 138318 bytes
+2025-09-25 21:20:46,877 - huoshan_asr - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel
+2025-09-25 21:20:46,878 - huoshan_asr - INFO - Sent full client request with seq: 1
+2025-09-25 21:20:47,002 - huoshan_asr - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 1, 'payload_size': 110, 'payload_msg': {'audio_info': {'duration': 0}, 'result': {'additions': {'log_id': '202509252120469935086EC3FB77BD9668'}, 'text': ''}}}
+2025-09-25 21:20:47,002 - huoshan_asr - INFO - Sent audio segment with seq: 2 (last: False)
+2025-09-25 21:20:47,206 - huoshan_asr - INFO - Sent audio segment with seq: 3 (last: False)
+2025-09-25 21:20:47,407 - huoshan_asr - INFO - Sent audio segment with seq: 4 (last: False)
+2025-09-25 21:20:47,607 - huoshan_asr - INFO - Sent audio segment with seq: 5 (last: False)
+2025-09-25 21:20:47,814 - huoshan_asr - INFO - Sent audio segment with seq: 6 (last: False)
+2025-09-25 21:20:48,019 - huoshan_asr - INFO - Sent audio segment with seq: 7 (last: False)
+2025-09-25 21:20:48,240 - huoshan_asr - INFO - Sent audio segment with seq: 8 (last: False)
+2025-09-25 21:20:48,442 - huoshan_asr - INFO - Sent audio segment with seq: 9 (last: False)
+2025-09-25 21:20:48,652 - huoshan_asr - INFO - Sent audio segment with seq: 10 (last: False)
+2025-09-25 21:20:48,869 - huoshan_asr - INFO - Sent audio segment with seq: 11 (last: False)
+2025-09-25 21:20:49,080 - huoshan_asr - INFO - Sent audio segment with seq: 12 (last: False)
+2025-09-25 21:20:49,283 - huoshan_asr - INFO - Sent audio segment with seq: 13 (last: False)
+2025-09-25 21:20:49,490 - huoshan_asr - INFO - Sent audio segment with seq: 14 (last: False)
+2025-09-25 21:20:49,695 - huoshan_asr - INFO - Sent audio segment with seq: 15 (last: False)
+2025-09-25 21:20:49,908 - huoshan_asr - INFO - Sent audio segment with seq: 16 (last: False)
+2025-09-25 21:20:50,127 - huoshan_asr - INFO - Sent audio segment with seq: 17 (last: False)
+2025-09-25 21:20:50,340 - huoshan_asr - INFO - Sent audio segment with seq: 18 (last: False)
+2025-09-25 21:20:50,545 - huoshan_asr - INFO - Sent audio segment with seq: 19 (last: False)
+2025-09-25 21:20:50,764 - huoshan_asr - INFO - Sent audio segment with seq: 20 (last: False)
+2025-09-25 21:20:50,974 - huoshan_asr - INFO - Sent audio segment with seq: 21 (last: False)
+2025-09-25 21:20:51,182 - huoshan_asr - INFO - Sent audio segment with seq: 22 (last: False)
+2025-09-25 21:20:51,409 - huoshan_asr - INFO - Sent audio segment with seq: 23 (last: True)
+2025-09-25 21:20:51,574 - huoshan_asr - INFO - 火伞ASR识别完成，结果: '张三张三张三张三张三张三张三张三。张三。张三。张三。张三。'
+2025-09-25 21:20:51,576 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:20:51] "POST /api/asr HTTP/1.1" 200 -
+2025-09-25 21:20:51,881 - metagpt_questionnaire.agents.base_agent - INFO - ✅ 答案审核专家 DeepSeek配置加载成功
+2025-09-25 21:20:51,881 - metagpt_questionnaire.agents.base_agent - INFO - ℹ️ 答案审核专家 已禁用 OpenAI 通道（仅使用 DeepSeek）
+2025-09-25 21:20:51,881 - __main__ - INFO - ✅ 共享答案验证器初始化成功
+2025-09-25 21:20:51,881 - metagpt_questionnaire.agents.answer_validator - INFO - [INFO] 答案审核专家 开始分析用户意图和答案质量
+2025-09-25 21:21:01,632 - metagpt_questionnaire.agents.base_agent - ERROR - [ERROR] 答案审核专家 DeepSeek调用失败: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /chat/completions (Caused by ProxyError('Cannot connect to proxy.', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000002501D513640>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。')))
+2025-09-25 21:21:01,632 - metagpt_questionnaire.agents.answer_validator - WARNING - ⚠️ 综合分析失败: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /chat/completions (Caused by ProxyError('Cannot connect to proxy.', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000002501D513640>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。')))
+2025-09-25 21:21:01,632 - metagpt_questionnaire.agents.answer_validator - INFO - [OK] 答案审核通过：综合分析失败，使用默认验证
+2025-09-25 21:21:01,632 - __main__ - INFO - 🔍 答案验证结果: {'redo': False, 'valid': True, 'quality_score': 0.7, 'relevance_score': 0.7, 'reason': '综合分析失败，使用默认验证', 'retry': False}
+2025-09-25 21:21:01,638 - metagpt_questionnaire.agents.answer_validator - INFO - [INFO] 答案审核专家 开始分析用户意图和答案质量
+2025-09-25 21:21:11,368 - metagpt_questionnaire.agents.base_agent - ERROR - [ERROR] 答案审核专家 DeepSeek调用失败: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /chat/completions (Caused by ProxyError('Cannot connect to proxy.', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000002501D51ACD0>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。')))
+2025-09-25 21:21:11,368 - metagpt_questionnaire.agents.answer_validator - WARNING - ⚠️ 综合分析失败: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /chat/completions (Caused by ProxyError('Cannot connect to proxy.', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000002501D51ACD0>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。')))
+2025-09-25 21:21:11,368 - metagpt_questionnaire.agents.answer_validator - INFO - [OK] 答案审核通过：综合分析失败，使用默认验证
+2025-09-25 21:21:11,368 - metagpt_questionnaire.simple_questionnaire_manager - INFO - [OK] 找到下一个问题: gender (索引: 1)
+2025-09-25 21:21:21,124 - metagpt_questionnaire.agents.base_agent - ERROR - [ERROR] Dr. Aiden DeepSeek调用失败: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /chat/completions (Caused by ProxyError('Cannot connect to proxy.', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000002501D513E20>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。')))
+2025-09-25 21:21:21,124 - metagpt_questionnaire.agents.conversational_interviewer - WARNING - ⚠️ LLM问题优化失败: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /chat/completions (Caused by ProxyError('Cannot connect to proxy.', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x000002501D513E20>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。')))
+2025-09-25 21:21:21,240 - websocket - INFO - Websocket connected
+2025-09-25 21:21:21,399 - __main__ - INFO - TTS音频生成成功: /static/tts/session_1758806430111_58f8ef01fafb4bdb944fab02116f50a6.mp3
+2025-09-25 21:21:21,400 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:21:21] "POST /api/metagpt_agent/reply_conversational HTTP/1.1" 200 -
+2025-09-25 21:21:21,430 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:21:21] "[35m[1mGET /static/tts/session_1758806430111_58f8ef01fafb4bdb944fab02116f50a6.mp3 HTTP/1.1[0m" 206 -
+2025-09-25 21:22:31,208 - werkzeug - INFO - 127.0.0.1 - - [25/Sep/2025 21:22:31] "[35m[1mGET /static/video/human.mp4 HTTP/1.1[0m" 206 -
+2025-09-25 21:29:26,455 - __main__ - INFO - 所有资源清理完成

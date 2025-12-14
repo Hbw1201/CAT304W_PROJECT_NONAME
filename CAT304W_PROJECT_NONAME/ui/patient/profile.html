@@ -177,7 +177,7 @@
           </div>
           <div class="field-row">
             <strong>Password:</strong>
-            <span class="field-value" id="password-value" data-secret="Auth password (hidden)" data-field="password">鈥⑩€⑩€⑩€⑩€⑩€⑩€⑩€?/span>
+            <span class="field-value" id="password-value" data-secret="Auth password (hidden)" data-field="password">********</span>
             <button type="button" class="inline-btn" id="password-toggle">Show</button>
             <input class="field-input" data-input="password" type="text" value="" hidden>
           </div>
@@ -370,19 +370,19 @@
 
     const hydrateProfile = async () => {
       if (!db) {
-        setFieldValue("name", "Firebase 鏈厤缃?);
+        setFieldValue("name", "Firebase not configured");
         return;
       }
       const uid = localStorage.getItem("uid") || auth?.currentUser?.uid;
       if (!uid) {
-        setFieldValue("name", "鏈櫥褰?);
+        setFieldValue("name", "Not signed in");
         return;
       }
 
       try {
         const snapshot = await getDoc(doc(db, "users", uid));
         if (!snapshot.exists()) {
-          setFieldValue("name", "鏈壘鍒扮敤鎴锋。妗?);
+          setFieldValue("name", "Profile not found");
           return;
         }
         const data = snapshot.data() || {};

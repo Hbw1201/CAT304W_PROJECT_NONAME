@@ -64,7 +64,7 @@ const sections = {
 
 const contentEl = document.getElementById("content");
 const menuItems = document.querySelectorAll(".menu li");
-const START_TARGET = window.location.pathname.includes("/patient/") ? "../login.html" : "login.html"; // TODO: update to your actual login/register route
+const START_TARGET = "login.html"; // TODO: update to your actual login/register route
 
 if (contentEl && menuItems.length) {
   function renderSection(key) {
@@ -185,15 +185,12 @@ async function handleRegister({
       height: numericHeight,
       relationship: mode === "other" ? relationship || "Unknown" : null,
       registeringFor: mode,
-      role: "patient",
       riskLevel: "low",
       createdAt: serverTimestamp(),
     });
 
     alert("注册成功");
-    window.location.href = window.location.pathname.includes("/patient/")
-      ? "../login.html"
-      : "login.html";
+    window.location.href = "login.html";
   } catch (error) {
     console.error("Registration failed:", error);
     alert(error?.message || "注册失败，请稍后重试");
@@ -242,14 +239,20 @@ if (registerOtherForm) {
   });
 }
 
-const loginForm = document.getElementById("loginForm");
+function bindLoginHandlers() {
+  const loginForm = document.getElementById("loginForm");
+  const loginBtn = document.getElementById("loginBtn");
+  if (!loginForm && !loginBtn) return;
 
-if (loginForm) {
-  loginForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
+  const getEmailInput = () => document.getElementById("email") || document.getElementById("loginEmail");
+  const getPasswordInput = () => document.getElementById("password") || document.getElementById("loginPassword");
 
-    const email = document.getElementById("loginEmail")?.value || "";
-    const password = document.getElementById("loginPassword")?.value || "";
+  const handleLogin = async (event) => {
+    event?.preventDefault();
+
+    const email = getEmailInput()?.value?.trim() || "";
+    const password = getPasswordInput()?.value || "";
+    console.log("[login] clicked", email, password.length);
 
     if (!auth || !db) {
       alert("Firebase 未配置，请先填写 firebase-config.js");
@@ -264,29 +267,51 @@ if (loginForm) {
         throw new Error("User ID not found after login");
       }
 
-      const userDoc = await getDoc(doc(db, "users", uid));
-      let data = null;
+      // 默认认为是病人
+      let role = "patient";
+      let profileData = null;
+
+      const userRef = doc(db, "users", uid);
+      const userDoc = await getDoc(userRef);
 
       if (userDoc.exists()) {
-        data = userDoc.data();
-        localStorage.setItem("uid", uid);
-        localStorage.setItem("userProfile", JSON.stringify(data));
+        profileData = userDoc.data();
+        // 只有 role 显式为 doctor 时，才视为医生
+        if (profileData.role === "doctor") {
+          role = "doctor";
+        }
+
+        // 保存 profile 数据
+        localStorage.setItem("userProfile", JSON.stringify(profileData));
       }
 
-      const role = data?.role === "doctor" ? "doctor" : "patient";
+      // 无论如何都保存 uid 和 role
+      localStorage.setItem("uid", uid);
       localStorage.setItem("userRole", role);
 
+      // 根据角色跳转
       if (role === "doctor") {
-        window.location.href = "doctor/dashboard.html";
+        // 医生：跳医生端 UI（你可以改成 doctor-dashboard.html）
+        window.location.href = "doctor-question.html";
       } else {
-        window.location.href = "patient/dashboard.html";
+        window.location.href = "/patient/dashboard.html";
       }
     } catch (error) {
-      console.error(error);
+      console.error("[login] error", error);
       alert(error?.message || "Login failed, please check your email and password");
     }
-  });
+  };
+
+  loginBtn?.addEventListener("click", handleLogin);
+  loginForm?.addEventListener("submit", handleLogin);
 }
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bindLoginHandlers);
+} else {
+  bindLoginHandlers();
+}
+
 
 // Privacy modal
 const openPrivacyBtn = document.getElementById("open-privacy");
