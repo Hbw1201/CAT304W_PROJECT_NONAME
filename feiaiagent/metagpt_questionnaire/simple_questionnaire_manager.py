@@ -5,7 +5,7 @@ Simplified intelligent questionnaire manager for MetaGPT conversational flows.
 
 import logging
 import re
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Set
 from datetime import datetime
 from types import SimpleNamespace
 
@@ -33,6 +33,7 @@ class SimpleQuestionnaireManager:
         self.risk_assessor = agent_registry.get_agent("风险评估专家")
         self.data_analyzer = agent_registry.get_agent("数据分析专家")
         self.report_generator = agent_registry.get_agent("报告生成专家")
+        self.conversational_agent = agent_registry.get_agent("Dr. Aiden")
     
     def initialize_questionnaire(self, questionnaire: Questionnaire) -> bool:
         """Initialize questionnaire state."""
@@ -107,36 +108,7 @@ class SimpleQuestionnaireManager:
                     "timestamp": datetime.now().isoformat()
                 })
 
-                self.current_question_index += 1
-
-            if self.current_question_index >= len(self.questionnaire.questions):
-                return await self._complete_questionnaire()
-
-            answers_dict = self._build_answer_map()
-            next_question_index = self._find_next_valid_question(answers_dict)
-
-            if next_question_index == -1:
-                return await self._complete_questionnaire()
-
-            next_question_index = await self._maybe_use_question_selector(
-                next_question_index, answers_dict
-            )
-
-            if next_question_index == -1:
-                return await self._complete_questionnaire()
-
-            self.current_question_index = next_question_index
-            next_question = self.questionnaire.questions[self.current_question_index]
-            optimized_question = await self._optimize_question_text(next_question)
-
-            return {
-                "status": "next_question",
-                "question": optimized_question,
-                "question_id": next_question.id,
-                "category": next_question.category,
-                "progress": f"{self.current_question_index + 1}/{len(self.questionnaire.questions)}",
-                "is_complete": False
-            }
+            return await self._prepare_next_question_response()
 
         except Exception as e:
             logger.error(f"Failed to fetch next question: {e}")
@@ -225,29 +197,270 @@ class SimpleQuestionnaireManager:
     
     async def _handle_skip_request(self, validation_result: Dict[str, Any], current_question: Question) -> Dict[str, Any]:
         """处理跳过请求"""
-        target_index = validation_result.get("target_index", self.current_question_index + 1)
+        self.current_question_index = validation_result.get("target_index", self.current_question_index)
         message = validation_result.get("message", "Okay, we will skip this question.")
-        
-        # 更新当前问题索引
-        self.current_question_index = target_index
-        
-        # 检查是否完成
-        if self.current_question_index >= len(self.questionnaire.questions):
+
+        response = await self._prepare_next_question_response()
+        if response.get("status") == "next_question":
+            response["question"] = f"{message}\n\n{response['question']}"
+            response["skip"] = True
+        return response
+
+    async def _prepare_next_question_response(self) -> Dict[str, Any]:
+        """Build the candidate pool, delegate selection to agents, and return the next question payload."""
+        if not self.questionnaire:
+            raise RuntimeError("Questionnaire has not been initialized.")
+
+        candidates, combined_answers, inferred_facts = self._build_candidate_context()
+        if not candidates:
+            logger.info("No remaining candidate questions. Completing questionnaire.")
             return await self._complete_questionnaire()
-        
-        # 获取下一个问题
-        next_question = self.questionnaire.questions[self.current_question_index]
+
+        next_question, source = await self._select_next_question(
+            candidates,
+            combined_answers,
+            inferred_facts
+        )
+
+        if not next_question:
+            logger.info("All selectors returned no question. Completing questionnaire.")
+            return await self._complete_questionnaire()
+
+        question_index = self._find_question_index_by_id(next_question.id)
+        if question_index is None:
+            question_index = len(self.questionnaire.questions) - 1
+        self.current_question_index = question_index
+
         optimized_question = await self._optimize_question_text(next_question)
-        
+        logger.info(
+            f"Next question selected via {source}: {next_question.id} "
+            f"(candidate_count={len(candidates)})."
+        )
+
         return {
             "status": "next_question",
-            "question": f"{message}\n\n{optimized_question}",
+            "question": optimized_question,
             "question_id": next_question.id,
             "category": next_question.category,
             "progress": f"{self.current_question_index + 1}/{len(self.questionnaire.questions)}",
-            "is_complete": False,
-            "skip": True
+            "is_complete": False
         }
+
+    def _build_candidate_context(
+        self,
+        answers_dict: Optional[Dict[str, Any]] = None
+    ) -> Tuple[List[Question], Dict[str, Any], Dict[str, Any]]:
+        """Construct the candidate pool along with the combined answers and inferred facts."""
+        if not self.questionnaire:
+            return [], {}, {}
+
+        normalized_history = self._normalize_answer_history()
+        base_answers = answers_dict or {
+            response.question_id: response.answer
+            for response in normalized_history
+            if response.question_id
+        }
+
+        inferred_facts = self._infer_additional_facts(normalized_history)
+        combined_answers = {**base_answers, **inferred_facts}
+        skip_ids = self._gather_skip_ids(combined_answers)
+        answered_ids = {resp.question_id for resp in normalized_history if resp.question_id}
+
+        candidates: List[Question] = []
+        for question in self.questionnaire.questions:
+            if question.id in answered_ids:
+                continue
+            if question.id in skip_ids:
+                logger.info(f"Candidate {question.id} removed by skip logic.")
+                continue
+            if not self._dependencies_met(question, combined_answers):
+                logger.info(f"Candidate {question.id} blocked by unmet dependencies.")
+                continue
+            candidates.append(question)
+
+        logger.info(
+            f"Candidate pool size: {len(candidates)} "
+            f"(answered={len(answered_ids)}, skipped={len(skip_ids)})."
+        )
+        return candidates, combined_answers, inferred_facts
+
+    def _normalize_answer_history(self, answers: Optional[List[Any]] = None) -> List[UserResponse]:
+        """Ensure answered questions are stored as UserResponse objects."""
+        normalized: List[UserResponse] = []
+        source = answers if answers is not None else self.answered_questions
+
+        for response in source:
+            if isinstance(response, UserResponse):
+                normalized.append(response)
+                continue
+            if isinstance(response, dict):
+                question_id = (
+                    response.get("question_id")
+                    or response.get("id")
+                    or response.get("questionId")
+                )
+                if not question_id:
+                    continue
+                normalized.append(
+                    UserResponse(
+                        question_id=str(question_id),
+                        answer=response.get("answer") or response.get("value") or ""
+                    )
+                )
+        return normalized
+
+    def _infer_additional_facts(self, history: List[UserResponse]) -> Dict[str, Any]:
+        """Use the conversational agent to infer structured facts from history."""
+        if not self.conversational_agent or not hasattr(self.conversational_agent, "_infer_facts_from_history"):
+            return {}
+        try:
+            facts = self.conversational_agent._infer_facts_from_history(history, self.questionnaire)  # type: ignore[attr-defined]
+            logger.info(f"Inferred facts: {list(facts.keys()) if facts else []}")
+            return facts or {}
+        except Exception as exc:
+            logger.warning(f"Conversational agent failed to infer facts: {exc}")
+            return {}
+
+    def _gather_skip_ids(self, answers: Dict[str, Any]) -> Set[str]:
+        """Combine skip logic from all sources."""
+        skip_ids: Set[str] = set()
+        if self.conversational_agent and hasattr(self.conversational_agent, "_get_skip_ids"):
+            try:
+                skip_ids.update(self.conversational_agent._get_skip_ids(answers))  # type: ignore[attr-defined]
+            except Exception as exc:
+                logger.warning(f"Conversational agent skip logic failed: {exc}")
+        skip_ids.update(self._get_skip_ids(answers))
+        return skip_ids
+
+    def _dependencies_met(self, question: Question, answers_lookup: Dict[str, Any]) -> bool:
+        """Check both Question.depends_on and validation_rules-based dependencies."""
+        dependency = getattr(question, "depends_on", None)
+        if not dependency and question.validation_rules:
+            dependency = question.validation_rules.get("depends_on")
+
+        if not dependency:
+            return True
+
+        if isinstance(dependency, str):
+            dep_id = dependency
+            expected_values = []
+        elif isinstance(dependency, dict):
+            dep_id = dependency.get("id")
+            expected_values = [
+                str(value) for value in dependency.get("values", []) if value is not None
+            ]
+            if dependency.get("value") is not None:
+                expected_values.append(str(dependency.get("value")))
+        else:
+            return True
+
+        if not dep_id:
+            return True
+
+        actual_answer = str(answers_lookup.get(dep_id, "")).strip()
+        if not expected_values:
+            return bool(actual_answer)
+        return actual_answer in expected_values
+
+    async def _select_next_question(
+        self,
+        candidates: List[Question],
+        answers_dict: Dict[str, Any],
+        inferred_facts: Dict[str, Any]
+    ) -> Tuple[Optional[Question], str]:
+        """Delegate question selection to the appropriate agents with fallbacks."""
+        selector_choice = await self._select_with_question_selector(candidates, answers_dict)
+        if selector_choice:
+            return selector_choice, "IntelligentQuestionSelectorAgent"
+
+        conversational_choice = await self._select_with_conversational_agent(
+            candidates,
+            inferred_facts
+        )
+        if conversational_choice:
+            return conversational_choice, "ConversationalInterviewerAgent"
+
+        logger.info("Falling back to sequential candidate order.")
+        return (candidates[0] if candidates else None, "sequential_fallback")
+
+    async def _select_with_question_selector(
+        self,
+        candidates: List[Question],
+        answers_dict: Dict[str, Any]
+    ) -> Optional[Question]:
+        """Use the intelligent selector agent if available."""
+        if not self.question_selector or not self.questionnaire:
+            return None
+
+        payload = {
+            "answered_questions": self._build_selector_answer_context(),
+            "available_questions": candidates,
+            "conversation_history": self.conversation_history,
+            "user_profile": {"current_index": self.current_question_index},
+            "answers": answers_dict
+        }
+
+        try:
+            if hasattr(self.question_selector, "process"):
+                selection_result = await self.question_selector.process(payload)
+            else:
+                selection_result = await self.question_selector.run(payload)
+            selected_question = self._extract_selector_question(selection_result, candidates)
+            if selected_question:
+                return selected_question
+        except Exception as exc:
+            logger.warning(f"Question selector failed; falling back. {exc}")
+        return None
+
+    async def _select_with_conversational_agent(
+        self,
+        candidates: List[Question],
+        inferred_facts: Dict[str, Any]
+    ) -> Optional[Question]:
+        """Fallback selector that leverages the conversational interviewer."""
+        if not self.conversational_agent:
+            return None
+        selector_fn = getattr(self.conversational_agent, "_determine_next_question", None)
+        if not selector_fn:
+            return None
+
+        history = self._normalize_answer_history()
+        try:
+            return await selector_fn(history, inferred_facts, candidates, self.questionnaire)  # type: ignore[misc]
+        except Exception as exc:
+            logger.warning(f"Conversational interviewer selection failed: {exc}")
+            return None
+
+    def _extract_selector_question(
+        self,
+        selection_result: Optional[Dict[str, Any]],
+        candidates: List[Question]
+    ) -> Optional[Question]:
+        """Normalize the selector agent's output into a Question object."""
+        if not selection_result:
+            return None
+
+        candidate_map = {question.id: question for question in candidates}
+
+        selected_question = selection_result.get("selected_question")
+        if isinstance(selected_question, Question):
+            return selected_question
+        if isinstance(selected_question, dict):
+            qid = selected_question.get("id")
+            if qid and qid in candidate_map:
+                return candidate_map[qid]
+
+        next_question_id = (
+            selection_result.get("next_question_id")
+            or selection_result.get("question_id")
+        )
+        if next_question_id and next_question_id in candidate_map:
+            return candidate_map[next_question_id]
+
+        if selection_result.get("status") == "completed":
+            return None
+
+        return candidates[0] if candidates else None
     
     def _clear_answer_at_index(self, target_index: int):
         """Remove the stored answer for a specific question index."""
@@ -282,15 +495,29 @@ class SimpleQuestionnaireManager:
 
     async def _optimize_question_text(self, question: Question) -> str:
         """Return the English display text for the question (prefer help_text)."""
+        base_text = self._get_display_text(question)
+
+        if not self.conversational_agent:
+            return base_text
+
         try:
-            return self._get_display_text(question)
+            result = await self.conversational_agent.process({
+                "question": base_text,
+                "conversation_history": self.conversation_history,
+                "question_category": question.category
+            })
+            optimized = result.get("optimized_question")
+            if optimized:
+                return optimized
         except Exception as e:
-            logger.warning(f"Failed to build display text, fallback to original question: {e}")
-            return question.text
+            logger.warning(f"Conversational agent failed to optimize question '{question.id}': {e}")
+
+        return base_text
 
     async def _complete_questionnaire(self) -> Dict[str, Any]:
         """Finalize the questionnaire and generate the English report."""
         try:
+            self.is_completed = True
             report = await self._generate_report()
             return {
                 "status": "completed",
@@ -440,51 +667,12 @@ class SimpleQuestionnaireManager:
     
     def _build_answer_map(self) -> Dict[str, Any]:
         """Return a mapping of question_id -> latest standardized answer."""
-        return {response.question_id: response.answer for response in self.answered_questions}
-
-    async def _maybe_use_question_selector(self, fallback_index: int, answers_dict: Dict[str, Any]) -> int:
-        """Optionally use the intelligent question selector agent to choose the next question."""
-        if not self.question_selector or not self.questionnaire:
-            return fallback_index
-
-        available_questions, available_indices = self._collect_available_questions(answers_dict)
-        if not available_questions:
-            return fallback_index
-
-        payload = {
-            "answered_questions": self._build_selector_answer_context(),
-            "available_questions": available_questions,
-            "conversation_history": self.conversation_history,
-            "user_profile": {"current_index": self.current_question_index},
-            "current_index": self.current_question_index
+        normalized = self._normalize_answer_history()
+        return {
+            response.question_id: response.answer
+            for response in normalized
+            if response.question_id
         }
-
-        try:
-            selection_result = await self.question_selector.run(**payload)
-            suggested_index = self._extract_selector_index(selection_result, available_indices, available_questions)
-            if suggested_index is None:
-                return fallback_index
-            return suggested_index
-        except Exception as e:
-            logger.warning(f"Question selector failed; falling back to sequential order: {e}")
-            return fallback_index
-
-    def _collect_available_questions(self, answers_dict: Dict[str, Any]) -> Tuple[List[Question], List[int]]:
-        """Build a list of candidate questions and their indices."""
-        available_questions: List[Question] = []
-        available_indices: List[int] = []
-        if not self.questionnaire:
-            return available_questions, available_indices
-
-        for idx in range(self.current_question_index, len(self.questionnaire.questions)):
-            question = self.questionnaire.questions[idx]
-            if self._should_skip_question(question, answers_dict):
-                continue
-            if not self._is_question_available(question, answers_dict):
-                continue
-            available_questions.append(question)
-            available_indices.append(idx)
-        return available_questions, available_indices
 
     def _build_selector_answer_context(self) -> List[SimpleNamespace]:
         """Convert answered questions to lightweight namespace objects for the selector agent."""
@@ -493,7 +681,7 @@ class SimpleQuestionnaireManager:
 
         question_map = {q.id: q for q in self.questionnaire.questions}
         selector_answers: List[SimpleNamespace] = []
-        for response in self.answered_questions:
+        for response in self._normalize_answer_history():
             question = question_map.get(response.question_id)
             if not question:
                 continue
@@ -509,50 +697,6 @@ class SimpleQuestionnaireManager:
             )
         return selector_answers
 
-    def _extract_selector_index(
-        self,
-        selection_result: Optional[Dict[str, Any]],
-        available_indices: List[int],
-        available_questions: List[Question]
-    ) -> Optional[int]:
-        """Parse the selector agent's response and convert it to a question index."""
-        if not selection_result:
-            return None
-
-        status = selection_result.get("status")
-        if status == "completed":
-            return -1
-
-        next_index = selection_result.get("next_index")
-        if isinstance(next_index, int) and next_index in available_indices:
-            return next_index
-
-        next_question_id = (
-            selection_result.get("next_question_id")
-            or selection_result.get("question_id")
-        )
-        if next_question_id:
-            idx = self._find_question_index_by_id(str(next_question_id))
-            if idx in available_indices:
-                return idx
-
-        selected_question = (
-            selection_result.get("selected_question")
-            or selection_result.get("next_question")
-        )
-        if selected_question:
-            if self.questionnaire and isinstance(selected_question, Question):
-                if selected_question in self.questionnaire.questions:
-                    return self.questionnaire.questions.index(selected_question)
-            if isinstance(selected_question, dict):
-                qid = selected_question.get("id")
-                if qid:
-                    idx = self._find_question_index_by_id(str(qid))
-                    if idx in available_indices:
-                        return idx
-
-        return None
-
     def _find_question_index_by_id(self, question_id: str) -> Optional[int]:
         """Find a question index by id."""
         if not self.questionnaire:
@@ -561,51 +705,6 @@ class SimpleQuestionnaireManager:
             if question.id == question_id:
                 return idx
         return None
-    
-    def _find_next_valid_question(self, answers_dict: Optional[Dict[str, Any]] = None) -> int:
-        """Sequentially find the next valid question index given current answers."""
-        if not self.questionnaire:
-            return -1
-
-        answers = answers_dict or self._build_answer_map()
-
-        for i in range(self.current_question_index, len(self.questionnaire.questions)):
-            question = self.questionnaire.questions[i]
-
-            if self._should_skip_question(question, answers):
-                logger.info(f"Skipping question {question.id} based on skip logic.")
-                continue
-
-            if self._is_question_available(question, answers):
-                logger.info(f"Next question selected: {question.id} (index: {i})")
-                return i
-            else:
-                logger.info(
-                    f"Question {question.id} (index: {i}) skipped because dependencies are not satisfied."
-                )
-
-        return -1
-
-    def _should_skip_question(self, question: Question, answers_dict: Dict[str, Any]) -> bool:
-        """Check if the question should be skipped based on current answers."""
-        skip_ids = self._get_skip_ids(answers_dict)
-
-        if question.id in skip_ids:
-            logger.info(f"Question {question.id} skipped according to branching rules.")
-            return True
-
-        return False
-    def _should_skip_question(self, question: Question, answers_dict: Dict[str, Any]) -> bool:
-        """检查问题是否应该被跳过（基于跳题逻辑）"""
-        # 获取跳题逻辑
-        skip_ids = self._get_skip_ids(answers_dict)
-        
-        # 检查当前问题是否在跳过列表中
-        if question.id in skip_ids:
-            logger.info(f"⏭️ 问题 {question.id} 被跳过: 根据跳题逻辑")
-            return True
-        
-        return False
     
     def _get_skip_ids(self, answers: Dict[str, Any]) -> set:
         """
@@ -692,26 +791,6 @@ class SimpleQuestionnaireManager:
             return True
         
         return False
-    def _is_question_available(self, question: Question, answers_dict: Dict[str, Any]) -> bool:
-        """检查问题是否应该被问（基于依赖条件）"""
-        # 检查依赖条件（validation_rules.depends_on）
-        if question.validation_rules and "depends_on" in question.validation_rules:
-            depends_on = question.validation_rules["depends_on"]
-            if depends_on:
-                dependent_question_id = depends_on.get("id")
-                required_value = str(depends_on.get("value"))
-                
-                # 检查依赖问题的答案（统一转为字符串比较）
-                dependent_answer = str(answers_dict.get(dependent_question_id, ""))
-                if dependent_answer != required_value:
-                    logger.info(
-                        f"⏭️ 问题 {question.id} 被跳过: 依赖问题 {dependent_question_id} 的答案是 "
-                        f"'{dependent_answer}'，需要 '{required_value}'"
-                    )
-                    return False
-        
-        return True
-
     async def _standardize_yes_no_answer(self, question: Question, user_answer: str) -> str:
         """
         使用规则 + 持久化智能体标准化是/否类问题的答案

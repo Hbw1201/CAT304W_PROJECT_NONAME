@@ -432,18 +432,11 @@ def serve_tts(filename):
 # ========= Text length & chunking for avatar =========
 AVG_CHARS_PER_SEC = 4.0   # Rough estimate, depends on TTS voice
 TARGET_SECS = 7           # Target 6–8 seconds per segment
-MAX_CHARS = 45            # Approx. 6–8 seconds
+MAX_CHARS = 10000         # Allow long sentences for TTS output
 
 def shorten_for_avatar(text: str, max_chars: int = MAX_CHARS) -> str:
-    t = (text or "").strip()
-    if len(t) <= max_chars:
-        return t
-    cutpoints = ['。', '！', '？', '\n', '；', ';', '，', ',', '.', '!', '?']
-    for cp in cutpoints:
-        idx = t.rfind(cp, 0, max_chars)
-        if idx != -1 and idx >= int(max_chars * 0.6):
-            return t[:idx+1]
-    return t[:max_chars]
+    """Return the full text to ensure TTS receives the complete prompt."""
+    return (text or "").strip()
 
 def split_for_avatar(text: str, target_secs: int = TARGET_SECS):
     import re

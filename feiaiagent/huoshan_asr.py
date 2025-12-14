@@ -63,8 +63,8 @@ class Config:
     def __init__(self):
         # 填入控制台获取的app id和access token
         self.auth = {
-            "app_key": "5788367806",
-            "access_key": "ERznO5yjhKwOhWBhtcPEajDQtrjna33L"
+            "app_key": "1835634118",
+            "access_key": "tf9o_FYwJs0spaVoZXi7AUFzNaiyBkuK"
         }
         # 火山ASR WebSocket服务地址 - 使用实际的火山引擎ASR服务地址
         self.huosan_asr_url = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel"

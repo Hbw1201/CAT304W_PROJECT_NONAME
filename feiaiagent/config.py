@@ -64,9 +64,9 @@ XFYUN_APIKEY    = os.getenv("XFYUN_APIKEY", "fe9c6565d02d77ca53d1129df1222e37").
 XFYUN_APISECRET = os.getenv("XFYUN_APISECRET", "YTRlMjU3MDAyOGIxM2FhNTA0OTFjYjM1").strip()
 
 # ========== 火山引擎 HUOSHAN ==========
-HUOSHAN_APP_ID = os.getenv("HUOSHAN_APP_ID", "5788367806").strip()
-HUOSHAN_ACCESS_TOKEN = os.getenv("HUOSHAN_ACCESS_TOKEN", "ERznO5yjhKwOhWBhtcPEajDQtrjna33L").strip()
-HUOSHAN_SECRET_KEY = os.getenv("HUOSHAN_SECRET_KEY", "7BykayuS8YK7PA9d8L_YhYPZZ4lN3mmC").strip()
+HUOSHAN_APP_ID = os.getenv("HUOSHAN_APP_ID", "1835634118").strip()
+HUOSHAN_ACCESS_TOKEN = os.getenv("HUOSHAN_ACCESS_TOKEN", "tf9o_FYwJs0spaVoZXi7AUFzNaiyBkuK").strip()
+HUOSHAN_SECRET_KEY = os.getenv("HUOSHAN_SECRET_KEY", "u8zlWsEmf8tKu1HbcJtZh-dwU3Y3z5Oc").strip()
 
 # ========== 路径与静态目录 ==========
 # 使用路径配置管理

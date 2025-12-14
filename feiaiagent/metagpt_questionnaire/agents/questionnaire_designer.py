@@ -14,7 +14,6 @@ import re
 
 from .base_agent import BaseAgent, register_agent
 from ..models.questionnaire import Questionnaire, Question, QuestionType, QuestionOption
-from ..prompts.design_prompts import DesignPrompts
 from local_questionnaire import QUESTIONS_STRUCTURED as ENGLISH_QUESTIONS_STRUCTURED
 
 logger = logging.getLogger(__name__)
@@ -482,7 +481,23 @@ class QuestionnaireDesignerAgent(BaseAgent):
         """优化问题"""
         logger.info(f"🔧 {self.name} 开始优化问题: {question.text[:30]}...")
         
-        prompt = DesignPrompts.question_optimization_prompt(question.text, feedback)
+        prompt = f"""You must respond in English only.
+Do not output Chinese characters.
+Use English for all narrative content, but keep the label '优化后的问题：' exactly as written so downstream parsing continues to work.
+
+You are a questionnaire optimization expert. Rewrite the following question based on reviewer feedback so it is clear, empathetic, and aligned with the intended medical meaning.
+
+Original question: {question.text}
+Feedback from reviewers: {feedback}
+
+Guidelines:
+1. Preserve the medical intent and required data.
+2. Keep wording concise and patient-friendly.
+3. Ensure the tone is respectful and easy to understand.
+4. Mention any necessary context or units.
+
+Reply using this exact format:
+优化后的问题：[English version of the improved question]"""
         
         try:
             llm_response = await self.call_llm(prompt)

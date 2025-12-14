@@ -10,7 +10,6 @@ from datetime import datetime
 
 from .base_agent import BaseAgent, register_agent
 from ..models.questionnaire import RiskAssessment, RiskLevel, UserResponse, Question
-from ..prompts.design_prompts import RiskAssessmentPrompts
 
 logger = logging.getLogger(__name__)
 
@@ -407,15 +406,26 @@ class RiskAssessorAgent(BaseAgent):
         logger.info(f"💡 {self.name} 开始生成建议，风险等级: {risk_level.value}")
         
         try:
-            # 获取建议提示词
-            prompt = RiskAssessmentPrompts.personalized_recommendation_prompt(
-                risk_assessment={
-                    "risk_level": risk_level.value,
-                    "risk_score": sum(factor.get("score", 0) for factor in risk_factors),
-                    "risk_factors": risk_factors
-                },
-                user_profile=user_profile or {}
-            )
+            assessment_payload = {
+                "risk_level": risk_level.value,
+                "risk_score": sum(factor.get("score", 0) for factor in risk_factors),
+                "risk_factors": risk_factors
+            }
+            prompt = f"""You must respond in English only.
+Do not output Chinese characters.
+
+You are a preventive medicine specialist. Provide personalized lung-health recommendations based on the following assessment data and user profile.
+
+Risk assessment summary: {assessment_payload}
+User profile: {user_profile or {}}
+
+Guidelines:
+1. Tailor advice to the stated risk level.
+2. Address the most significant risk factors explicitly.
+3. Provide practical, evidence-based actions (screening, lifestyle, environmental precautions).
+4. Keep suggestions empathetic and encouraging.
+
+Return a numbered list of clear recommendations."""
             
             # 调用LLM生成建议
             llm_response = await self.call_llm(prompt)

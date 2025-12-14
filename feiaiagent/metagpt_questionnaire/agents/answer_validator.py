@@ -178,7 +178,7 @@ class AnswerValidatorAgent(BaseAgent):
                     "redo": True,
                     "target_index": analysis_result.get("target_index", current_index),
                     "reason": analysis_result.get("reason", "用户想要重新回答前面的问题"),
-                    "message": "好的，我们回到前面的问题重新回答。"
+                    "message": "Alright, let's revisit the previous question and answer it again."
                 }
             
             # 处理答案验证结果
@@ -198,7 +198,10 @@ class AnswerValidatorAgent(BaseAgent):
                     "redo": False,
                     "valid": False,
                     "reason": analysis_result.get("reason", "答案不符合要求"),
-                    "suggestion": analysis_result.get("suggestion", "请重新回答"),
+                    "suggestion": analysis_result.get(
+                        "suggestion",
+                        "Please provide a more specific answer."
+                    ),
                     "retry": True
                 }
                 
@@ -250,7 +253,7 @@ class AnswerValidatorAgent(BaseAgent):
                 result = {
                     "status": "valid",
                     "valid": True,
-                    "reason": "用户选择不回答敏感信息问题",
+                    "reason": "The user chose not to answer the sensitive question.",
                     "sensitive_skip": True,
                     "retry": False
                 }
@@ -267,7 +270,7 @@ class AnswerValidatorAgent(BaseAgent):
                 result = {
                     "status": "valid",
                     "valid": True,
-                    "reason": "答案审核通过",
+                    "reason": "The answer passed validation.",
                     "quality_score": llm_validation.get("quality_score", 0.8),
                     "retry": False
                 }
@@ -318,8 +321,8 @@ class AnswerValidatorAgent(BaseAgent):
                         "intent_type": "返回上一题",
                         "redo": True,
                         "target_index": target_index,
-                        "reason": "检测到返回上一题的关键词",
-                        "message": f"好的，我们回到第{target_index + 1}题",
+                        "reason": "Detected keywords requesting a return to the previous question.",
+                        "message": f"Alright, let's go back to question {target_index + 1}.",
                         "clear_previous_answer": True
                     }
             
@@ -336,8 +339,8 @@ class AnswerValidatorAgent(BaseAgent):
                             "intent_type": "返回指定题",
                             "redo": True,
                             "target_index": target_index,
-                            "reason": f"检测到返回第{question_num}题的关键词",
-                            "message": f"好的，我们回到第{question_num}题",
+                        "reason": f"Detected keywords requesting a return to question {question_num}.",
+                        "message": f"Alright, let's return to question {question_num}.",
                             "clear_previous_answer": True
                         }
                     except (ValueError, IndexError):
@@ -351,8 +354,8 @@ class AnswerValidatorAgent(BaseAgent):
                         "intent_type": "重新开始",
                         "redo": True,
                         "target_index": 0,
-                        "reason": "检测到重新开始的关键词",
-                        "message": "好的，我们从头开始",
+                        "reason": "Detected keywords requesting a restart.",
+                        "message": "Alright, let's start over from the beginning.",
                         "clear_all_answers": True
                     }
             
@@ -364,8 +367,8 @@ class AnswerValidatorAgent(BaseAgent):
                         "intent_type": "跳过当前题",
                         "skip": True,
                         "target_index": current_index + 1,
-                        "reason": "检测到跳过当前题的关键词",
-                        "message": "好的，我们跳过这道题，继续下一题。"
+                        "reason": "Detected keywords requesting to skip the current question.",
+                        "message": "Alright, we'll skip this question and continue to the next one."
                     }
             
             # 没有检测到关键词
@@ -380,16 +383,16 @@ class AnswerValidatorAgent(BaseAgent):
         if not user_answer or user_answer.strip() == "":
             return {
                 "valid": False,
-                "reason": "回答不能为空",
-                "suggestion": "请提供您的回答"
+                "reason": "The answer cannot be empty.",
+                "suggestion": "Please provide your answer."
             }
         
         # 极度宽松：只要不是完全空白就认为有效
         if len(user_answer.strip()) < 1:
             return {
                 "valid": False,
-                "reason": "回答太短",
-                "suggestion": "请提供更详细的回答"
+                "reason": "The answer is too short.",
+                "suggestion": "Please provide a more detailed answer."
             }
         
         # 检查是否是完全无关的内容（极度宽松，只有明显无关才拒绝）
@@ -409,8 +412,8 @@ class AnswerValidatorAgent(BaseAgent):
             if re.search(pattern, answer_lower):
                 return {
                     "valid": False,
-                    "reason": "回答内容不相关",
-                    "suggestion": "请回答相关问题"
+                    "reason": "The answer is not related to the question.",
+                    "suggestion": "Please respond with information relevant to the question."
                 }
         
         # 其他所有情况都认为有效
@@ -428,39 +431,35 @@ class AnswerValidatorAgent(BaseAgent):
         """综合分析：意图分析+答案验证（只调用一次LLM）"""
         try:
             # 构建简化的综合分析提示词
-            prompt = f"""你是一位专业的医学问卷助手，需要分析用户的回答是否有效。
+            prompt = f"""You must respond in English only.
+Do not output Chinese characters.
+Use English for all content, but keep the following fixed Chinese labels exactly as written: 是否重新回答：, 目标问题索引：, 答案是否有效：, 原因：, 审核结果：, 质量评分：, 相关性评分：, 不通过原因：, 改进建议：, 意图类型：, 是否返回：, 回复消息：. Do not use any other Chinese.
 
-当前情况：
-- 当前问题索引：{current_index + 1}/{total_questions}
-- 问题：{question_text}
-- 用户回答：{user_answer}
+You are a professional medical questionnaire assistant who must evaluate whether the user's answer is valid.
 
-请分析：
-1. 用户是否想要重新回答前面的问题（如"回到第X题"、"重新回答"等）
-2. 用户的回答是否有效回答了当前问题
+Current context:
+- Question index: {current_index + 1}/{total_questions}
+- Question: {question_text}
+- User answer: {user_answer}
 
-验证标准（极度宽松）：
-- 只要用户回答了任何内容，就认为有效，除非回答完全无关或过于离谱
-- 接受任何形式的回答，包括单字、词语、句子、数字等
-- 接受模糊、不完整、口语化的回答
-- 接受任何单位、任何表达方式
-- 接受"不知道"、"不清楚"、"忘记了"等回答
-- 接受"嗯"、"对"、"是"、"有"、"没有"等简单回答
-- 接受"大概"、"可能"、"应该"等不确定的回答
-- 接受任何数字，不管单位如何
-- 接受任何是/否的表达方式
-- 只有以下情况才认为无效：
-  * 完全空白或只有空格
-  * 完全无关的内容（如回答"今天天气很好"来回答体重问题）
-  * 明显的恶意回答（如乱码、重复字符等）
+Your tasks:
+1. Decide if the user is trying to redo a previous question (phrases like "redo question X", "go back", etc.).
+2. Determine whether the answer adequately addresses the current question.
 
-请按以下格式回复：
+Validation policy (extremely lenient):
+- Accept any content unless it is blank, purely whitespace, blatantly irrelevant, or obvious malicious gibberish.
+- Accept single words, short phrases, numbers, slang, and informal speech.
+- Accept uncertain expressions such as "I am not sure", "maybe", or "I forgot".
+- Accept any units and any yes/no wording.
+- Only treat the answer as invalid when it is empty, fully unrelated (e.g., talking about the weather when asked about weight), or intentionally nonsensical spam.
+
+Respond using the following format (keep the labels exactly in Chinese; all explanations after the labels must be English):
 是否重新回答：是/否
-目标问题索引：[如果是重新回答，给出问题索引，否则为-1]
+目标问题索引：[provide the question index for redo, otherwise -1]
 答案是否有效：是/否
-原因：[简要说明]
+原因：[concise English justification]
 
-请直接输出结果，不要添加其他内容。"""
+Output nothing else."""
 
             # 调用DeepSeek进行综合分析
             self._update_stats("llm_calls")
@@ -477,7 +476,7 @@ class AnswerValidatorAgent(BaseAgent):
                 "valid": True,
                 "quality_score": 0.7,
                 "relevance_score": 0.7,
-                "reason": "综合分析失败，使用默认验证"
+                "reason": "Comprehensive analysis failed; using the default validation."
             }
     
     def _parse_simple_response(self, response: str, current_index: int, total_questions: int) -> Dict[str, Any]:
@@ -528,7 +527,10 @@ class AnswerValidatorAgent(BaseAgent):
                 "quality_score": 0.8 if valid else 0.3,
                 "relevance_score": 0.8 if valid else 0.3,
                 "reason": reason,
-                "suggestion": "请重新回答" if not valid else ""
+                "suggestion": (
+                    "Please provide a more specific answer."
+                    if not valid else ""
+                )
             }
             
         except Exception as e:
@@ -538,7 +540,7 @@ class AnswerValidatorAgent(BaseAgent):
                 "valid": True,
                 "quality_score": 0.7,
                 "relevance_score": 0.7,
-                "reason": "解析失败，使用默认验证"
+                "reason": "Parsing failed; using the default validation."
             }
     
     async def _validate_answer_inline(self, 
@@ -577,7 +579,7 @@ class AnswerValidatorAgent(BaseAgent):
                 result = {
                     "status": "valid",
                     "valid": True,
-                    "reason": "用户选择不回答敏感信息问题",
+                    "reason": "The user chose not to answer the sensitive question.",
                     "sensitive_skip": True,
                     "retry": False
                 }
@@ -594,7 +596,7 @@ class AnswerValidatorAgent(BaseAgent):
                 result = {
                     "status": "valid",
                     "valid": True,
-                    "reason": "答案审核通过",
+                    "reason": "The answer passed validation.",
                     "quality_score": llm_validation.get("quality_score", 0.8),
                     "retry": False
                 }
@@ -666,7 +668,7 @@ class AnswerValidatorAgent(BaseAgent):
                 result = {
                     "status": "valid",
                     "valid": True,
-                    "reason": "用户选择不回答敏感信息问题",
+                    "reason": "The user chose not to answer the sensitive question.",
                     "sensitive_skip": True,
                     "retry": False
                 }
@@ -683,7 +685,7 @@ class AnswerValidatorAgent(BaseAgent):
                 result = {
                     "status": "valid",
                     "valid": True,
-                    "reason": "答案审核通过",
+                    "reason": "The answer passed validation.",
                     "quality_score": llm_validation.get("quality_score", 0.8),
                     "retry": False
                 }
@@ -723,44 +725,48 @@ class AnswerValidatorAgent(BaseAgent):
         """使用DeepSeek进行智能审核（人性化版本）"""
         try:
             # 构建审核提示词
-            prompt = f"""你是一位温和、专业的医学问卷审核专家，需要以人性化的方式审核患者的回答质量。
+            prompt = f"""You must respond in English only.
+Do not output Chinese characters.
+Use English for all content, but keep the following fixed Chinese labels exactly as written: 是否重新回答：, 目标问题索引：, 答案是否有效：, 原因：, 审核结果：, 质量评分：, 相关性评分：, 不通过原因：, 改进建议：, 意图类型：, 是否返回：, 回复消息：. Do not use any other Chinese.
 
-问题：{question_text}
-问题分类：{question_category}
-患者回答：{user_answer}
+You are a calm and professional medical questionnaire reviewer who evaluates patient answers with empathy.
 
-请以温暖、理解的态度审核回答，考虑以下维度：
-1. 完整性：回答是否完整回答了问题
-2. 相关性：回答是否与问题相关（重点检查是否答非所问）
-3. 具体性：回答是否具体明确
-4. 逻辑性：回答是否符合逻辑
-5. 医学合理性：回答是否符合医学常识
-6. 表达自然性：回答是否自然、人性化
+Question: {question_text}
+Category: {question_category}
+Patient answer: {user_answer}
 
-评分标准：
-- 质量评分：0.0-1.0（0.0-0.3很差，0.3-0.5较差，0.5-0.7一般，0.7-0.9良好，0.9-1.0优秀）
-- 相关性评分：0.0-1.0（0.0-0.3不相关，0.3-0.5部分相关，0.5-0.7相关，0.7-1.0高度相关）
+Use a warm, understanding tone and assess the answer on these dimensions:
+1. Completeness: does it fully address the question?
+2. Relevance: is it on topic (watch for answers that miss the question)?
+3. Specificity: is it detailed and concrete?
+4. Logic: does it make sense?
+5. Medical plausibility: is it medically reasonable?
+6. Natural expression: does it sound human and conversational?
 
-特别注意：
-- 理解患者可能用不同的方式表达同一意思（如"吸烟"和"抽烟"）
-- 接受自然的口语化表达（如"嗯"、"对的"、"是的"）
-- 理解患者可能用不同的单位（如体重用"斤"而不是"kg"）
-- 接受患者选择不回答敏感问题的权利
-- 如果用户回答与问题完全不相关，相关性评分应为0.1-0.3，必须标记为不通过
-- 如果用户只是重复问题内容，相关性评分应为0.2-0.4，必须标记为不通过
-- 如果用户回答过于模糊或简短，质量评分应为0.2-0.4，必须标记为不通过
-- 对于选择题，检查是否选择了有效选项（支持灵活表达）
-- 对于数值题，检查数值是否在合理范围内（支持多种单位）
-- 质量评分 < 0.5 或 相关性评分 < 0.5 时，必须标记为不通过
+Scoring guidelines:
+- 质量评分: 0.0-1.0 (0.0-0.3 very poor, 0.3-0.5 poor, 0.5-0.7 fair, 0.7-0.9 good, 0.9-1.0 excellent)
+- 相关性评分: 0.0-1.0 (0.0-0.3 unrelated, 0.3-0.5 partially related, 0.5-0.7 related, 0.7-1.0 highly related)
 
-请给出审核结果，格式如下：
+Important reminders:
+- Recognize synonymous expressions (e.g., different words for smoking).
+- Accept colloquial interjections like "um" or "yeah".
+- Accept alternative units (e.g., weight in jin).
+- Respect the patient's choice not to answer sensitive questions.
+- If the answer is completely unrelated, set 相关性评分 to 0.1-0.3 and mark as not approved.
+- If the answer merely repeats the question, set 相关性评分 to 0.2-0.4 and mark as not approved.
+- If the answer is too vague or overly brief, set 质量评分 to 0.2-0.4 and mark as not approved.
+- For choice questions, ensure the selection is valid even if expressed flexibly.
+- For numeric questions, ensure the value is within a reasonable range.
+- If 质量评分 < 0.5 or 相关性评分 < 0.5, the answer must be marked as not approved.
+
+Provide the results using the following format (labels must remain in Chinese; descriptions must be English):
 审核结果：通过/不通过
 质量评分：0.0-1.0
 相关性评分：0.0-1.0
-不通过原因：（如果不通过，请用温和的语气）
-改进建议：（如果不通过，请用鼓励的语气）
+不通过原因：[if not approved, give an English explanation in a gentle tone]
+改进建议：[if not approved, give an encouraging English suggestion]
 
-请直接输出结果，不要添加其他内容。"""
+Return only this formatted response."""
 
             # 调用DeepSeek
             response = await self.call_llm(prompt)
@@ -774,7 +780,7 @@ class AnswerValidatorAgent(BaseAgent):
             return {
                 "valid": True,
                 "quality_score": 0.7,
-                "reason": "LLM审核失败，使用基本验证"
+                "reason": "LLM review failed; using basic validation."
             }
     
     def _parse_validation_response(self, response: str, question_text: str = "") -> Dict[str, Any]:
@@ -813,7 +819,7 @@ class AnswerValidatorAgent(BaseAgent):
                     "valid": True,
                     "quality_score": quality_score,
                     "relevance_score": relevance_score,
-                    "reason": "LLM审核通过"
+                    "reason": "LLM review passed."
                 }
             else:
                 # 提取不通过原因和建议
@@ -846,7 +852,7 @@ class AnswerValidatorAgent(BaseAgent):
                 "valid": True,
                 "quality_score": 0.7,
                 "relevance_score": 0.7,
-                "reason": "解析失败，默认通过"
+                "reason": "Parsing failed; approving by default."
             }
     
     async def batch_validate_answers(self, qa_pairs: List[Dict[str, str]], max_concurrent: int = 5) -> List[Dict[str, Any]]:
@@ -889,45 +895,46 @@ class AnswerValidatorAgent(BaseAgent):
         """分析用户是否想返回前面的问题重新回答"""
         try:
             # 构建分析提示词
-            prompt = f"""你是一位专业的医学问卷助手，需要分析用户的回答意图。
+            prompt = f"""You must respond in English only.
+Do not output Chinese characters.
+Use English for all content, but keep the following fixed Chinese labels exactly as written: 是否重新回答：, 目标问题索引：, 答案是否有效：, 原因：, 审核结果：, 质量评分：, 相关性评分：, 不通过原因：, 改进建议：, 意图类型：, 是否返回：, 回复消息：. Do not use any other Chinese.
 
-当前情况：
-- 当前问题索引：{current_index + 1}/{total_questions}
-- 用户回答：{user_answer}
+You are a professional medical questionnaire assistant who must analyze the user's intent.
 
-请分析用户是否想要：
-1. 重新回答前面的问题
-2. 跳过当前问题
-3. 返回特定问题
-4. 正常回答当前问题
+Current context:
+- Question index: {current_index + 1}/{total_questions}
+- User answer: {user_answer}
 
-常见的返回意图表达：
-- "我想重新回答第X题"
-- "回到前面"
-- "重新填写"
-- "修改之前的答案"
-- "我想改一下第X个问题"
-- "回到第X题"
-- "重新回答"
-- "重新来"
-- "重新开始"
-- "回到第X个问题"
-- "我想重新回答第X个问题"
+Identify whether the user wants to:
+1. Redo a previous question.
+2. Skip the current question.
+3. Jump to a specific earlier question.
+4. Continue answering normally.
 
-特别注意：
-- 如果用户明确表达想要重新回答某个问题，应该标记为返回意图
-- 如果用户只是说"重新回答"但没有指定问题，默认返回上一个问题
-- 如果用户说"重新开始"，应该返回第1题
-- 如果用户说"回到前面"，应该返回上一个问题
+Common expressions for these intents include:
+- "I want to redo question X"
+- "Go back"
+- "Fill it again"
+- "Change my previous answer"
+- "Take me to question X"
+- "Redo"
+- "Start over"
+- "Let's do it again"
 
-请按以下格式回复：
+Interpretation guidance:
+- If the user clearly states they want to redo a question, mark the intent as returning.
+- If they simply say "redo" with no index, default to the previous question.
+- "Start over" means go to question 1.
+- "Go back" means return to the previous question unless a specific index is given.
+
+Respond using this format (labels remain in Chinese; explanations/messages must be English):
 意图类型：[重新回答/跳过/返回特定/正常回答]
 是否返回：是/否
-目标问题索引：[如果是返回特定，给出问题索引，否则为-1]
-原因：[简要说明]
-回复消息：[给用户的回复]
+目标问题索引：[if returning to a specific question, give the index; otherwise -1]
+原因：[brief English explanation]
+回复消息：[English message to the user]
 
-请直接输出结果，不要添加其他内容。"""
+Return only this formatted output."""
 
             # 调用DeepSeek分析
             response = await self.call_llm(prompt)
@@ -940,8 +947,8 @@ class AnswerValidatorAgent(BaseAgent):
             return {
                 "wants_redo": False,
                 "target_index": current_index,
-                "reason": "分析失败，继续当前问题",
-                "message": "请继续回答当前问题。"
+                "reason": "Analysis failed; continue with the current question.",
+                "message": "Please continue answering the current question."
             }
     
     def _parse_redo_intent_response(self, response: str, current_index: int, total_questions: int) -> Dict[str, Any]:
@@ -964,7 +971,7 @@ class AnswerValidatorAgent(BaseAgent):
                 
                 # 提取原因和消息
                 reason = "用户想要重新回答前面的问题"
-                message = "好的，我们回到前面的问题重新回答。"
+                message = "Alright, let's revisit the previous question and answer it again."
                 
                 if "原因：" in response:
                     try:
@@ -988,8 +995,8 @@ class AnswerValidatorAgent(BaseAgent):
                 return {
                     "wants_redo": False,
                     "target_index": current_index,
-                    "reason": "用户正常回答当前问题",
-                    "message": "继续当前问题。"
+                    "reason": "The user is answering the current question normally.",
+                    "message": "Continue with the current question."
                 }
                 
         except Exception as e:
@@ -997,6 +1004,6 @@ class AnswerValidatorAgent(BaseAgent):
             return {
                 "wants_redo": False,
                 "target_index": current_index,
-                "reason": "解析失败，继续当前问题",
-                "message": "请继续回答当前问题。"
+                "reason": "Parsing failed; continue with the current question.",
+                "message": "Please continue answering the current question."
             }

@@ -169,71 +169,52 @@ def convert_wav_to_mp3(wav_path: pathlib.Path, mp3_path: pathlib.Path) -> bool:
 
 def call_huoshan_tts_api(text: str) -> bytes:
     """
-    调用火山引擎TTS API，将文本转换为语音
-    使用真实的火山引擎HTTP API
+    ??????TTS API?????????
+    ?????????HTTP API
     """
     try:
-        # 获取配置
         config = HuoShanTTSConfig()
-        
+
         if not config.validate_config():
-            print("⚠️ 火山引擎TTS配置不完整，请检查volc_engine_config.py文件")
-            return b""
-        
+            print("?? ????TTS????????????? .env ? volc_engine_config.py ????? APP_ID / ACCESS_TOKEN / SECRET_KEY")
+            # ????????????? 401/403 ??
+            return _generate_mock_audio(text)
+
         app_id = config.get_app_id()
         access_token = config.get_access_token()
-        secret_key = config.get_secret_key()
-        
-        print(f"✅ 使用火山引擎TTS配置: APPID={app_id}")
-        
-        # 尝试多种认证方式
-        success = False
-        
-        # 方式1: 使用Bearer Token
-        try:
-            result = _try_api_call_with_bearer_token(text, app_id, access_token)
-            if result:
-                return result
-        except Exception as e:
-            print(f"❌ Bearer Token方式失败: {e}")
-        
-        # 方式2: 直接使用Token
-        try:
-            result = _try_api_call_with_direct_token(text, app_id, access_token)
-            if result:
-                return result
-        except Exception as e:
-            print(f"❌ 直接Token方式失败: {e}")
-        
-        # 方式3: 使用简化的请求格式
-        try:
-            result = _try_api_call_simple_format(text, app_id, access_token)
-            if result:
-                return result
-        except Exception as e:
-            print(f"❌ 简化格式失败: {e}")
-        
-        # 方式4: 尝试WebSocket方式
-        try:
-            result = _try_api_call_websocket(text, app_id, access_token)
-            if result:
-                return result
-        except Exception as e:
-            print(f"❌ WebSocket方式失败: {e}")
-        
-        # 所有方式都失败，使用模拟实现
-        print("⚠️ 所有API调用方式都失败，使用模拟实现")
-        print("💡 建议：请检查火山引擎控制台，确认Token有效性和服务开通状态")
-        
+        print(f"? ??????TTS??: APPID={app_id}")
+
+        # ??1: ??Bearer Token
+        result = _try_api_call_with_bearer_token(text, app_id, access_token)
+        if result:
+            return result
+
+        # ??2: ????Token
+        result = _try_api_call_with_direct_token(text, app_id, access_token)
+        if result:
+            return result
+
+        # ??3: ?????????
+        result = _try_api_call_simple_format(text, app_id, access_token)
+        if result:
+            return result
+
+        # ??4: ??WebSocket?????????????
+        result = _try_api_call_websocket(text, app_id, access_token)
+        if result:
+            return result
+
+        print("?? ??API??????????????")
+        print("?? ????????????????Token??????????")
         return _generate_mock_audio(text)
-        
+
     except Exception as e:
-        print(f"❌ 调用火山引擎TTS API失败: {e}")
+        print(f"? ??????TTS API??: {e}")
         return _generate_mock_audio(text)
 
 
 def _try_api_call_with_bearer_token(text: str, app_id: str, access_token: str) -> bytes:
-    """尝试使用Bearer Token认证"""
+    """????Bearer Token??"""
     url = "https://openspeech.bytedance.com/api/v1/tts"
     headers = {
         "Content-Type": "application/json",
@@ -261,44 +242,38 @@ def _try_api_call_with_bearer_token(text: str, app_id: str, access_token: str) -
             "operation": "query"
         }
     }
-    
-    print("🔑 尝试Bearer Token认证...")
+
+    print("?? ??Bearer Token??...")
     response = requests.post(url, json=data, headers=headers, timeout=30)
-    
+
     if response.status_code == 200:
-        print("✅ Bearer Token认证成功！")
-        
-        # 检查响应格式
+        print("? Bearer Token?????")
+
         try:
             result = response.json()
             if result.get("code") == 3000:
-                # 火山引擎返回base64编码的音频数据
-                import base64
                 audio_data = base64.b64decode(result["data"])
-                print(f"✅ 获得base64解码的音频数据: {len(audio_data)} bytes")
-                
-                # 检查音频数据格式并修正
+                print(f"? ??base64???????: {len(audio_data)} bytes")
+
                 audio_data = _fix_audio_format(audio_data)
-                
-                # 应用音频质量优化
                 audio_data = _optimize_audio_quality(audio_data)
                 return audio_data
             else:
-                print(f"❌ TTS合成失败: {result.get('message')} (错误码: {result.get('code')})")
+                err_code = result.get("code")
+                err_msg = result.get("message")
+                print(f"? TTS????: {err_msg} (???: {err_code})")
                 return b""
         except Exception as e:
-            # 如果不是JSON格式，可能是直接的二进制数据
-            print(f"⚠️ 响应不是JSON格式，尝试直接处理: {e}")
+            print(f"?? ????JSON?????????: {e}")
             audio_data = response.content
-            
-            # 检查音频数据格式并修正
             audio_data = _fix_audio_format(audio_data)
-            
-            # 应用音频质量优化
             audio_data = _optimize_audio_quality(audio_data)
             return audio_data
     else:
-        print(f"❌ Bearer Token认证失败: HTTP {response.status_code}")
+        if response.status_code in (401, 403):
+            print(f"? Bearer Token????: HTTP {response.status_code}???????????????")
+        else:
+            print(f"? Bearer Token????: HTTP {response.status_code}")
         return b""
 
 

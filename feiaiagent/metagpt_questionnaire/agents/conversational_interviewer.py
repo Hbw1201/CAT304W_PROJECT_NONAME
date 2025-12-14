@@ -162,17 +162,37 @@ class ConversationalInterviewerAgent(BaseAgent):
             for q in questionnaire.questions if q.id == r.question_id
         ])
         if not history_str:
-            history_str = "尚未回答任何问题。"
+            history_str = "No questions have been answered yet."
 
         facts_str = json.dumps(facts, ensure_ascii=False)
         candidates_str = "\n".join([f"- ID: {q.id}, Question: {q.text}" for q in candidates])
 
-        prompt = self.get_prompt(
-            "intelligent_question_selection",
-            history=history_str,
-            inferred_facts=facts_str,
-            candidate_questions=candidates_str
-        )
+        prompt = f"""You must respond in English only.
+Do not output Chinese characters.
+
+You are an experienced primary care physician conducting a lung cancer pre-screening interview. Based on the conversation history, inferred facts, and candidate questions, choose the single most appropriate next question.
+
+Conversation history:
+{history_str}
+
+Inferred facts:
+{facts_str}
+
+Candidate questions:
+{candidates_str}
+
+Selection requirements:
+1. Choose exactly one question from the candidate list.
+2. Ensure the choice aligns with existing information and medical reasoning.
+3. Prioritize questions that gather critical health information.
+4. Consider urgency, importance, and the natural flow of the consultation.
+5. Keep the interview coherent and patient-friendly.
+
+Output strictly as JSON with this structure and nothing else:
+{{"next_question_id": "QUESTION_ID"}}
+
+If no suitable question exists, output:
+{{"next_question_id": "none"}}"""
 
         try:
             llm_response = await self.call_llm(prompt)
@@ -194,31 +214,32 @@ class ConversationalInterviewerAgent(BaseAgent):
     async def _optimize_question_with_llm(self, question: str, conversation_history: List[Dict], question_category: str) -> str:
         """使用DeepSeek优化问题表述"""
         try:
-            # 构建对话历史上下文
             history_context = ""
             if conversation_history:
-                history_context = "之前的对话：\n"
-                for item in conversation_history[-2:]:  # 最近2轮对话
-                    history_context += f"医生：{item.get('question', '')}\n"
-                    history_context += f"患者：{item.get('answer', '')}\n"
+                history_context = "Recent dialogue:\n"
+                for item in conversation_history[-2:]:  # 最新2轮对话
+                    history_context += f"Doctor: {item.get('question', '')}\n"
+                    history_context += f"Patient: {item.get('answer', '')}\n"
             
-            # 构建提示词
-            prompt = f"""你是一位友善的问卷调查者，正在与患者进行健康调研对话。
+            prompt = f"""You must respond in English only.
+Do not output Chinese characters.
+
+You are a friendly health interviewer chatting with a patient. Rephrase the formal question so it feels natural and compassionate.
 
 {history_context}
 
-当前需要询问的问题：{question}
-问题分类：{question_category}
+Current formal question: {question}
+Category: {question_category}
 
-请将这个问题重新表述得更加自然、友好、易懂，就像在面对面聊天一样。要求：
-1. 语气要温和友善
-2. 语言要通俗易懂
-3. 避免过于正式的医学术语
-4. 保持问题的核心意思不变
-5. 可以适当添加一些解释或说明
-6. 必须输出完整的问题句子，不能只输出关键词
+Rephrasing requirements:
+1. Maintain a warm, reassuring tone.
+2. Use plain, easy-to-understand language.
+3. Avoid overly technical medical jargon.
+4. Preserve the core intent of the original question.
+5. Add brief clarifications if helpful.
+6. Output a complete sentence, not just keywords.
 
-请直接输出优化后的问题，不要添加其他内容。"""
+Provide only the rephrased question."""
 
             # 调用DeepSeek
             response = await self.call_llm(prompt)

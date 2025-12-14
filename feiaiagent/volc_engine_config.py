@@ -12,13 +12,13 @@ class VolcEngineConfig:
     """火山引擎配置类"""
     
     # APP ID
-    APP_ID = "5788367806"
+    APP_ID = "1835634118"
     
     # Access Token
-    ACCESS_TOKEN = "ERznO5yjhKwOhWBhtcPEajDQtrjna33L"
+    ACCESS_TOKEN = "tf9o_FYwJs0spaVoZXi7AUFzNaiyBkuK"
     
     # Secret Key
-    SECRET_KEY = "7BykayuS8YK7PA9d8L_YhYPZZ4lN3mmC"
+    SECRET_KEY = "u8zlWsEmf8tKu1HbcJtZh-dwU3Y3z5Oc"
     
     @classmethod
     def get_app_id(cls) -> str:

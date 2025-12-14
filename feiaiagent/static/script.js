@@ -84,6 +84,230 @@ function hideTTSIndicator() {
   log("隐藏TTS指示器");
 }
 
+const SPEECH_SEGMENT_LENGTH = 220;
+const SPEECH_DEBOUNCE_MS = 800;
+let speechVoicesReadyPromise = null;
+const speechMessageLocks = {};
+
+function sanitizeTextForSpeech(text, removeChinese = true) {
+  let normalized = (text || "").replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "";
+  }
+  if (removeChinese && /[\u4e00-\u9fff]/.test(normalized)) {
+    normalized = normalized.replace(/[\u4e00-\u9fff]/g, " ").replace(/\s+/g, " ").trim();
+  }
+  return normalized;
+}
+
+function splitTextIntoChunks(text, maxLen = SPEECH_SEGMENT_LENGTH) {
+  const content = (text || "").trim();
+  if (!content) {
+    return [];
+  }
+
+  const sentences = [];
+  let current = "";
+  for (const char of content) {
+    current += char;
+    if (/[。！？!?\\.\\?\\!;,;]/.test(char)) {
+      sentences.push(current.trim());
+      current = "";
+    }
+  }
+  if (current.trim()) {
+    sentences.push(current.trim());
+  }
+
+  const chunks = [];
+  let buffer = "";
+  const pushBuffer = () => {
+    if (buffer.trim()) {
+      chunks.push(buffer.trim());
+      buffer = "";
+    }
+  };
+
+  sentences.forEach(sentence => {
+    const candidate = buffer ? `${buffer} ${sentence}`.trim() : sentence;
+    if (candidate.length <= maxLen) {
+      buffer = candidate;
+    } else {
+      pushBuffer();
+      if (sentence.length <= maxLen) {
+        buffer = sentence;
+      } else {
+        let start = 0;
+        while (start < sentence.length) {
+          const slice = sentence.slice(start, start + maxLen).trim();
+          if (slice) {
+            chunks.push(slice);
+          }
+          start += maxLen;
+        }
+        buffer = "";
+      }
+    }
+  });
+
+  pushBuffer();
+  return chunks.length ? chunks : [content.slice(0, maxLen)];
+}
+
+function waitForSpeechVoices() {
+  if (!("speechSynthesis" in window)) {
+    return Promise.resolve([]);
+  }
+  if (speechVoicesReadyPromise) {
+    return speechVoicesReadyPromise;
+  }
+  speechVoicesReadyPromise = new Promise(resolve => {
+    const available = window.speechSynthesis.getVoices();
+    if (available && available.length) {
+      resolve(available);
+      return;
+    }
+
+    let resolved = false;
+    const handle = () => {
+      if (resolved) return;
+      resolved = true;
+      window.speechSynthesis.onvoiceschanged = null;
+      resolve(window.speechSynthesis.getVoices());
+    };
+
+    window.speechSynthesis.onvoiceschanged = handle;
+    setTimeout(handle, 600);
+  });
+  return speechVoicesReadyPromise;
+}
+
+function createSpeechMessageId(prefix, text) {
+  const base = (text || "")
+    .slice(0, 48)
+    .replace(/\s+/g, "-")
+    .toLowerCase() || "chunk";
+  const sessionPart = sessionId || "session";
+  return `${prefix || "speech"}-${sessionPart}-${base}`;
+}
+
+async function speakTextReliable(text, options = {}) {
+  if (!("speechSynthesis" in window)) {
+    log("当前浏览器不支持SpeechSynthesis。");
+    return Promise.resolve();
+  }
+
+  const payload = sanitizeTextForSpeech(text, options.removeChinese !== false);
+  if (!payload) {
+    log("TTS内容为空，跳过语音合成。");
+    return Promise.resolve();
+  }
+
+  const dedupeKey = options.messageId || createSpeechMessageId("speech", payload);
+  const now = Date.now();
+  if (dedupeKey) {
+    const last = speechMessageLocks[dedupeKey] || 0;
+    if (now - last < SPEECH_DEBOUNCE_MS) {
+      log(`TTS在${SPEECH_DEBOUNCE_MS}ms内重复触发，忽略 messageId=${dedupeKey}`);
+      return Promise.resolve();
+    }
+    speechMessageLocks[dedupeKey] = now;
+  }
+
+  await waitForSpeechVoices();
+  window.speechSynthesis.cancel();
+
+  const segments = splitTextIntoChunks(payload, options.segmentLength || SPEECH_SEGMENT_LENGTH);
+  if (!segments.length) {
+    return Promise.resolve();
+  }
+
+  return new Promise(resolve => {
+    const keepAliveTimer = setInterval(() => {
+      try {
+        if (!window.speechSynthesis || !window.speechSynthesis.speaking) {
+          clearInterval(keepAliveTimer);
+        } else {
+          window.speechSynthesis.resume();
+        }
+      } catch (_) {
+        clearInterval(keepAliveTimer);
+      }
+    }, 1400);
+
+    let index = 0;
+    const playNext = () => {
+      if (index >= segments.length) {
+        clearInterval(keepAliveTimer);
+        resolve();
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(segments[index]);
+      utterance.lang = options.lang || "en-US";
+      utterance.pitch = typeof options.pitch === "number" ? options.pitch : 1;
+      utterance.rate = typeof options.rate === "number" ? options.rate : 1;
+
+      utterance.onerror = (event) => {
+        log(`TTS段落播放错误: ${event?.error || "unknown"}, 跳过 index=${index}`);
+        index += 1;
+        playNext();
+      };
+
+      utterance.onend = () => {
+        index += 1;
+        playNext();
+      };
+
+      try {
+        window.speechSynthesis.speak(utterance);
+      } catch (err) {
+        log(`SpeechSynthesis调用失败: ${err.message}`);
+        index += 1;
+        playNext();
+      }
+    };
+
+    playNext();
+  });
+}
+
+function speakTextWithFallback(text, options = {}) {
+  if (!text) {
+    return Promise.resolve();
+  }
+
+  if (!("speechSynthesis" in window)) {
+    log("浏览器不支持SpeechSynthesis，跳过语音朗读。");
+    if (options.autoRecord && (isAgentMode || isLocalQuestionnaire || isMetaGPTMode)) {
+      setTimeout(() => startRecording(), 200);
+    }
+    return Promise.resolve();
+  }
+
+  const label = options.label || "正在播放语音...";
+  const prefix = options.prefix || "speech";
+  const messageId = options.messageId || createSpeechMessageId(prefix, text);
+  showTTSIndicator(label);
+
+  return speakTextReliable(text, {
+    lang: options.lang || "en-US",
+    pitch: options.pitch,
+    rate: options.rate,
+    messageId,
+    removeChinese: options.removeChinese !== false
+  }).catch(err => {
+    log(`SpeechSynthesis朗读失败: ${err?.message || err}`);
+  }).finally(() => {
+    hideTTSIndicator();
+    if (options.autoRecord && (isAgentMode || isLocalQuestionnaire || isMetaGPTMode)) {
+      setTimeout(() => {
+        startRecording();
+      }, 500);
+    }
+  });
+}
+
 function addToHistory(type, content) {
   const timestamp = new Date().toLocaleTimeString();
   const historyItem = {
@@ -519,6 +743,11 @@ async function startConversation() {
       }
     } else {
       statusEl.textContent = "状态：已开始，等待你的回答";
+      speakTextWithFallback(question, {
+        prefix: "agent-question",
+        label: "正在播放语音...",
+        autoRecord: true
+      });
     }
   } catch (error) {
     log(`启动智谱AI对话失败: ${error.message}`);
@@ -585,6 +814,11 @@ async function startMetaGPTQuestionnaire() {
       }
     } else {
       statusEl.textContent = "状态：MetaGPT问卷已开始，等待你的回答";
+      speakTextWithFallback(question, {
+        prefix: "metagpt-question",
+        label: "正在播放语音...",
+        autoRecord: true
+      });
     }
   } catch (error) {
     log(`启动 MetaGPT 问卷失败: ${error.message}`);
@@ -638,6 +872,12 @@ async function submitMetaGPTAnswer(text) {
           hideTTSIndicator();
           statusEl.textContent = "状态：媒体播放失败，但报告已显示";
         }
+      } else {
+        speakTextWithFallback(question, {
+          prefix: "metagpt-summary",
+          label: "正在播放评估报告...",
+          autoRecord: false
+        });
       }
     } else {
       if (data.invalid_answer) {
@@ -654,6 +894,11 @@ async function submitMetaGPTAnswer(text) {
         }
       } else {
         statusEl.textContent = "状态：已获取下一题";
+        speakTextWithFallback(question, {
+          prefix: "metagpt-question",
+          label: playLabel || "正在播放语音...",
+          autoRecord: true
+        });
       }
     }
   } catch (error) {
@@ -968,18 +1213,23 @@ async function submitAnswerText(text) {
       }
 
       // [MOD] 统一播放新问题（视频优先），播放后自动录音
-      if (mediaEl) {
-        statusEl.textContent = "状态：正在播放新问题语音/视频...";
-        // 尝试播放，如果失败则提示用户手动播放
-        try {
-          await playWithAutoRecord(mediaEl); // [MOD]
-        } catch (e) {
-          log(`自动播放失败: ${e.message}`);
-          statusEl.textContent = "状态：请手动点击播放按钮开始播放";
-        }
-      } else {
-        statusEl.textContent = "状态：已获取下一题";
+    if (mediaEl) {
+      statusEl.textContent = "状态：正在播放新问题语音/视频...";
+      // 尝试播放，如果失败则提示用户手动播放
+      try {
+        await playWithAutoRecord(mediaEl); // [MOD]
+      } catch (e) {
+        log(`自动播放失败: ${e.message}`);
+        statusEl.textContent = "状态：请手动点击播放按钮开始播放";
       }
+    } else {
+      statusEl.textContent = "状态：已获取下一题";
+      speakTextWithFallback(question, {
+        prefix: isMetaGPTMode ? "metagpt-question" : "agent-question",
+        label: "正在播放语音...",
+        autoRecord: true
+      });
+    }
     }
   } catch (error) {
     log(`提交回答失败: ${error.message}`);

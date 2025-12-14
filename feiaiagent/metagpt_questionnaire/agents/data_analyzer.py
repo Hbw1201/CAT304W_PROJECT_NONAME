@@ -12,7 +12,6 @@ from collections import defaultdict, Counter
 
 from .base_agent import BaseAgent, register_agent
 from ..models.questionnaire import UserResponse, Question, Questionnaire
-from ..prompts.design_prompts import AnalysisPrompts
 
 logger = logging.getLogger(__name__)
 
@@ -228,8 +227,26 @@ class DataAnalyzerAgent(BaseAgent):
         logger.info(f"🔍 {self.name} 开始模式识别")
         
         try:
-            # 获取模式识别提示词
-            prompt = AnalysisPrompts.pattern_recognition_prompt([r.to_dict() for r in responses])
+            response_payload = [r.to_dict() for r in responses]
+            prompt = f"""You must respond in English only.
+Do not output Chinese characters.
+
+You are an advanced healthcare data scientist who must analyze questionnaire answers and identify patterns.
+
+Response dataset: {response_payload}
+
+Your objectives:
+1. Discover timing patterns in how users respond.
+2. Identify consistency or inconsistency patterns across answers.
+3. Detect potential response biases.
+4. Describe user behavior patterns revealed in the data.
+5. Highlight any anomalous or suspicious answer patterns.
+
+Provide:
+1. A list of identified patterns with concise explanations.
+2. The significance or impact of each pattern.
+3. A description of any anomalies.
+4. Insights for improving the questionnaire flow."""
             
             # 调用LLM进行模式识别
             llm_response = await self.call_llm(prompt)
@@ -405,12 +422,24 @@ class DataAnalyzerAgent(BaseAgent):
         logger.info(f"💡 {self.name} 开始洞察发现")
         
         try:
-            # 获取洞察分析提示词
             q_dict = questionnaire.to_dict() if hasattr(questionnaire, "to_dict") else (questionnaire or {})
-            prompt = AnalysisPrompts.data_analysis_prompt(
-                responses=[r.to_dict() for r in responses],
-                questionnaire=q_dict
-            )
+            response_payload = [r.to_dict() for r in responses]
+            prompt = f"""You must respond in English only.
+Do not output Chinese characters.
+
+You are a senior medical data analyst tasked with extracting insights from questionnaire responses.
+
+Questionnaire details: {q_dict}
+Collected responses: {response_payload}
+
+Analysis requirements:
+1. Summarize overall data statistics and completion trends.
+2. Highlight key findings and meaningful insights across categories.
+3. Evaluate data quality (completeness, consistency, validity, timeliness).
+4. Flag anomalies or responses that deserve attention.
+5. Provide actionable recommendations and visualization ideas.
+
+Return a structured narrative covering these items."""
             
             # 调用LLM进行洞察分析
             llm_response = await self.call_llm(prompt)

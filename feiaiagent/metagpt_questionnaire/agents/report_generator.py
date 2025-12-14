@@ -12,7 +12,6 @@ from pathlib import Path
 
 from .base_agent import BaseAgent, register_agent
 from ..models.questionnaire import AnalysisReport, RiskAssessment, Questionnaire
-from ..prompts.design_prompts import ReportGenerationPrompts
 
 logger = logging.getLogger(__name__)
 
@@ -219,31 +218,32 @@ class ReportGeneratorAgent(BaseAgent):
             
             qa_text = "\n\n".join(qa_data)
             
-            # 构建提示词
-            prompt = f"""你是一位专业的医学专家，需要基于患者的问卷回答生成一份专业的肺癌早筛风险评估报告。
+            prompt = f"""You must respond in English only.
+Do not output Chinese characters.
 
-问卷信息：
-- 问卷标题：{questionnaire.title}
-- 总问题数：{len(questionnaire.questions)}
-- 已回答数：{len(answered_questions)}
+You are a board-certified pulmonary specialist who must generate a comprehensive lung cancer early-screening risk report based on the questionnaire data below.
 
-患者回答：
+Questionnaire info:
+- Title: {questionnaire.title}
+- Total questions: {len(questionnaire.questions)}
+- Answered questions: {len(answered_questions)}
+
+Patient responses:
 {qa_text}
 
-请生成一份专业的医学报告，包含以下部分：
-1. 基本信息总结
-2. 风险评估（基于回答分析风险因素）
-3. 主要发现
-4. 医学建议
-5. 后续建议
+Report requirements:
+1. Summary of key background information.
+2. Risk assessment with analysis of major risk factors drawn from the answers.
+3. Main findings and observations.
+4. Clear medical recommendations.
+5. Follow-up guidance and monitoring suggestions.
 
-要求：
-- 语言专业但易懂
-- 基于医学知识进行分析
-- 提供具体的建议
-- 格式清晰，结构完整
+Style guidelines:
+- Professional yet easy to understand.
+- Evidence-based medical reasoning.
+- Structured sections with headings and concise paragraphs.
 
-请直接输出报告内容，不要添加其他说明。"""
+Output only the final report text."""
 
             # 调用DeepSeek
             response = await self.call_llm(prompt)
@@ -658,7 +658,21 @@ class ReportGeneratorAgent(BaseAgent):
     async def _generate_executive_summary(self, report_content: str) -> str:
         """生成执行摘要"""
         try:
-            prompt = ReportGenerationPrompts.executive_summary_prompt(report_content)
+            prompt = f"""You must respond in English only.
+Do not output Chinese characters.
+
+You are a medical communications specialist. Write a concise executive summary of the following lung cancer screening report.
+
+Full report content:
+{report_content}
+
+The summary should:
+1. Highlight the patient's overall risk status and major findings.
+2. Mention the most important recommendations.
+3. Use 2-3 short paragraphs or bullet points.
+4. Avoid repeating section headings verbatim.
+
+Return only the executive summary."""
             llm_response = await self.call_llm(prompt)
             return llm_response
         except Exception as e:
