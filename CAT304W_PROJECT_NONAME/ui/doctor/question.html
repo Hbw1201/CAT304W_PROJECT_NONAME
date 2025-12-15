@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../dashboard.css">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="doctor-light.css">
   <link rel="stylesheet" href="../shared-layout.css">
 </head>
 <body class="dash-body doctor-theme">
@@ -135,31 +135,43 @@
         <div class="hero-pattern" aria-hidden="true"></div>
       </section>
 
-      <section class="card chat-card">
-        <div class="question-chat-container doctor-chat">
-          <div class="question-chat-header">
-            <div>
-              <p class="question-chat-title">Chat with patient</p>
-              <p class="question-chat-subtitle">Current patient: <span id="current-patient-name">Demo Patient</span></p>
-            </div>
-            <div class="question-chat-status" aria-label="Doctor online">
-              <span class="question-chat-status-dot" aria-hidden="true"></span>
-              <span class="question-chat-status-text">Doctor online</span>
+      <section class="chat-layout">
+        <div class="card patient-list-card">
+          <div class="card-head">
+            <div class="card-title-row">
+              <p class="card-title">Patient list</p>
+              <span class="pill">Live</span>
             </div>
           </div>
-          <div id="doctor-chat-messages" class="question-chat-messages"></div>
-          <div class="question-chat-input-area">
-            <textarea id="doctor-chat-input" class="question-chat-input" placeholder="Type your reply to the patient… (Enter to send, Shift+Enter for newline)"></textarea>
-            <button id="doctor-chat-send" class="question-chat-send-btn" type="button">Send</button>
-          </div>
+          <div id="patient-list-status" class="patient-list-status">Loading patients...</div>
+          <ul id="patient-list" class="patient-list"></ul>
         </div>
+
+        <section class="card chat-card">
+          <div class="question-chat-container doctor-chat">
+            <div class="question-chat-header">
+              <div>
+                <p class="question-chat-title">Chat with patient</p>
+                <p class="question-chat-subtitle">Current patient: <span id="current-patient-name">Select a patient</span></p>
+                <p class="patient-meta" id="selected-patient-meta">Select a patient to begin chatting.</p>
+              </div>
+              <div class="question-chat-status" aria-label="Doctor online">
+                <span class="question-chat-status-dot" aria-hidden="true"></span>
+                <span class="question-chat-status-text">Doctor online</span>
+              </div>
+            </div>
+            <div id="doctor-chat-messages" class="question-chat-messages"></div>
+            <div class="question-chat-input-area">
+              <textarea id="doctor-chat-input" class="question-chat-input" placeholder="Type your reply to the patient… (Enter to send, Shift+Enter for newline)"></textarea>
+              <button id="doctor-chat-send" class="question-chat-send-btn" type="button">Send</button>
+            </div>
+          </div>
+        </section>
       </section>
     </main>
   </div>
   <script type="module" src="./script.js"></script>
 </body>
 </html>
-
-
 
 

@@ -76,6 +76,7 @@ class SimpleQuestionnaireManager:
                         "question": display_question,
                         "question_id": current_question.id,
                         "category": current_question.category,
+                        "question_type": getattr(current_question, "type", getattr(current_question, "question_type", "text")),
                         "progress": f"{self.current_question_index + 1}/{len(self.questionnaire.questions)}",
                         "error": validation_result.get("reason", "Your answer is too vague."),
                         "suggestion": validation_result.get(
@@ -122,12 +123,17 @@ class SimpleQuestionnaireManager:
         try:
             validator = self.answer_validator
             if validator:
-                return await validator.run(
+                result = await validator.run(
                     user_answer=answer,
                     question_text=question.text,
                     current_index=self.current_question_index,
                     total_questions=len(self.questionnaire.questions)
                 )
+                logger.info(
+                    f"🔍 AnswerValidatorAgent: answer valid={result.get('valid', True)} "
+                    f"redo={result.get('redo', False)} skip={result.get('skip', False)}"
+                )
+                return result
 
             is_valid, msg = self._validate_answer(answer, question)
             return {"valid": is_valid, "reason": msg if not is_valid else "Answer accepted."}
@@ -164,6 +170,7 @@ class SimpleQuestionnaireManager:
             "question": f"{message}\n\n{optimized_question}",
             "question_id": target_question.id,
             "category": target_question.category,
+            "question_type": getattr(target_question, "type", getattr(target_question, "question_type", "text")),
             "progress": f"{target_index + 1}/{len(self.questionnaire.questions)}",
             "is_complete": False,
             "redo": True,
@@ -189,6 +196,7 @@ class SimpleQuestionnaireManager:
             "question": f"{message}\n\n{optimized_question}",
             "question_id": target_question.id,
             "category": target_question.category,
+            "question_type": getattr(target_question, "type", getattr(target_question, "question_type", "text")),
             "progress": f"{target_index + 1}/{len(self.questionnaire.questions)}",
             "is_complete": False,
             "redo": True,
@@ -243,6 +251,8 @@ class SimpleQuestionnaireManager:
             "question_id": next_question.id,
             "category": next_question.category,
             "progress": f"{self.current_question_index + 1}/{len(self.questionnaire.questions)}",
+            "question_type": getattr(next_question, "type", getattr(next_question, "question_type", "text")),
+            "total_questions": len(self.questionnaire.questions),
             "is_complete": False
         }
 
@@ -390,6 +400,7 @@ class SimpleQuestionnaireManager:
     ) -> Optional[Question]:
         """Use the intelligent selector agent if available."""
         if not self.question_selector or not self.questionnaire:
+            logger.warning("🎯 IntelligentQuestionSelectorAgent not available; using fallback selection")
             return None
 
         payload = {
@@ -407,6 +418,10 @@ class SimpleQuestionnaireManager:
                 selection_result = await self.question_selector.run(payload)
             selected_question = self._extract_selector_question(selection_result, candidates)
             if selected_question:
+                logger.info(
+                    f"🎯 IntelligentQuestionSelectorAgent: selected question {selected_question.id} "
+                    f"(candidates={len(candidates)})"
+                )
                 return selected_question
         except Exception as exc:
             logger.warning(f"Question selector failed; falling back. {exc}")
@@ -426,7 +441,10 @@ class SimpleQuestionnaireManager:
 
         history = self._normalize_answer_history()
         try:
-            return await selector_fn(history, inferred_facts, candidates, self.questionnaire)  # type: ignore[misc]
+            question = await selector_fn(history, inferred_facts, candidates, self.questionnaire)  # type: ignore[misc]
+            if question:
+                logger.info(f"💬 ConversationalInterviewerAgent: reformulated next question {question.id}")
+            return question
         except Exception as exc:
             logger.warning(f"Conversational interviewer selection failed: {exc}")
             return None
@@ -508,6 +526,8 @@ class SimpleQuestionnaireManager:
             })
             optimized = result.get("optimized_question")
             if optimized:
+                if optimized != base_text:
+                    logger.info(f"💬 ConversationalInterviewerAgent: reformulated question {question.id}")
                 return optimized
         except Exception as e:
             logger.warning(f"Conversational agent failed to optimize question '{question.id}': {e}")
@@ -556,6 +576,8 @@ class SimpleQuestionnaireManager:
                         "analysis_type": "conversational"
                     })
                     analysis_data["data_analysis"] = data_analysis
+                    feature_count = len(data_analysis.get("insights", [])) if isinstance(data_analysis, dict) else 0
+                    logger.info(f"📊 DataAnalyzerAgent: extracted {feature_count} risk features")
                 except Exception as analyzer_error:
                     logger.warning(f"Data analyzer failed: {analyzer_error}")
 
@@ -568,8 +590,12 @@ class SimpleQuestionnaireManager:
                     })
                     if hasattr(risk_assessment, "to_dict"):
                         analysis_data["risk_assessment"] = risk_assessment.to_dict()  # type: ignore[arg-type]
+                        overall = analysis_data["risk_assessment"].get("overall_risk")
                     else:
                         analysis_data["risk_assessment"] = risk_assessment
+                        overall = getattr(risk_assessment, "overall_risk", None)
+                    if overall:
+                        logger.info(f"⚠️ RiskAssessorAgent: overall risk = {overall}")
                 except Exception as assess_error:
                     logger.warning(f"Risk assessor failed: {assess_error}")
 
@@ -578,6 +604,7 @@ class SimpleQuestionnaireManager:
                     result = await self.report_generator.process(analysis_data)
                     report_text = self._extract_report_text(result)
                     if report_text and not self._contains_cjk(report_text):
+                        logger.info(f"📝 ReportGeneratorAgent: report generated ({len(report_text)} chars)")
                         return report_text
                 except Exception as generator_error:
                     logger.warning(f"Report generator failed, fallback to simple report: {generator_error}")

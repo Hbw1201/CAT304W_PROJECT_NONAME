@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../dashboard.css">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="doctor-light.css">
   <link rel="stylesheet" href="../shared-layout.css">
 </head>
 <body class="dash-body doctor-theme">
@@ -135,6 +135,32 @@
         <div class="hero-pattern" aria-hidden="true"></div>
       </section>
 
+      <section class="card patients-card">
+        <div class="card-head patients-card-head">
+          <div class="card-title-row">
+            <p class="card-title">Assigned Patients</p>
+            <span class="pill">Live</span>
+          </div>
+          <input id="patientSearch" class="patients-search" type="search" placeholder="Search name or email">
+        </div>
+        <div id="patientsState" class="patients-state">Loading...</div>
+        <div class="table-wrap">
+          <table id="patientsTable" class="patients-table" hidden>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Age</th>
+                <th>Gender</th>
+                <th>Status</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
       <section class="card flow-card">
         <div class="card-head">
           <div class="card-title-row">
@@ -220,4 +246,3 @@
   <script type="module" src="./script.js"></script>
 </body>
 </html>
-

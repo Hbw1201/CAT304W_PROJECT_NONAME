@@ -374,6 +374,38 @@ def _ensure_metagpt_session_storage():
     if not hasattr(app, "metagpt_sessions"):
         app.metagpt_sessions = {}
 
+def _create_pipeline_session(session_id: str, bucket_attr: str):
+    """Create a MetaGPT-driven questionnaire session and store it on the Flask app."""
+    if not _init_metagpt_if_needed():
+        raise RuntimeError("MetaGPT initialization failed")
+
+    from metagpt_questionnaire.agents.questionnaire_designer import QuestionnaireDesignerAgent
+    from metagpt_questionnaire.simple_questionnaire_manager import SimpleQuestionnaireManager
+
+    designer = QuestionnaireDesignerAgent()
+    questionnaire = _run_async(designer.design_questionnaire({
+        "source": "local",
+        "local_questionnaire_path": os.environ.get("LOCAL_QUESTIONNAIRE_PATH")
+    }))
+    logger.info(f"🧠 QuestionnaireDesignerAgent: generated {len(questionnaire.questions)} base questions")
+
+    manager = SimpleQuestionnaireManager()
+    if not manager.initialize_questionnaire(questionnaire):
+        raise RuntimeError("Failed to initialize questionnaire manager")
+
+    if not hasattr(app, bucket_attr):
+        setattr(app, bucket_attr, {})
+
+    getattr(app, bucket_attr)[session_id] = {
+        "questionnaire": questionnaire,
+        "current_index": 0,
+        "responses": [],
+        "start_time": time.time(),
+        "manager": manager
+    }
+
+    return questionnaire, manager
+
 def _build_answers_map(manager, questionnaire):
     answers_map: Dict[str, str] = {}
     try:
@@ -724,31 +756,16 @@ def metagpt_agent_start():
         session_id = data.get("session_id", str(int(time.time() * 1000)))
 
         # Initialize MetaGPT workflow
-        if not _init_metagpt_if_needed():
-            return jsonify({"error": "MetaGPT initialization failed"}), 500
+        questionnaire, manager = _create_pipeline_session(session_id, "metagpt_sessions")
 
         # Clean previous TTS
         clear_tts_dir(keep_names=["warmup.wav", "beep.wav"])
 
-        from metagpt_questionnaire.agents.questionnaire_designer import QuestionnaireDesignerAgent
-        designer = QuestionnaireDesignerAgent()
-        questionnaire = _run_async(designer.design_questionnaire({
-            "source": "local",
-            "local_questionnaire_path": os.environ.get("LOCAL_QUESTIONNAIRE_PATH")
-        }))
+        first_result = _run_async(manager.get_next_question())
+        if first_result.get("status") != "next_question":
+            return jsonify({"error": "Failed to get the first question"}), 500
 
-        # Session state
-        if not hasattr(app, "metagpt_sessions"):
-            app.metagpt_sessions = {}
-        app.metagpt_sessions[session_id] = {
-            "questionnaire": questionnaire,
-            "current_index": 0,
-            "responses": [],
-            "start_time": time.time()
-        }
-
-        first_q = questionnaire.questions[0]
-        question_text = first_q.text
+        question_text = first_result.get("question", "")
 
         # TTS + fixed avatar video
         video_url = "/static/video/human.mp4"
@@ -758,6 +775,10 @@ def metagpt_agent_start():
         return jsonify({
             "session_id": session_id,
             "question": question_text,
+            "question_id": first_result.get("question_id"),
+            "category": first_result.get("category"),
+            "progress": first_result.get("progress"),
+            "total_questions": first_result.get("total_questions"),
             "tts_url": tts_url,
             "video_url": video_url,
             "video_stream_url": video_stream_url,
@@ -768,320 +789,24 @@ def metagpt_agent_start():
         return jsonify({"error": f"Failed to start: {str(e)}"}), 500
 
 
-@app.route("/api/metagpt_agent/reply", methods=["POST"])
-def metagpt_agent_reply():
-    """
-    Step-by-step MetaGPT questionnaire reply:
-    - Record answer to current question
-    - If not complete: return next question
-    - If complete: run workflow, generate report, save it and return full report text
-    """
-    try:
-        data = request.get_json(force=True)
-        session_id = data["session_id"]
-        answer_text = data.get("answer", "").strip()
-
-        if not hasattr(app, "metagpt_sessions") or session_id not in app.metagpt_sessions:
-            return jsonify({"error": "Session not found"}), 400
-
-        sess = app.metagpt_sessions[session_id]
-        questionnaire = sess["questionnaire"]
-        idx = sess["current_index"]
-
-        from metagpt_questionnaire.models.questionnaire import UserResponse
-        current_q = questionnaire.questions[idx]
-        
-        # Use shared answer validator
-        try:
-            validator = get_shared_answer_validator()
-            if validator:
-                decision = _run_async(validator.run(
-                    answer_text,
-                    current_q.text,
-                    idx,
-                    len(questionnaire.questions)
-                ))
-                logger.info(f"🔍 Answer validation result: {decision}")
-            else:
-                raise Exception("Answer validator not available")
-        except Exception as e:
-            logger.warning(f"Answer validator failed, falling back to simple validation: {e}")
-            is_valid, reason = validate_user_answer(answer_text, current_q.text)
-            decision = {
-                "redo": False,
-                "valid": is_valid,
-                "reason": reason if not is_valid else "Basic validation passed"
-            }
-
-        # 1. Handle keyword detection / redo intent first
-        if decision.get("detected") or decision.get("redo"):
-            target_index = int(decision.get("target_index", idx))
-            target_index = max(0, min(target_index, len(questionnaire.questions) - 1))
-            sess["current_index"] = target_index
-
-            # Clear answers if needed
-            if decision.get("clear_all_answers"):
-                sess["responses"].clear()
-                logger.info("🔄 All answers cleared, restarting questionnaire")
-            elif decision.get("clear_previous_answer"):
-                sess["responses"] = [
-                    response for response in sess["responses"]
-                    if response.question_id != questionnaire.questions[target_index].id
-                ]
-                logger.info(f"🔄 Cleared answer for question {target_index + 1}")
-
-            target_q = questionnaire.questions[target_index]
-            base_message = decision.get(
-                "message",
-                f"Okay, let's go back to question {target_index + 1}"
-            )
-            message = f"{base_message}, please answer again: {target_q.text}"
-            
-            video_url = "/static/video/human.mp4"
-            video_stream_url = "/static/video/human.mp4"
-            tts_url = generate_tts_audio(shorten_for_avatar(message), session_id)
-
-            return jsonify({
-                "session_id": session_id,
-                "question": message,
-                "tts_url": tts_url,
-                "video_url": video_url,
-                "video_stream_url": video_stream_url,
-                "is_complete": False,
-                "progress": f"{target_index + 1}/{len(questionnaire.questions)}",
-                "total_questions": len(questionnaire.questions),
-                "redo": True,
-                "redo_target_index": target_index,
-                "intent_type": decision.get("intent_type", "redo"),
-                "message": decision.get("message", "Please answer this question again.")
-            })
-
-        # 2. Handle skip intent
-        if decision.get("skip"):
-            target_index = int(decision.get("target_index", idx + 1))
-            target_index = max(0, min(target_index, len(questionnaire.questions) - 1))
-            sess["current_index"] = target_index
-            
-            message = decision.get("message", "Okay, we will skip this question.")
-
-            # Completed?
-            if target_index >= len(questionnaire.questions):
-                report_text = "The questionnaire has been completed. Thank you for your participation."
-                video_url = "/static/video/human.mp4"
-                video_stream_url = "/static/video/human.mp4"
-                tts_url = generate_tts_audio(shorten_for_avatar(report_text), session_id)
-                
-                return jsonify({
-                    "session_id": session_id,
-                    "question": report_text,
-                    "tts_url": tts_url,
-                    "video_url": video_url,
-                    "video_stream_url": video_stream_url,
-                    "is_complete": True,
-                    "progress": f"{len(questionnaire.questions)}/{len(questionnaire.questions)}",
-                    "total_questions": len(questionnaire.questions),
-                    "skip": True
-                })
-            
-            # Next question after skip
-            next_q = questionnaire.questions[target_index]
-            next_message = f"{message}\n\n{next_q.text}"
-            
-            video_url = "/static/video/human.mp4"
-            video_stream_url = "/static/video/human.mp4"
-            tts_url = generate_tts_audio(shorten_for_avatar(next_message), session_id)
-            
-            return jsonify({
-                "session_id": session_id,
-                "question": next_message,
-                "tts_url": tts_url,
-                "video_url": video_url,
-                "video_stream_url": video_stream_url,
-                "is_complete": False,
-                "progress": f"{target_index + 1}/{len(questionnaire.questions)}",
-                "total_questions": len(questionnaire.questions),
-                "skip": True
-            })
-
-        # 3. Handle invalid answer
-        if not decision.get("valid", True):
-            reason = decision.get("reason", "Your answer is too vague.")
-            suggestion = decision.get(
-                "suggestion",
-                "Please provide a more specific and detailed answer."
-            )
-            hint = f"{reason} {suggestion} Please answer this question again: {current_q.text}"
-            
-            video_url = "/static/video/human.mp4"
-            video_stream_url = "/static/video/human.mp4"
-            tts_url = generate_tts_audio(shorten_for_avatar(hint), session_id)
-
-            return jsonify({
-                "session_id": session_id,
-                "question": hint,
-                "tts_url": tts_url,
-                "video_url": video_url,
-                "video_stream_url": video_stream_url,
-                "is_complete": False,
-                "progress": f"{idx + 1}/{len(questionnaire.questions)}",
-                "total_questions": len(questionnaire.questions),
-                "invalid_answer": True,
-                "invalid_reason": reason,
-                "suggestion": suggestion,
-                "retry": True
-            })
-
-        # 4. Valid answer: record and move on
-        if decision.get("sensitive_skip"):
-            sess["responses"].append(UserResponse(
-                question_id=current_q.id,
-                answer="Prefer not to answer"
-            ))
-            logger.info(f"🔒 User chose not to answer a sensitive question: {current_q.text}")
-        else:
-            sess["responses"].append(UserResponse(
-                question_id=current_q.id,
-                answer=answer_text
-            ))
-
-        next_index = idx + 1
-        if next_index < len(questionnaire.questions):
-            sess["current_index"] = next_index
-            next_q = questionnaire.questions[next_index]
-
-            video_url = "/static/video/human.mp4"
-            video_stream_url = "/static/video/human.mp4"
-            tts_url = generate_tts_audio(shorten_for_avatar(next_q.text), session_id)
-
-            return jsonify({
-                "session_id": session_id,
-                "question": next_q.text,
-                "tts_url": tts_url,
-                "video_url": video_url,
-                "video_stream_url": video_stream_url,
-                "is_complete": False,
-                "progress": f"{next_index + 1}/{len(questionnaire.questions)}",
-                "total_questions": len(questionnaire.questions)
-            })
-        else:
-            # Questionnaire completed -> run MetaGPT workflow
-            if not _init_metagpt_if_needed():
-                return jsonify({"error": "MetaGPT initialization failed"}), 500
-            try:
-                from metagpt_questionnaire.main import MetaGPTQuestionnaireApp
-                app_q = MetaGPTQuestionnaireApp()
-                if not app_q.initialize():
-                    return jsonify({"error": "MetaGPT workflow initialization failed"}), 500
-
-                result = _run_async(app_q.run_complete_workflow(
-                    user_responses=sess["responses"],
-                    user_profile={"session_id": session_id}
-                ))
-
-                # Extract report
-                report_text = None
-                try:
-                    report_text = result.get("final_results", {}).get("report", {}).get("content")
-                except Exception:
-                    report_text = None
-
-                if not report_text:
-                    ra = result.get("final_results", {}).get("risk_assessment") or {}
-                    report_text = (
-                        "Lung Cancer Early Screening Risk Assessment Report\n\n"
-                        f"Overall risk: {ra.get('overall_risk', 'unknown')}\n"
-                        f"Risk score: {ra.get('risk_score', '-')}\n"
-                    )
-
-                # Save report
-                try:
-                    answers_map = {}
-                    for r in sess["responses"]:
-                        try:
-                            q_text = next(
-                                (q.text for q in questionnaire.questions if q.id == r.question_id),
-                                r.question_id
-                            )
-                            answers_map[q_text] = str(r.answer)
-                        except Exception:
-                            answers_map[r.question_id] = str(r.answer)
-                    _ = report_manager.save_report(report_text, answers_map, session_id)
-                    _ = report_manager.save_report_json(report_text, answers_map, session_id)
-                    _ = report_manager.save_report_pdf(report_text, answers_map, session_id)
-                except Exception as _:
-                    logger.warning("Failed to save MetaGPT report (ignored).")
-
-                first_seg = shorten_for_avatar(report_text)
-                video_url = "/static/video/human.mp4"
-                video_stream_url = "/static/video/human.mp4"
-                tts_url = generate_tts_audio(first_seg, session_id)
-
-                sess["completed"] = True
-
-                return jsonify({
-                    "session_id": session_id,
-                    "question": report_text,
-                    "tts_url": tts_url,
-                    "video_url": video_url,
-                    "video_stream_url": video_stream_url,
-                    "is_complete": True,
-                    "progress": f"{len(questionnaire.questions)}/{len(questionnaire.questions)}",
-                    "total_questions": len(questionnaire.questions)
-                })
-            except Exception as e:
-                logger.error(f"MetaGPT workflow execution failed: {e}")
-                return jsonify({"error": str(e)}), 500
-    except Exception as e:
-        logger.error(f"MetaGPT step-by-step reply failed: {e}")
-        return jsonify({"error": f"Failed to reply: {str(e)}"}), 500
-
-
-# ========= MetaGPT questionnaire (conversational) =========
 @app.route("/api/metagpt_agent/start_conversational", methods=["POST"])
 def metagpt_agent_start_conversational():
     """
-    Start a conversational interview using the ConversationalInterviewerAgent
-    and SimpleQuestionnaireManager.
+    Start a conversational interview using the full MetaGPT agent pipeline.
     """
     try:
         data = request.get_json(force=True)
         session_id = data.get("session_id", str(int(time.time() * 1000)))
 
-        if not _init_metagpt_if_needed():
-            return jsonify({"error": "MetaGPT initialization failed"}), 500
+        questionnaire, manager = _create_pipeline_session(session_id, "metagpt_sessions")
 
         clear_tts_dir(keep_names=["warmup.wav", "beep.wav"])
 
-        from metagpt_questionnaire.agents.questionnaire_designer import QuestionnaireDesignerAgent
-        designer = QuestionnaireDesignerAgent()
-        questionnaire = _run_async(designer.design_questionnaire({
-            "source": "local",
-            "local_questionnaire_path": os.environ.get("LOCAL_QUESTIONNAIRE_PATH")
-        }))
-
-        if not hasattr(app, "metagpt_sessions"):
-            app.metagpt_sessions = {}
-        app.metagpt_sessions[session_id] = {
-            "questionnaire": questionnaire,
-            "current_index": 0,
-            "responses": [],
-            "start_time": time.time()
-        }
-
-        from metagpt_questionnaire.simple_questionnaire_manager import SimpleQuestionnaireManager
-        manager = SimpleQuestionnaireManager()
-        if not manager.initialize_questionnaire(questionnaire):
-            return jsonify({"error": "Failed to initialize questionnaire manager"}), 500
-        
-        # First question
         result = _run_async(manager.get_next_question())
-        if result["status"] != "next_question":
+        if result.get("status") != "next_question":
             return jsonify({"error": "Failed to get the first question"}), 500
-        
-        question_text = result["question"]
 
-        app.metagpt_sessions[session_id]["manager"] = manager
-        app.metagpt_sessions[session_id]["current_index"] = 0
+        question_text = result.get("question", "")
 
         video_url = "/static/video/human.mp4"
         video_stream_url = "/static/video/human.mp4"
@@ -1090,6 +815,10 @@ def metagpt_agent_start_conversational():
         return jsonify({
             "session_id": session_id,
             "question": question_text,
+            "question_id": result.get("question_id"),
+            "category": result.get("category"),
+            "progress": result.get("progress"),
+            "total_questions": result.get("total_questions"),
             "tts_url": tts_url,
             "video_url": video_url,
             "video_stream_url": video_stream_url,
@@ -1098,6 +827,15 @@ def metagpt_agent_start_conversational():
     except Exception as e:
         logger.error(f"MetaGPT conversational start failed: {e}")
         return jsonify({"error": f"Failed to start: {str(e)}"}), 500
+
+
+@app.route("/api/metagpt_agent/reply", methods=["POST"])
+def metagpt_agent_reply():
+    """
+    Step-by-step MetaGPT questionnaire reply routed through the conversational agent pipeline.
+    """
+    return metagpt_agent_reply_conversational()
+
 
 
 @app.route("/api/metagpt_agent/reply_conversational", methods=["POST"])
@@ -2026,17 +1764,9 @@ def intelligent_questionnaire_start():
         session_id = data.get("session_id", str(int(time.time() * 1000)))
 
         clear_tts_dir(keep_names=["warmup.wav", "beep.wav"])
+        questionnaire, manager = _create_pipeline_session(session_id, "intelligent_sessions")
 
-        if not hasattr(app, "intelligent_sessions"):
-            app.intelligent_sessions = {}
-        
-        manager = IntelligentQuestionnaireManager()
-        app.intelligent_sessions[session_id] = {
-            "manager": manager,
-            "start_time": time.time()
-        }
-
-        result = manager.get_next_question()
+        result = _run_async(manager.get_next_question())
         
         if result["status"] != "next_question":
             return jsonify({"error": "Failed to get the first question"}), 500
@@ -2050,11 +1780,11 @@ def intelligent_questionnaire_start():
         return jsonify({
             "session_id": session_id,
             "question": question_text,
-            "question_id": result["question_id"],
-            "category": result["category"],
-            "question_type": result["question_type"],
+            "question_id": result.get("question_id"),
+            "category": result.get("category"),
+            "question_type": result.get("question_type", "text"),
             "progress": result["progress"],
-            "total_questions": result["total_questions"],
+            "total_questions": result.get("total_questions", len(getattr(questionnaire, "questions", []))),
             "tts_url": tts_url,
             "video_url": video_url,
             "video_stream_url": video_stream_url,
@@ -2087,22 +1817,29 @@ def intelligent_questionnaire_reply():
         if not manager:
             return jsonify({"error": "Questionnaire manager not found"}), 400
         
-        result = manager.get_next_question(answer_text)
+        questionnaire = sess.get("questionnaire")
+        result = _run_async(manager.get_next_question(answer_text))
         sess["current_index"] = manager.current_question_index
 
         if result.get("status") == "completed":
-            report_text = result["report"]
+            report_text = result.get("report", "")
+            total_questions = result.get("total_questions", len(getattr(questionnaire, "questions", [])))
+            answered_count = result.get("answered_questions", len(getattr(manager, "answered_questions", [])))
             
             try:
                 answers_map = {}
-                for response in manager.user_responses:
-                    question_text = manager._get_question_text(response.question_id)
+                question_list = getattr(questionnaire, "questions", [])
+                for response in getattr(manager, "answered_questions", []):
+                    question_text = next(
+                        (q.text for q in question_list if q.id == response.question_id),
+                        response.question_id
+                    )
                     answers_map[question_text] = str(response.answer)
                 
                 _ = report_manager.save_report(report_text, answers_map, session_id)
                 _ = report_manager.save_report_json(report_text, answers_map, session_id)
                 _ = report_manager.save_report_pdf(report_text, answers_map, session_id)
-                logger.info(f"✅ Intelligent questionnaire report saved: {session_id}")
+                logger.info(f"📝 Intelligent questionnaire report saved: {session_id}")
             except Exception as e:
                 logger.warning(f"Failed to save intelligent questionnaire report: {e}")
             
@@ -2117,13 +1854,13 @@ def intelligent_questionnaire_reply():
                 "video_url": video_url,
                 "video_stream_url": video_stream_url,
                 "is_complete": True,
-                "progress": f"{result['total_questions']}/{result['total_questions']}",
-                "total_questions": result["total_questions"],
-                "basic_questions": result["basic_questions"],
-                "dynamic_questions": result["dynamic_questions"],
-                "answered_questions": result["answered_questions"]
+                "progress": f"{total_questions}/{total_questions}",
+                "total_questions": total_questions,
+                "basic_questions": len(getattr(questionnaire, "questions", [])),
+                "dynamic_questions": result.get("dynamic_questions", 0),
+                "answered_questions": answered_count
             })
-        
+            
         elif result.get("status") == "next_question":
             question_text = result["question"]
             video_url = "/static/video/human.mp4"
@@ -2133,11 +1870,11 @@ def intelligent_questionnaire_reply():
             return jsonify({
                 "session_id": session_id,
                 "question": question_text,
-                "question_id": result["question_id"],
-                "category": result["category"],
-                "question_type": result["question_type"],
+                "question_id": result.get("question_id"),
+                "category": result.get("category"),
+                "question_type": result.get("question_type", "text"),
                 "progress": result["progress"],
-                "total_questions": result["total_questions"],
+                "total_questions": result.get("total_questions", len(getattr(questionnaire, "questions", []))),
                 "tts_url": tts_url,
                 "video_url": video_url,
                 "video_stream_url": video_stream_url,
@@ -2165,7 +1902,20 @@ def get_intelligent_questionnaire_stats(session_id):
         if not manager:
             return jsonify({"error": "Questionnaire manager not found"}), 400
         
-        stats = manager.get_questionnaire_stats()
+        if hasattr(manager, "get_questionnaire_stats"):
+            stats = manager.get_questionnaire_stats()
+        else:
+            question_list = getattr(sess.get("questionnaire"), "questions", [])
+            answered = len(getattr(manager, "answered_questions", []))
+            total = len(question_list)
+            stats = {
+                "basic_questions": total,
+                "dynamic_questions": 0,
+                "total_questions": total,
+                "answered_questions": answered,
+                "completion_rate": (answered / total * 100) if total else 0,
+                "questionnaire_completed": getattr(manager, "is_completed", False)
+            }
         return jsonify({
             "session_id": session_id,
             "stats": stats,

@@ -1,5 +1,31 @@
-import { auth, db } from "./firebase-config.js";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { auth, db } from "../firebase-config.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  setDoc,
+  where,
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import {
+  getCurrentUserProfile,
+  getDoctorPatientLinks,
+  getPatientsByIds,
+} from "./firestoreService.js";
+
+const doctorState = {
+  patients: [],
+  selectedPatient: null,
+  chat: {
+    messages: null,
+    input: null,
+    sendBtn: null,
+    patientNameEl: null,
+    metaEl: null,
+  },
+};
 
 function getCachedProfile() {
   try {
@@ -11,9 +37,12 @@ function getCachedProfile() {
 }
 
 function applyDoctorInfo(profile) {
-  const name = (profile?.name || "Doctor").trim();
+  const name = (profile?.fullName || profile?.name || "Doctor").trim();
   const hospital =
-    (profile?.hospital_name || profile?.hospital || "Unknown hospital").trim();
+    (profile?.hospital ||
+      profile?.hospital_name ||
+      profile?.organization ||
+      "Unknown hospital").trim();
   const brandName = document.getElementById("brand-name");
   const brandAvatar = document.getElementById("brand-avatar");
   const doctorNameEl = document.getElementById("doctor-name-display");
@@ -39,30 +68,36 @@ function fillProfileForm(profile) {
 
   if (!profile) return;
 
-  if (nameInput && !nameInput.value) nameInput.value = profile.name || "";
+  if (nameInput && !nameInput.value)
+    nameInput.value = profile.fullName || profile.name || "";
   if (hospitalInput && !hospitalInput.value)
     hospitalInput.value =
-      profile.hospital_name || profile.hospital || profile.organization || "";
+      profile.hospital ||
+      profile.hospital_name ||
+      profile.organization ||
+      "";
   if (specialtyInput && !specialtyInput.value)
     specialtyInput.value = profile.specialty || "";
-  if (emailInput && !emailInput.value) emailInput.value = profile.email || "";
+  if (emailInput && !emailInput.value)
+    emailInput.value = profile.contactEmail || profile.email || "";
   if (phoneInput && !phoneInput.value)
-    phoneInput.value = profile.phone || profile.phoneNumber || "";
+    phoneInput.value =
+      profile.contactPhone || profile.phone || profile.phoneNumber || "";
   if (addressInput && !addressInput.value)
-    addressInput.value = profile.address || "";
+    addressInput.value = profile.clinicAddress || profile.address || "";
   if (bioInput && !bioInput.value)
     bioInput.value = profile.bio || profile.about || "";
 }
 
-async function hydrateDoctorProfile() {
+async function hydrateDoctorProfile(user) {
   const cached = getCachedProfile();
   applyDoctorInfo(cached);
   fillProfileForm(cached);
 
-  if (!auth?.currentUser || !db) return;
+  if (!user || !db) return;
 
   try {
-    const snap = await getDoc(doc(db, "users", auth.currentUser.uid));
+    const snap = await getDoc(doc(db, "users", user.uid));
     if (snap.exists()) {
       const data = snap.data();
       localStorage.setItem("userProfile", JSON.stringify(data));
@@ -95,124 +130,403 @@ function attachLogout() {
   });
 }
 
-function initDoctorChat() {
-  if (!window.location.pathname.toLowerCase().includes("/doctor/question.html")) {
+function isDoctorChatPage() {
+  return window.location.pathname.toLowerCase().includes("/doctor/question.html");
+}
+
+function getCurrentTime() {
+  const now = new Date();
+  return now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+}
+
+function updateSelectedPatientUI(patient) {
+  const name = patient?.fullName || patient?.name || patient?.email || "Select a patient";
+  doctorState.chat.patientNameEl ??= document.getElementById("current-patient-name");
+  doctorState.chat.metaEl ??= document.getElementById("selected-patient-meta");
+  if (doctorState.chat.patientNameEl) {
+    doctorState.chat.patientNameEl.textContent = name;
+  }
+  if (doctorState.chat.metaEl) {
+    doctorState.chat.metaEl.textContent = patient
+      ? `Patient ID: ${patient.id || patient.patientId || "N/A"}${patient.email ? ` • ${patient.email}` : ""}`
+      : "Select a patient to begin chatting.";
+  }
+}
+
+function appendDoctorMessage(senderType, text, time) {
+  const messages = doctorState.chat.messages;
+  if (!messages) return;
+  const bubble = document.createElement("div");
+  bubble.className = `chat-message ${senderType}`;
+
+  const meta = document.createElement("div");
+  meta.className = "chat-message-meta";
+
+  const senderEl = document.createElement("span");
+  senderEl.className = "chat-message-sender";
+  senderEl.textContent = senderType === "doctor" ? "Me (doctor)" : "Patient";
+
+  const timeEl = document.createElement("span");
+  timeEl.className = "chat-message-time";
+  timeEl.textContent = time || getCurrentTime();
+
+  meta.appendChild(senderEl);
+  meta.appendChild(timeEl);
+
+  const textEl = document.createElement("p");
+  textEl.className = "chat-message-text";
+  textEl.textContent = text;
+
+  bubble.appendChild(meta);
+  bubble.appendChild(textEl);
+  messages.appendChild(bubble);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function resetChatMessages() {
+  if (!doctorState.chat.messages) return;
+  doctorState.chat.messages.innerHTML = "";
+  if (doctorState.selectedPatient) {
+    const intro = doctorState.selectedPatient.fullName || doctorState.selectedPatient.name || "Patient";
+    appendDoctorMessage(
+      "patient",
+      `${intro} joined the chat.`,
+      getCurrentTime()
+    );
+  }
+}
+
+function sendDoctorMessage() {
+  if (!doctorState.chat.input || !doctorState.selectedPatient) {
+    alert("Select a patient to send messages.");
     return;
   }
+  const text = doctorState.chat.input.value.trim();
+  if (!text) return;
 
-  const messages = document.getElementById("doctor-chat-messages");
-  const input = document.getElementById("doctor-chat-input");
-  const sendBtn = document.getElementById("doctor-chat-send");
-  const doctorNameEl = document.getElementById("doctor-name-display");
-  const doctorHospitalEl = document.getElementById("doctor-hospital-display");
-  const brandName = document.getElementById("brand-name");
-  const brandAvatar = document.getElementById("brand-avatar");
-  const patientNameEl = document.getElementById("current-patient-name");
+  appendDoctorMessage("doctor", text, getCurrentTime());
+  doctorState.chat.input.value = "";
 
-  if (patientNameEl && !patientNameEl.textContent.trim()) {
-    patientNameEl.textContent = "Demo Patient";
-  }
+  const replyDelay = 800 + Math.random() * 800;
+  setTimeout(() => {
+    appendDoctorMessage("patient", "(Mock patient) Thank you for the explanation.", getCurrentTime());
+  }, replyDelay);
+}
 
-  if (!messages || !input || !sendBtn) return;
+function initDoctorChat() {
+  if (!isDoctorChatPage()) return;
 
-  function getCurrentTime() {
-    const now = new Date();
-    return now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-  }
+  doctorState.chat.messages = document.getElementById("doctor-chat-messages");
+  doctorState.chat.input = document.getElementById("doctor-chat-input");
+  doctorState.chat.sendBtn = document.getElementById("doctor-chat-send");
+  doctorState.chat.patientNameEl = document.getElementById("current-patient-name");
+  doctorState.chat.metaEl = document.getElementById("selected-patient-meta");
 
-  function appendDoctorMessage(senderType, text, time) {
-    const bubble = document.createElement("div");
-    bubble.className = `chat-message ${senderType}`;
+  if (!doctorState.chat.messages || !doctorState.chat.input || !doctorState.chat.sendBtn) return;
 
-    const meta = document.createElement("div");
-    meta.className = "chat-message-meta";
+  updateSelectedPatientUI(doctorState.selectedPatient);
 
-    const senderEl = document.createElement("span");
-    senderEl.className = "chat-message-sender";
-    senderEl.textContent = senderType === "doctor" ? "Me (doctor)" : "Patient";
-
-    const timeEl = document.createElement("span");
-    timeEl.className = "chat-message-time";
-    timeEl.textContent = time || getCurrentTime();
-
-    meta.appendChild(senderEl);
-    meta.appendChild(timeEl);
-
-    const textEl = document.createElement("p");
-    textEl.className = "chat-message-text";
-    textEl.textContent = text;
-
-    bubble.appendChild(meta);
-    bubble.appendChild(textEl);
-    messages.appendChild(bubble);
-    messages.scrollTop = messages.scrollHeight;
-  }
-
-  const doctorMockMessages = [
-    { sender: "patient", text: "Doctor, could you explain my latest screening result?", time: getCurrentTime() },
-    { sender: "doctor", text: "Sure. Your risk level suggests we should schedule a follow-up visit this week.", time: getCurrentTime() },
-  ];
-
-  doctorMockMessages.forEach((msg) => {
-    appendDoctorMessage(msg.sender, msg.text, msg.time);
-  });
-
-  function sendDoctorMessage() {
-    const text = input.value.trim();
-    if (!text) return;
-
-    appendDoctorMessage("doctor", text, getCurrentTime());
-    input.value = "";
-
-    const replyDelay = 800 + Math.random() * 800;
-    setTimeout(() => {
-      appendDoctorMessage("patient", "(Mock patient) Thank you for the explanation.", getCurrentTime());
-    }, replyDelay);
-  }
-
-  sendBtn.addEventListener("click", sendDoctorMessage);
-  input.addEventListener("keydown", (event) => {
+  doctorState.chat.sendBtn.addEventListener("click", sendDoctorMessage);
+  doctorState.chat.input.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       sendDoctorMessage();
     }
   });
+}
 
-  async function loadDoctorProfile() {
-    const cached = getCachedProfile();
-    applyDoctorInfo(cached);
+function renderPatientList(patients) {
+  const listEl = document.getElementById("patient-list");
+  const statusEl = document.getElementById("patient-list-status");
+  if (!listEl || !statusEl) return;
 
-    if (!auth?.currentUser || !db) return;
-    try {
-      const profileSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
-      if (profileSnap.exists()) {
-        const data = profileSnap.data();
-        if (data?.role === "doctor") {
-          applyDoctorInfo(data);
-          localStorage.setItem("userProfile", JSON.stringify(data));
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load doctor profile:", err);
-    }
+  listEl.innerHTML = "";
+
+  if (!patients.length) {
+    statusEl.textContent = "No patients assigned yet.";
+    return;
   }
 
-  loadDoctorProfile();
+  statusEl.textContent = "";
+  patients.forEach((patient) => {
+    const li = document.createElement("li");
+    li.className = "patient-list-item";
+    const title = document.createElement("div");
+    title.className = "patient-name";
+    title.textContent = patient.fullName || patient.name || "Unnamed patient";
+    const meta = document.createElement("div");
+    meta.className = "patient-email";
+    meta.textContent = patient.contactEmail || patient.email || "";
+    li.appendChild(title);
+    li.appendChild(meta);
+    li.addEventListener("click", () => {
+      doctorState.selectedPatient = patient;
+      updateSelectedPatientUI(patient);
+      resetChatMessages();
+    });
+    listEl.appendChild(li);
+  });
+}
+
+async function loadDoctorPatients(user) {
+  if (!isDoctorChatPage()) return;
+  const statusEl = document.getElementById("patient-list-status");
+  if (statusEl) statusEl.textContent = "Loading patients...";
+
+  if (!user) {
+    window.location.href = "../login.html";
+    return;
+  }
+
+  const profile = await getCurrentUserProfile();
+  const role = (profile?.role || "").toLowerCase();
+  console.log("[doctorPatients] uid:", user.uid, "role:", role);
+  if (role !== "doctor") {
+    window.location.href = "/patient/dashboard.html";
+    return;
+  }
+
+  const links = await getDoctorPatientLinks(user.uid);
+  const activeLinks = links.filter((link) => !link.status || link.status === "active");
+  const patientIds = activeLinks.map((l) => l.patientId).filter(Boolean);
+  console.log("[doctorPatients] patientIds:", patientIds.length);
+
+  let patients = [];
+  if (patientIds.length) {
+    patients = await getPatientsByIds(patientIds);
+  }
+  doctorState.patients = patients;
+  renderPatientList(patients);
+
+  if (patients.length) {
+    doctorState.selectedPatient = patients[0];
+    updateSelectedPatientUI(patients[0]);
+    resetChatMessages();
+  } else {
+    updateSelectedPatientUI(null);
+  }
+}
+
+function initDashboardPatients() {
+  const stateEl = document.getElementById("patientsState");
+  const table = document.getElementById("patientsTable");
+  const tbody = table?.querySelector("tbody");
+  const searchInput = document.getElementById("patientSearch");
+
+  if (!stateEl || !table || !tbody) return;
+
+  const renderRows = (patients) => {
+    tbody.innerHTML = "";
+    if (!patients.length) {
+      stateEl.textContent = "No patients assigned yet.";
+      table.hidden = true;
+      return;
+    }
+    stateEl.textContent = "";
+    table.hidden = false;
+
+    patients.forEach((p) => {
+      const tr = document.createElement("tr");
+      tr.dataset.patientId = p.id || p.patientId || "";
+      const fullName = p.fullName || p.name || "-";
+      const email = p.contactEmail || p.email || "-";
+      const age = p.age ?? "-";
+      const gender = p.gender || "-";
+      const status = "Active";
+      let created = "-";
+      const ts = p.createdAt || p.created_at;
+      if (ts?.toDate) {
+        created = ts.toDate().toLocaleString();
+      } else if (typeof ts === "string") {
+        created = ts;
+      }
+
+      const cells = [fullName, email, age, gender, status, created];
+      cells.forEach((val) => {
+        const td = document.createElement("td");
+        td.textContent = val;
+        tr.appendChild(td);
+      });
+
+      tr.addEventListener("click", () => {
+        const pid = tr.dataset.patientId;
+        if (pid) {
+          window.location.href = `/doctor/question.html?patientId=${encodeURIComponent(pid)}`;
+        }
+      });
+
+      tbody.appendChild(tr);
+    });
+  };
+
+  const applySearch = () => {
+    const term = (searchInput?.value || "").trim().toLowerCase();
+    if (!term) {
+      renderRows(doctorState.patients);
+      return;
+    }
+    const filtered = doctorState.patients.filter((p) => {
+      const name = (p.fullName || p.name || "").toLowerCase();
+      const email = (p.contactEmail || p.email || "").toLowerCase();
+      return name.includes(term) || email.includes(term);
+    });
+    renderRows(filtered);
+  };
+
+  if (searchInput) {
+    searchInput.addEventListener("input", applySearch);
+  }
+
+  const fetchPatientProfiles = async (patientIds) => {
+    const results = [];
+    for (const pid of patientIds) {
+      try {
+        const snap = await getDoc(doc(db, "users", pid));
+        if (snap.exists()) {
+          const data = snap.data() || {};
+          console.log("[doctor-dashboard] fetched patient", pid);
+          results.push({ id: pid, ...data });
+        } else {
+          console.log("[doctor-dashboard] patient missing", pid);
+        }
+      } catch (err) {
+        console.error("[doctor-dashboard] fetch patient error", pid, err);
+      }
+    }
+    return results;
+  };
+
+  const refreshPatients = async (user) => {
+    try {
+      stateEl.textContent = "Loading...";
+      table.hidden = true;
+
+      if (!db) {
+        throw new Error("Firebase not initialized");
+      }
+
+      if (!user) {
+        stateEl.textContent = "Not logged in";
+        return;
+      }
+
+      const profile = await getCurrentUserProfile();
+      const role = (profile?.role || "").toLowerCase();
+      console.log("[doctor-dashboard] uid=", user?.uid, "role=", role);
+      if (role !== "doctor") {
+        window.location.href = "/patient/dashboard.html";
+        return;
+      }
+
+      const doctorIds = [];
+      const storedUid = localStorage.getItem("uid");
+      if (user?.uid) doctorIds.push(user.uid);
+      if (profile?.uid && !doctorIds.includes(profile.uid)) doctorIds.push(profile.uid);
+      if (storedUid && !doctorIds.includes(storedUid)) doctorIds.push(storedUid);
+
+      let links = [];
+      for (const did of doctorIds) {
+        try {
+          console.log("[doctor-dashboard] querying doctorPatients for doctorId", did);
+          const q = query(collection(db, "doctorPatients"), where("doctorId", "==", did));
+          const snap = await getDocs(q);
+          console.log("[doctor-dashboard] doctorPatients count for", did, "=", snap.size);
+          snap.forEach((docSnap) => {
+            const data = docSnap.data() || {};
+            const status = (data.status || "active").toLowerCase();
+            links.push({
+              id: docSnap.id,
+              doctorId: data.doctorId,
+              patientId: data.patientId,
+              status,
+              assignedAt: data.assignedAt,
+            });
+          });
+        } catch (err) {
+          console.error("[doctor-dashboard] doctorPatients query error", did, err);
+        }
+      }
+
+      links = links.filter((l) => !l.status || l.status === "active");
+      const patientIds = [...new Set(links.map((l) => l.patientId).filter(Boolean))];
+      console.log("[doctor-dashboard] patientIds length", patientIds.length);
+
+      const patients = patientIds.length ? await fetchPatientProfiles(patientIds) : [];
+      console.log("[doctor-dashboard] patients=", patients.length);
+      doctorState.patients = patients;
+      renderRows(patients);
+    } catch (err) {
+      console.error(err);
+      stateEl.textContent = err?.message || "Failed to load patients.";
+      doctorState.patients = [];
+      table.hidden = true;
+    } finally {
+      if (!doctorState.patients.length && stateEl.textContent === "Loading...") {
+        stateEl.textContent = "No patients assigned yet.";
+      }
+    }
+  };
+
+  onAuthStateChanged(auth, (user) => {
+    if (!user) {
+      stateEl.textContent = "Not logged in";
+      return;
+    }
+    refreshPatients(user);
+  });
 }
 
 function initProfileShortcuts() {
-  const saveBtn = document.querySelector(".profile-card .btn-primary");
-  if (saveBtn) {
-    saveBtn.addEventListener("click", () => {
-      alert("Profile saved locally for now. Connect to Firestore to persist changes.");
-    });
-  }
+  const saveBtn = document.getElementById("save-profile-btn");
+  if (!saveBtn) return;
+
+  saveBtn.addEventListener("click", async () => {
+    if (!auth?.currentUser) {
+      alert("Please sign in again to save your profile.");
+      return;
+    }
+    if (!db) {
+      alert("Firestore is not configured. Please update firebase-config.js.");
+      return;
+    }
+
+    const payload = {
+      fullName: document.getElementById("doctor-name-input")?.value?.trim() || "",
+      hospital: document.getElementById("doctor-hospital-input")?.value?.trim() || "",
+      specialty: document.getElementById("doctor-specialty-input")?.value?.trim() || "",
+      contactEmail: document.getElementById("doctor-email-input")?.value?.trim() || "",
+      contactPhone: document.getElementById("doctor-phone-input")?.value?.trim() || "",
+      clinicAddress: document.getElementById("doctor-address-input")?.value?.trim() || "",
+      bio: document.getElementById("doctor-bio-input")?.value?.trim() || "",
+      // Keep legacy-friendly aliases without touching role.
+      name: document.getElementById("doctor-name-input")?.value?.trim() || "",
+      hospital_name: document.getElementById("doctor-hospital-input")?.value?.trim() || "",
+      email: document.getElementById("doctor-email-input")?.value?.trim() || "",
+      phone: document.getElementById("doctor-phone-input")?.value?.trim() || "",
+      address: document.getElementById("doctor-address-input")?.value?.trim() || "",
+    };
+
+    try {
+      await setDoc(doc(db, "users", auth.currentUser.uid), payload, { merge: true });
+      const cached = getCachedProfile() || {};
+      localStorage.setItem("userProfile", JSON.stringify({ ...cached, ...payload }));
+      alert("Profile saved.");
+    } catch (error) {
+      console.error("Failed to save profile to Firestore:", error);
+      alert("Could not save profile. Please try again.");
+    }
+  });
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-  hydrateDoctorProfile();
+  hydrateDoctorProfile(auth?.currentUser || null);
+  onAuthStateChanged(auth, (user) => {
+    hydrateDoctorProfile(user);
+    initProfileShortcuts();
+    loadDoctorPatients(user);
+    initDashboardPatients();
+  });
   initNavActiveState();
   attachLogout();
   initDoctorChat();
-  initProfileShortcuts();
 });

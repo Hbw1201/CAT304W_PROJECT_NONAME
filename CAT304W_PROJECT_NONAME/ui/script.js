@@ -267,7 +267,7 @@ function bindLoginHandlers() {
         throw new Error("User ID not found after login");
       }
 
-      // 默认认为是病人
+      // Default to patient unless Firestore explicitly marks doctor.
       let role = "patient";
       let profileData = null;
 
@@ -276,26 +276,22 @@ function bindLoginHandlers() {
 
       if (userDoc.exists()) {
         profileData = userDoc.data();
-        // 只有 role 显式为 doctor 时，才视为医生
-        if (profileData.role === "doctor") {
+        const profileRole = (profileData.role || "").toLowerCase();
+        if (profileRole === "doctor") {
           role = "doctor";
         }
 
-        // 保存 profile 数据
+        // Save profile data
         localStorage.setItem("userProfile", JSON.stringify(profileData));
       }
 
-      // 无论如何都保存 uid 和 role
+      // Persist uid and role
       localStorage.setItem("uid", uid);
       localStorage.setItem("userRole", role);
 
-      // 根据角色跳转
-      if (role === "doctor") {
-        // 医生：跳医生端 UI（你可以改成 doctor-dashboard.html）
-        window.location.href = "doctor-question.html";
-      } else {
-        window.location.href = "/patient/dashboard.html";
-      }
+      const target = role === "doctor" ? "/doctor/dashboard.html" : "/patient/dashboard.html";
+      console.log("[login] uid:", uid, "role:", role, "redirect:", target);
+      window.location.href = target;
     } catch (error) {
       console.error("[login] error", error);
       alert(error?.message || "Login failed, please check your email and password");
@@ -450,7 +446,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
 // 医生端聊天模块：医生视角回复患者，后续可接入 Firestore 消息流
 window.addEventListener("DOMContentLoaded", () => {
-  if (!window.location.pathname.toLowerCase().includes("doctor-question.html")) return;
+  if (!window.location.pathname.toLowerCase().includes("doctor/question.html")) return;
 
   const messages = document.getElementById("doctor-chat-messages");
   const input = document.getElementById("doctor-chat-input");

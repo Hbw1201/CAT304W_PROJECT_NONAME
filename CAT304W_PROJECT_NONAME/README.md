@@ -114,6 +114,20 @@ if __name__ == '__main__':
     call_with_session()
 ```
 
+## Firestore security rules (demo)
+For demos where a signed-in user may only read/write their own profile:
+```rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
+Tighten these rules for production (field-level validation, role checks).
+
 ## Deployment / 部署
 Because assets are static, any static host (Firebase Hosting, Vercel, Netlify, Nginx, S3) works. Ensure HTTPS so Firebase SDKs load without mixed-content issues.  
 前端为纯静态资源，可部署到任意静态托管；请使用 HTTPS 以保证 Firebase SDK 正常加载。

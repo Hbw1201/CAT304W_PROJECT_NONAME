@@ -29,7 +29,11 @@ _parsed_screen_url = urlparse(SCREEN_BACKEND_URL if "://" in SCREEN_BACKEND_URL 
 SCREEN_HOST = os.environ.get("SCREEN_HOST", _parsed_screen_url.hostname or "127.0.0.1")
 SCREEN_PORT = int(os.environ.get("SCREEN_PORT", _parsed_screen_url.port or 5100))
 START_SCREEN = os.environ.get("START_SCREEN", "1").lower() not in ("0", "false", "no")
+CHAT_HOST = os.environ.get("CHAT_HOST", "127.0.0.1")
+CHAT_PORT = int(os.environ.get("NODE_CHAT_PORT", 3000))
+DEFAULT_NODE_CHAT_URL = f"http://{CHAT_HOST}:{CHAT_PORT}"
 _screen_process: Optional[subprocess.Popen] = None
+_chat_process: Optional[subprocess.Popen] = None
 
 # Allowlist of root-level UI assets that can be served directly from /ui.
 ROOT_UI_ALLOWLIST = {
@@ -83,7 +87,14 @@ def system_init() -> Flask:
 
     @app.route("/api/chat", methods=["POST"])
     def chat() -> Any:
-        target_base = os.environ.get("NODE_CHAT_URL", "http://127.0.0.1:3000").rstrip("/")
+        target_base = (os.environ.get("NODE_CHAT_URL") or DEFAULT_NODE_CHAT_URL).rstrip("/")
+        parsed_target = urlparse(target_base if "://" in target_base else f"http://{target_base}")
+        target_host = parsed_target.hostname or CHAT_HOST
+        target_port = parsed_target.port or CHAT_PORT
+
+        if target_host in {"127.0.0.1", "localhost", CHAT_HOST} and not _is_port_open(target_host, target_port):
+            ensure_chat_backend()
+
         target_url = f"{target_base}/api/chat"
 
         content_type = request.content_type or "application/json"
@@ -204,6 +215,11 @@ def system_init() -> Flask:
         # Fallback to dashboard if a dedicated index is absent.
         return send_from_directory(doctor_dir, "dashboard.html")
 
+    @app.route("/doctor/dashboard.html", methods=["GET"])
+    @app.route("/doctor/dashboard", methods=["GET"])
+    def serve_doctor_dashboard() -> Any:
+        return send_from_directory(UI_DIR / "doctor", "dashboard.html")
+
     @app.route("/patient", methods=["GET"])
     def serve_patient() -> Any:
         return send_from_directory(UI_DIR / "patient", "index.html")
@@ -243,10 +259,10 @@ def system_init() -> Flask:
             return send_from_directory(UI_DIR, patient_path)
         return send_from_directory(UI_DIR / "patient", patient_path)
 
-    @app.route("/doctor/<path:doctor_path>", methods=["GET"])
-    def serve_doctor_assets(doctor_path: str) -> Any:
+    @app.route("/doctor/<path:filename>", methods=["GET"])
+    def doctor_static(filename: str) -> Any:
         # Serve doctor-specific static assets and nested pages.
-        return send_from_directory(UI_DIR / "doctor", doctor_path)
+        return send_from_directory(os.path.join(UI_DIR, "doctor"), filename)
 
     @app.route("/favicon.ico", methods=["GET"])
     def serve_favicon() -> Any:
@@ -337,11 +353,68 @@ def ensure_screen_backend():
         print("[screen launcher] warning: screen backend did not open port in time")
 
 
+def ensure_chat_backend():
+    global _chat_process
+    if _chat_process and _chat_process.poll() is None:
+        return
+    if _is_port_open(CHAT_HOST, CHAT_PORT):
+        print(f"[chat launcher] chat backend already running on {CHAT_HOST}:{CHAT_PORT}")
+        return
+
+    script_path = BASE_DIR / "chatbot.js"
+    if not script_path.exists():
+        print(f"[chat launcher] chatbot.js not found at {script_path}, cannot auto-start")
+        return
+
+    env = os.environ.copy()
+    env.setdefault("NODE_CHAT_PORT", str(CHAT_PORT))
+    env.setdefault("CHAT_HOST", CHAT_HOST)
+
+    try:
+        proc = subprocess.Popen(
+            ["node", "chatbot.js"],
+            cwd=str(BASE_DIR),
+            env=env,
+            stdout=None,
+            stderr=None,
+        )
+        _chat_process = proc
+        print(f"[chat launcher] chat backend started pid={proc.pid}")
+    except FileNotFoundError:
+        print("[chat launcher] failed to start chat backend: 'node' not found. Install Node.js or add it to PATH.")
+        return
+    except Exception as exc:
+        print(f"[chat launcher] failed to start chat backend: {exc}")
+        return
+
+    def _cleanup():
+        global _chat_process
+        if _chat_process and _chat_process.poll() is None:
+            try:
+                _chat_process.terminate()
+                _chat_process.wait(5)
+            except subprocess.TimeoutExpired:
+                _chat_process.kill()
+            except Exception:
+                pass
+        _chat_process = None
+
+    atexit.register(_cleanup)
+
+    for _ in range(20):
+        if _is_port_open(CHAT_HOST, CHAT_PORT):
+            break
+        time.sleep(0.5)
+    else:
+        print("[chat launcher] warning: chat backend did not open port in time")
+
+
 # Expose the app instance for WSGI servers (e.g., gunicorn main:app).
 app = system_init()
 
 
 if __name__ == "__main__":
+    ensure_chat_backend()
     ensure_screen_backend()
     port = int(os.environ.get("PORT", 8001))
     app.run(host="0.0.0.0", port=port, debug=False)

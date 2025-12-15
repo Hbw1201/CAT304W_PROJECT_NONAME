@@ -1,9 +1,9 @@
-require('dotenv').config();
 const path = require('path');
 const express = require('express');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.NODE_CHAT_PORT || 3000;
 const API_KEY = process.env.DASHSCOPE_API_KEY;
 const APP_ID = process.env.DASHSCOPE_APP_ID;
 const UI_DIR = path.join(__dirname, 'ui');
@@ -90,5 +90,5 @@ app.post('/api/chat', async (req, res) => {
 });
 
 app.listen(PORT, '127.0.0.1', () => {
-  console.log(`Server running on http://127.0.0.1:${PORT}`);
+  console.log(`Chatbot server listening on http://127.0.0.1:${PORT}`);
 });
