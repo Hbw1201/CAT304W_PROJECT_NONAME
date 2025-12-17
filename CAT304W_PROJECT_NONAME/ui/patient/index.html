@@ -3,71 +3,1037 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Osler AI Landing</title>
+  <title>Osler Patient Portal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    :root{
+      --max: 1320px;
+      --pad: 24px;
+    }
+    body.landing-body {
+      margin: 0;
+      font-family: "Manrope", system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background: radial-gradient(1200px 800px at 50% -10%, #f1f7ff 0%, #ecf4ff 45%, #fdfdff 100%);
+      overflow-x: hidden;
+    }
+    .container{
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 0 var(--pad);
+      width: 100%;
+      box-sizing: border-box;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { font-size: 16px; }
+    body { overflow-x: hidden; }
+    img { max-width: 100%; height: auto; display: block; }
+    img { max-width: 100%; display: block; }
+    .landing-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      gap: 18px;
+      flex-wrap: wrap;
+      width: 100%;
+    }
+    .brand-mark {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: "Baloo 2", sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .brand-mark img {
+      width: 72px;
+      height: 72px;
+      object-fit: contain;
+    }
+    .landing-header .nav-container{
+      min-height: 120px !important;
+      align-items: center !important;
+    }
+    .landing-header .brand-mark{
+      gap: 12px;
+      min-height: 96px !important;
+      line-height: 1 !important;
+    }
+    .landing-header .brand-mark img{
+      height: 110px !important;
+      width: auto !important;
+      max-height: none !important;
+    }
+    .primary-nav {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .primary-nav a {
+      text-decoration: none;
+      color: var(--muted);
+      font-weight: 600;
+      transition: color 0.2s ease;
+    }
+    .primary-nav a:hover {
+      color: var(--primary);
+    }
+    .nav-actions a {
+      text-decoration: none;
+      padding: 10px 20px;
+      border-radius: var(--radius-lg);
+      font-weight: 600;
+      border: 1px solid var(--primary);
+      color: #fff;
+      background: linear-gradient(135deg, var(--primary), var(--primary-600));
+      box-shadow: 0 10px 30px rgba(36, 87, 214, 0.25);
+    }
+    .menu-toggle{
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--primary);
+      box-shadow: var(--shadow-soft);
+      cursor: pointer;
+    }
+    .menu-toggle svg{ width: 22px; height: 22px; }
+    .mobile-menu{
+      position: absolute;
+      right: 20px;
+      top: 68px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: 10px;
+      width: min(320px, calc(100% - 40px));
+      display: none;
+      z-index: 9;
+    }
+    .mobile-menu.open{ display: block; }
+    .mobile-menu a{
+      display: block;
+      padding: 10px 12px;
+      color: var(--text);
+      text-decoration: none;
+      border-radius: var(--radius-md);
+      font-weight: 600;
+    }
+    .mobile-menu a:hover{
+      background: var(--primary-100);
+      color: var(--primary);
+    }
+    .mobile-menu .mobile-login{
+      margin-top: 8px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-600));
+      color: #fff;
+      text-align: center;
+    }
+    @media (min-width: 769px){
+      .mobile-menu{ display: none !important; }
+      .menu-toggle{ display: none; }
+    }
+    main {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 72px var(--pad) 90px;
+      display: flex;
+      flex-direction: column;
+      gap: 72px;
+    }
+    .section-title {
+      font-size: 34px;
+      font-family: "Baloo 2", sans-serif;
+      color: var(--text);
+      margin-bottom: 12px;
+      letter-spacing: -0.2px;
+    }
+    .section-subtitle {
+      margin-top: -8px;
+      color: var(--muted);
+    }
+    .hero {
+      padding: 92px 0 110px;
+      background: linear-gradient(180deg, #ecf3ff 0%, #f9fbff 45%, #ffffff 100%);
+    }
+    .hero-section { padding: 0; }
+    .hero-card{
+      background: linear-gradient(135deg, #ffffff 0%, #f6f9ff 100%);
+      border-radius: 30px;
+      box-shadow: 0 30px 80px rgba(15, 23, 42, 0.12);
+      border: 1px solid rgba(47, 107, 255, 0.14);
+      padding: 54px;
+      width: 100%;
+    }
+    .hero-inner{
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 28px;
+      align-items: center;
+    }
+    .hero-text { display: flex; flex-direction: column; gap: 10px; }
+    .hero-title {
+      font-size: clamp(44px, 4vw, 52px);
+      margin: 0;
+      color: var(--text);
+      font-family: "Baloo 2", sans-serif;
+      letter-spacing: -0.8px;
+      line-height: 1.1;
+      max-width: 22ch;
+    }
+    .eyebrow {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.28em;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+    .hero-subtitle{
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 16px;
+      letter-spacing: 0.2px;
+    }
+    .hero-text p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 22px;
+    }
+    .btn-primary, .btn-secondary {
+      border-radius: 999px;
+      padding: 14px 26px;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-600));
+      color: #fff;
+      box-shadow: 0 18px 45px rgba(36, 87, 214, 0.28);
+      border: 1px solid var(--primary);
+    }
+    .btn-secondary {
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      background: #fff;
+      box-shadow: 0 10px 26px rgba(36, 87, 214, 0.12);
+    }
+    .hero-visual {
+      position: relative;
+      min-height: 500px;
+      width: 100%;
+      border-radius: 26px;
+      background: radial-gradient(640px 480px at 58% 36%, #e8f3ff 0%, #f2f7ff 50%, #ffffff 100%);
+      border: 1px solid rgba(47, 107, 255, 0.14);
+      box-shadow: 0 22px 60px rgba(15, 23, 42, 0.12);
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .hero-visual::before {
+      content: "";
+      position: absolute;
+      inset: 16px;
+      border-radius: 22px;
+      border: 1.8px dashed rgba(47, 107, 255, 0.28);
+      z-index: 1;
+    }
+    .hero-visual::after{
+      content:"";
+      position:absolute;
+      width: 280px;
+      height: 280px;
+      right: -46px;
+      bottom: -36px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(72, 144, 255, 0.55), rgba(72, 144, 255, 0.08));
+      z-index: 0;
+      opacity: 0.9;
+    }
+    .doctor-img {
+      position: relative;
+      width: 100%;
+      max-width: 520px;
+      height: 100%;
+      max-height: 500px;
+      z-index: 2;
+      object-fit: contain;
+    }
+    .floating-card {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+      z-index: 3;
+      border: 1px solid rgba(47, 107, 255, 0.14);
+      color: var(--text);
+      backdrop-filter: blur(6px);
+      line-height: 1.45;
+      max-width: 220px;
+    }
+    .floating-card.booking {
+      left: 20px;
+      bottom: 22px;
+    }
+    .floating-card.stats {
+      right: 20px;
+      top: 20px;
+      text-align: right;
+      line-height: 1.4;
+    }
+    .floating-card.stats strong {
+      font-size: 18px;
+      color: var(--primary);
+    }
+    @media (max-width: 1024px) {
+      .hero-inner{
+        grid-template-columns: 1fr;
+        gap: 32px;
+      }
+      .services__grid,
+      .services-grid{
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 900px){
+      :root{ --pad: 18px; }
+      .header-center{ display: none !important; }
+      .menu-toggle{ display: inline-flex; }
+      .hero-card{ padding: 36px 28px; }
+      .hero-inner{ grid-template-columns: 1fr; }
+      .hero-visual{ min-height: 420px; }
+      .hero-title{ font-size: 36px; }
+    }
+    @media (min-width: 1440px){
+      :root{
+        --max: 1440px;
+        --pad: 32px;
+      }
+    }
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+    }
+    .service-card, .story-card, .how-step, .testimonial-card, .doctor-card, .contact-card {
+      background: var(--card);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid var(--border);
+    }
+    .service-card h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
+      color: var(--text);
+    }
+    .service-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .story-section {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 26px;
+      align-items: center;
+    }
+    .story-visual {
+      background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+      border-radius: 28px;
+      height: 320px;
+      position: relative;
+      box-shadow: 0 25px 80px rgba(15, 23, 42, 0.1);
+    }
+    .story-content p {
+      color: var(--muted);
+      line-height: 1.8;
+    }
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+    }
+    .how-step span {
+      display: inline-flex;
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      align-items: center;
+      justify-content: center;
+      background: var(--primary-100);
+      color: var(--primary);
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .testimonial-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+    }
+    .testimonial-card p {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 18px;
+    }
+    .stat-card {
+      background: var(--card);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      text-align: center;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid var(--border);
+    }
+    .stat-card strong { font-size: 32px; display: block; color: var(--text); }
+    .stat-card span { color: var(--muted); }
+    .doctor-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+    }
+    .doctor-avatar {
+      width: 70px;
+      height: 70px;
+      border-radius: 18px;
+      background: var(--primary-100);
+      margin-bottom: 12px;
+    }
+    .doctor-card button {
+      margin-top: 14px;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-600));
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .contact-card form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .contact-card input,
+    .contact-card textarea {
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+      font-family: inherit;
+    }
+    .contact-card button {
+      border: none;
+      border-radius: 14px;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-600));
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .link-like {
+      background: none;
+      border: none;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      padding: 0;
+    }
+    footer.osler-footer {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 70px 20px 28px;
+      position: relative;
+      overflow: hidden;
+      border-top: 1px solid rgba(148, 163, 184, 0.18);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+    }
+    footer.osler-footer::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(800px 480px at 20% 10%, rgba(79, 70, 229, 0.08), transparent),
+                  radial-gradient(600px 420px at 80% 20%, rgba(56, 189, 248, 0.07), transparent);
+      pointer-events: none;
+    }
+    .footer-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 26px;
+      position: relative;
+      z-index: 1;
+    }
+    .osler-footer .brand-mark{
+      align-items: center !important;
+      gap: 12px;
+      min-height: 86px !important;
+      line-height: 1 !important;
+    }
+    .osler-footer .brand-mark img{
+      height: 110px !important;
+      width: auto !important;
+      max-height: none !important;
+    }
+    .footer-brand {
+      background: none;
+      border: none;
+      border-radius: 0;
+      padding: 0;
+      box-shadow: none;
+      text-align: left;
+      display: grid;
+      gap: 10px;
+      justify-items: start;
+    }
+    .footer-brand p {
+      margin: 0;
+      color: #cbd5f5;
+      line-height: 1.6;
+      font-size: 15px;
+    }
+    .footer-column h4 {
+      margin: 0 0 12px;
+      color: #fff;
+    }
+    .footer-column ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .footer-column a,
+    .footer-column button,
+    .footer-column span {
+      color: #cbd5f5;
+      text-decoration: none;
+      background: none;
+      border: none;
+      padding: 0;
+      text-align: left;
+      font: inherit;
+      cursor: pointer;
+    }
+    .footer-bottom {
+      margin-top: 40px;
+      border-top: 1px solid rgba(148, 163, 184, 0.3);
+      padding-top: 18px;
+      text-align: center;
+      color: #94a3b8;
+      font-size: 14px;
+      position: relative;
+      z-index: 1;
+    }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 50;
+    }
+    .modal-backdrop.show { display: flex; }
+    .modal {
+      width: min(900px, 100%);
+      max-height: 90vh;
+      overflow: auto;
+      background: #fff;
+      color: #0f172a;
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 30px 80px rgba(15, 23, 42, 0.25);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .modal-title {
+      margin: 0;
+      font-family: "Baloo 2", sans-serif;
+      font-size: 24px;
+    }
+    .modal-close {
+      border: none;
+      background: none;
+      cursor: pointer;
+    }
+    @media (max-width: 768px) {
+      section { padding: 48px 16px; }
+      .primary-nav { display: none; }
+      header nav,
+      .nav-links { display: none; }
+      header { padding: 12px 16px; }
+      .nav-actions a{
+        padding: 8px 14px;
+        font-size: 14px;
+      }
+      .menu-toggle { display: inline-flex; }
+      .nav-container { position: relative; }
+      .mobile-menu{ right: 16px; top: 70px; width: calc(100% - 32px); }
+      main{
+        padding: 56px 16px 72px;
+        gap: 56px;
+      }
+      .hero {
+        padding: 40px 0 54px;
+      }
+      .hero-card{ padding: 32px 22px; border-radius: 22px; }
+      .hero-inner{ grid-template-columns: 1fr; }
+      .hero-text p{ font-size: 15px; }
+      .hero .hero-actions{ flex-direction: column; gap: 12px; }
+      .hero .hero-actions a{ width: 100%; text-align: center; }
+    }
+
+    @media (max-width: 640px) {
+      .services__grid,
+      .services-grid{
+        grid-template-columns: 1fr;
+      }
+      .svc-card,
+      .service-card{
+        padding: 20px;
+      }
+      .svc-card__title,
+      .service-card h3{
+        font-size: 16px;
+      }
+      .svc-card__text,
+      .service-card p{
+        font-size: 14px;
+      }
+
+      .hero-visual{ min-height: 320px; }
+      .doctor-img{ max-height: 320px; }
+      .floating-card.booking{ left: 10px; bottom: 18px; }
+      .floating-card.stats{ right: 10px; top: 18px; }
+    }
+
+    /* Header layout base */
+    .site-header, header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Mobile behavior */
+    @media (max-width: 768px) {
+      header nav,
+      .nav-links {
+        display: none !important; /* hide desktop nav */
+      }
+
+      .header-actions {
+        display: flex !important;
+      }
+
+      .login-btn {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 14px;
+        font-size: 14px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+
+      .burger-btn {
+        display: inline-flex !important;
+        width: 42px;
+        height: 42px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+      }
+    }
+
+    /* Desktop: burger hidden, nav visible */
+    @media (min-width: 769px) {
+      .burger-btn {
+        display: none !important;
+      }
+      header nav,
+      .nav-links {
+        display: flex !important;
+      }
+    }
+
+    /* Desktop 锟紺 comfortable spacing */
+    @media (min-width: 1200px) {
+      .site-header {
+        padding: 0 64px;
+      }
+
+      .nav-links {
+        margin-left: 48px;
+        gap: 32px;
+      }
+
+      .header-actions {
+        margin-left: auto;
+      }
+
+      .login-btn {
+        margin-left: 24px;
+      }
+    }
+
+    /* Medium screens */
+    @media (max-width: 1199px) and (min-width: 769px) {
+      .site-header {
+        padding: 0 32px;
+      }
+
+      .nav-links {
+        gap: 20px;
+      }
+
+      .login-btn {
+        padding: 8px 16px;
+      }
+    }
+
+    /* Mobile specifics */
+    @media (max-width: 768px) {
+      .nav-links {
+        display: none !important;
+      }
+
+      .burger-btn {
+        display: inline-flex;
+      }
+
+      .login-btn {
+        display: inline-flex;
+        padding: 10px 16px;
+        border-radius: 999px;
+      }
+    }
+  </style>
 </head>
-<body>
-  <div class="frame">
-    <div class="logo-top">
-      <div class="logo-box">
-        <img src="../resource/logo.png" alt="MAQ-SCREEN logo">
+<body class="landing-body">
+  <header class="landing-header site-header">
+    <div class="nav-container container">
+      <div class="header-left">
+        <div class="brand-mark">
+          <img src="../resource/logo.png" alt="Osler logo">
+          <span>Osler</span>
+        </div>
       </div>
-    </div>
-    <header class="topbar"></header>
-
-    <div class="layout">
-      <nav class="menu" aria-label="Primary">
-        <ul>
-          <li class="active" data-section="homepage" tabindex="0">Homepage</li>
-          <li data-section="services" tabindex="0">Services</li>
-          <li data-section="about" tabindex="0">About Us</li>
-          <li data-section="contact" tabindex="0">Contact Us</li>
-        </ul>
+      <nav class="primary-nav nav-links header-center">
+        <a href="#home">Home</a>
+        <a href="#services">Services</a>
+        <a href="#story">About us</a>
+        <a href="#contact">Contact us</a>
       </nav>
-
-      <section class="content" id="content" aria-live="polite"></section>
+      <div class="header-right nav-actions header-actions">
+        <a class="login-btn" href="login.html">Log in</a>
+        <button class="menu-toggle burger-btn" id="menuToggle" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobileMenu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M4 7h16M4 12h16M4 17h12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="mobile-menu" id="mobileMenu">
+        <a href="#home">Home</a>
+        <a href="#services">Services</a>
+        <a href="#story">About us</a>
+        <a href="#contact">Contact us</a>
+      </div>
     </div>
+  </header>
 
-    <footer class="footer">
-      <div class="footer-left">
-        <button class="link-like" id="open-privacy">Privacy Policy</button>
-        <div class="divider" aria-hidden="true"></div>
-        <button class="link-like" id="open-legal">Legal Notice</button>
-        <div class="divider" aria-hidden="true"></div>
-        <span>Terms &amp; Conditions</span>
+  <main>
+    <section id="home" class="hero hero-section">
+      <div class="container">
+        <div class="hero-card">
+          <div class="hero-inner">
+            <div class="hero-text">
+              <p class="eyebrow">ADVANCED CARE, HUMAN EMPATHY</p>
+              <h1 class="hero-title">Your trusted partner in lung healthcare.</h1>
+              <p class="hero-subtitle">Empowering every patient with guided screenings, AI-enhanced insights, and compassionate clinicians. Osler brings your lung-health data, scheduling, and follow-ups together in a single experience.</p>
+              <p>Start today to track your screenings, understand your results, and stay connected with your care team.</p>
+              <div class="hero-actions">
+                <a class="btn-primary" href="#services">Get Started</a>
+                <a class="btn-secondary" href="#story">Learn More</a>
+              </div>
+            </div>
+            <div class="hero-visual">
+              <img src="../resource/doctor.png" alt="Doctor" class="doctor-img" />
+              <div class="floating-card stats">
+                <strong>2,400+</strong><br/>
+                Happy customers<br/>
+                <span aria-hidden="true">Rated 4.7</span>
+              </div>
+              <div class="floating-card booking">
+                Easy appointment booking<br/>
+                <small>Telehealth or in-clinic</small>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="footer-right" aria-label="Social links">
-        <a class="social" href="#" aria-label="Facebook">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M14 9h2.5l.5-3H14V4.5C14 3.67 14.67 3 15.5 3H17V0h-1.5A4.5 4.5 0 0 0 11 4.5V6H8v3h3v12h3V9Z"/>
-          </svg>
-        </a>
-        <a class="social" href="#" aria-label="YouTube">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M21.58 7.2c-.23-.86-.9-1.53-1.76-1.76C18.25 5 12 5 12 5s-6.25 0-7.82.44c-.86.23-1.53.9-1.76 1.76C2 8.75 2 12 2 12s0 3.25.42 4.82c.23.86.9 1.53 1.76 1.76C5.75 19 12 19 12 19s6.25 0 7.82-.42c.86-.23 1.53-.9 1.76-1.76C22 15.25 22 12 22 12s0-3.25-.42-4.8ZM10 15.5v-7l6 3.5-6 3.5Z"/>
-          </svg>
-        </a>
-        <a class="social" href="#" aria-label="Instagram">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5Zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7Zm11.25 1.75a1 1 0 1 1 0 2 1 1 0 0 1 0-2ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/>
-          </svg>
-        </a>
-        <a class="social" href="#" aria-label="LinkedIn">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M4.5 3.5a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5ZM3 9.25h3v11.5H3V9.25Zm6.25 0h2.86v1.58h.04c.4-.76 1.37-1.56 2.82-1.56 3.02 0 3.58 1.99 3.58 4.58v6.4h-3v-5.66c0-1.35-.03-3.09-1.88-3.09-1.88 0-2.17 1.47-2.17 3v5.75h-3V9.25Z"/>
-          </svg>
-        </a>
+    </section>
+
+    <section class="services" id="services">
+      <div class="services__decor" aria-hidden="true"></div>
+
+      <div class="services__inner">
+        <header class="services__head">
+          <h2 class="services__title">Top <span>services</span> we offer</h2>
+          <p class="services__subtitle">
+            Our platform blends clinical expertise with digital tools so every visit feels coordinated and proactive.
+          </p>
+        </header>
+
+        <div class="services__grid">
+          <!-- Big cards (row 1) -->
+          <article class="svc-card svc-card--big">
+            <div class="svc-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M7 11h10M7 15h6"/>
+                <path d="M6.5 4.5h11A2.5 2.5 0 0 1 20 7v10a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17V7a2.5 2.5 0 0 1 2.5-2.5Z"/>
+              </svg>
+            </div>
+            <h3 class="svc-card__title">Lung Cancer Risk Assessment</h3>
+            <p class="svc-card__text">
+              Complete a structured questionnaire to evaluate risk factors and identify when to schedule follow-up screening.
+            </p>
+          </article>
+
+          <article class="svc-card svc-card--big">
+            <div class="svc-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M7 3v3M17 3v3"/>
+                <path d="M4 7h16"/>
+                <path d="M6 11h4M6 15h3"/>
+                <path d="M5 6h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"/>
+              </svg>
+            </div>
+            <h3 class="svc-card__title">Booking Appointments</h3>
+            <p class="svc-card__text">
+              Coordinate seamlessly with pulmonologists and nurses to reserve telehealth or in-person visits.
+            </p>
+          </article>
+
+          <!-- Small cards (row 2) -->
+          <article class="svc-card svc-card--small">
+            <div class="svc-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 7h8M8 11h5"/>
+                <path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/>
+                <path d="M9 16h6"/>
+              </svg>
+            </div>
+            <h3 class="svc-card__title">Prescriptions &amp; Refills</h3>
+            <p class="svc-card__text">
+              Request refills for maintenance medications and receive fast updates from your physician.
+            </p>
+          </article>
+
+          <article class="svc-card svc-card--small">
+            <div class="svc-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 12h6"/>
+                <path d="M12 9v6"/>
+                <path d="M6 4h12v16H6z"/>
+                <path d="M8 7h8"/>
+              </svg>
+            </div>
+            <h3 class="svc-card__title">Medical Notes</h3>
+            <p class="svc-card__text">
+              Keep diagnostic notes, scan summaries, and discharge instructions organized in one timeline.
+            </p>
+          </article>
+
+          <article class="svc-card svc-card--small">
+            <div class="svc-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 7h8"/>
+                <path d="M8 11h8"/>
+                <path d="M10 15h4"/>
+                <path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/>
+              </svg>
+            </div>
+            <h3 class="svc-card__title">Care Coordination</h3>
+            <p class="svc-card__text">
+              Our team helps connect imaging centers, pharmacies, and support services for a unified experience.
+            </p>
+          </article>
+        </div>
       </div>
-    </footer>
-  </div>
+    </section>
+
+    <section id="story" class="story-section">
+      <div class="story-visual" aria-hidden="true"></div>
+      <div class="story-content">
+        <h2 class="section-title">Osler&#39;s Story: Get to know us</h2>
+        <p>Osler began as a collaboration between lung specialists and AI researchers who believed proactive screening should feel personal. From the first questionnaire to the final consultation, every step was designed to guide you with clarity and empathy.</p>
+        <p>Our care experience pairs clinical protocols with modern design, helping patients understand their data, reduce anxiety, and access support faster.</p>
+        <a class="btn-secondary" href="#contact">Learn more about us</a>
+      </div>
+    </section>
+
+    <section id="how">
+      <h2 class="section-title">How our platform works</h2>
+      <div class="steps-grid">
+        <article class="how-step">
+          <span>1</span>
+          <h3>Complete Your Risk Assessment</h3>
+          <p>Answer tailored questions about symptoms, lifestyle, and family history to generate your profile.</p>
+        </article>
+        <article class="how-step">
+          <span>2</span>
+          <h3>Receive AI-Powered Screening Insights</h3>
+          <p>Our algorithms combine medical guidance with your responses to highlight risk tiers and next actions.</p>
+        </article>
+        <article class="how-step">
+          <span>3</span>
+          <h3>Review Results &amp; Get Guidance</h3>
+          <p>Connect with specialists, compare progress over time, and receive tailored follow-up plans.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="testimonials">
+      <h2 class="section-title">Patient Testimonials</h2>
+      <p class="section-subtitle">Hear how Osler supports healthier breathing journeys.</p>
+      <div class="testimonial-grid">
+        <article class="testimonial-card">
+          <p>&#34;After years of uncertainty, the convenience of online consultations and rapid recovery plans helped me breathe easier.&#34;</p>
+          <strong>- Linda A.</strong>
+        </article>
+        <article class="testimonial-card">
+          <p>&#34;Managing chronic conditions felt daunting, but Osler&#39;s reminders and remote monitoring kept me on track.&#34;</p>
+          <strong>- Henry B.</strong>
+        </article>
+      </div>
+    </section>
+
+    <section id="stats">
+      <div class="stats-row">
+        <div class="stat-card"><strong>10,000+</strong><span>Successful screenings</span></div>
+        <div class="stat-card"><strong>2,500+</strong><span>Appointments coordinated</span></div>
+        <div class="stat-card"><strong>98%</strong><span>Patient satisfaction</span></div>
+        <div class="stat-card"><strong>200+</strong><span>Specialists in our network</span></div>
+      </div>
+    </section>
+
+    <section id="team">
+      <h2 class="section-title">Meet our team of specialists</h2>
+      <div class="doctor-grid">
+        <article class="doctor-card">
+          <div class="doctor-avatar" aria-hidden="true"></div>
+          <h3>Dr. Sarah Johnson</h3>
+          <p>Pulmonologist</p>
+          <p>Focused on early detection programs and holistic breathing therapies for complex cases.</p>
+          <button type="button">Book appointment</button>
+        </article>
+        <article class="doctor-card">
+          <div class="doctor-avatar" aria-hidden="true"></div>
+          <h3>Dr. Mark Lee</h3>
+          <p>Thoracic specialist</p>
+          <p>Combines surgical experience with telehealth follow-ups to keep patients supported.</p>
+          <button type="button">Book appointment</button>
+        </article>
+      </div>
+    </section>
+
+    <section id="contact">
+      <h2 class="section-title">Reach our Help Desk</h2>
+      <p class="section-subtitle">Questions about screenings or scheduling? Send us a message and we&#39;ll respond quickly.</p>
+      <div class="contact-card">
+        <form>
+          <input type="text" name="name" placeholder="Your name" required>
+          <input type="email" name="email" placeholder="Your email" required>
+          <textarea name="message" rows="4" placeholder="How can we help?" required></textarea>
+          <button type="submit">Contact us</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="osler-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <div class="brand-mark" style="color:#fff;">
+          <img src="../resource/logo.png" alt="Osler logo">
+          <span>Osler</span>
+        </div>
+        <p>Technology should not stand above people,<br>but serve them.</p>
+      </div>
+      <div class="footer-column">
+        <h4>Support</h4>
+        <ul>
+          <li><button id="open-privacy" class="link-like">Privacy Policy</button></li>
+          <li><button id="open-legal" class="link-like">Legal Notice</button></li>
+          <li><button id="open-team" class="link-like">About Our Team</button></li>
+        </ul>
+      </div>
+      <div class="footer-column">
+        <h4>Legal</h4>
+        <ul>
+          <li><button id="open-terms" class="link-like">Terms &amp; Conditions</button></li>
+          <li><button id="open-cookies" class="link-like">Cookies</button></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">&copy; Osler 2025. All rights reserved.</div>
+  </footer>
 
   <div class="modal-backdrop" id="privacy-modal" aria-modal="true" role="dialog" aria-labelledby="privacy-title">
     <div class="modal">
       <div class="modal-header">
-        <h2 class="modal-title" id="privacy-title">Privacy Policy for MAQ-SCREEN</h2>
+        <h2 class="modal-title" id="privacy-title">Privacy Policy</h2>
         <button class="modal-close" id="close-privacy" aria-label="Close privacy policy">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <line x1="18" y1="6" x2="6" y2="18"/>
@@ -75,108 +1041,122 @@
           </svg>
         </button>
       </div>
+
       <div class="modal-body">
+        <p><strong>System:</strong> Osler (MAQ-SCREEN Lung Cancer Early Screening)</p>
         <p><strong>Effective Date:</strong> 2025</p>
-        <p>MAQ-SCREEN ("we", "our", or "the system") is committed to protecting your personal data. This Privacy Policy explains how we collect, use, store, and safeguard your information when you use our questionnaire, risk assessment, and report generation services. This policy is designed in accordance with the Malaysia Personal Data Protection Act (PDPA).</p>
-        <h3>1. Information We Collect</h3>
-        <p>We may collect the following types of information when you interact with our platform, including the web UI, Node.js backend, and Python-based intelligent questionnaire system.</p>
-        <h4>1.1 Account Information (via Node.js + MySQL)</h4>
+        <p><strong>Last Updated:</strong> 2025</p>
+
+        <p>
+          Osler (“we”, “our”, or “the System”) is committed to protecting your privacy and personal data.
+          This Privacy Policy explains how we collect, use, store, and protect information when you use the Osler Patient Portal,
+          including AI-assisted screening questionnaires and report generation. This policy is designed in accordance with the
+          Malaysia Personal Data Protection Act (PDPA) and common international data protection principles.
+        </p>
+
+        <h3>1. Scope</h3>
+        <p>This policy applies to patients and users who access the Osler web portal, complete questionnaires, view screening results, and manage their profiles.</p>
+
+        <h3>2. Information We Collect</h3>
+
+        <h4>2.1 Account &amp; Authentication</h4>
         <ul>
-          <li>Username or email</li>
-          <li>Password (stored in encrypted format)</li>
-          <li>Registration timestamp</li>
-          <li>Login timestamp</li>
+          <li>Email address</li>
+          <li>Firebase user ID (UID)</li>
+          <li>Login/session metadata (e.g., timestamps)</li>
         </ul>
-        <h4>1.2 Questionnaire and Health Assessment Data</h4>
-        <p>Processed by the intelligent agent system (Python):</p>
+        <p><strong>Note:</strong> Passwords are not stored in plain text. Authentication is handled securely by Firebase Authentication.</p>
+
+        <h4>2.2 Profile Information (User-Provided)</h4>
         <ul>
-          <li>Basic demographic and health-related answers (e.g., age, gender, smoking history, symptoms, lifestyle factors)</li>
-          <li>Responses to screening questions</li>
-          <li>AI-generated analysis and risk assessment outputs</li>
+          <li>Name / display name</li>
+          <li>Age</li>
+          <li>Gender</li>
+          <li>Email (for account reference)</li>
+          <li>Family doctor (if provided)</li>
         </ul>
-        <h4>1.3 Automatically Collected Information</h4>
+
+        <h4>2.3 Questionnaire &amp; Screening Data</h4>
         <ul>
-          <li>Access logs (date, time, and basic technical information)</li>
-          <li>Browser and device information</li>
-          <li>System error logs</li>
+          <li>Answers to screening questions (e.g., symptoms, lifestyle, smoking history, exposure factors)</li>
+          <li>AI-assisted screening outputs and risk indicators generated from your inputs</li>
+          <li>Screening timestamps / history</li>
         </ul>
-        <p>We do NOT collect extremely sensitive data such as NRIC/IC number, home address, bank information, or biometric data.</p>
-        <h3>2. How We Use Your Information</h3>
-        <h4>2.1 To Provide Core Services</h4>
+
+        <h4>2.4 Technical Data</h4>
         <ul>
-          <li>Account creation and login authentication</li>
-          <li>Questionnaire delivery and automated screening</li>
-          <li>Risk estimation and personalized report generation</li>
-          <li>Improving accuracy and responsiveness of the system</li>
+          <li>Basic device/browser information</li>
+          <li>System error logs (for debugging and reliability)</li>
         </ul>
-        <h4>2.2 To Improve System Performance</h4>
+
+        <h3>3. How We Use Your Information</h3>
         <ul>
-          <li>Usage analytics for service quality enhancement</li>
-          <li>Debugging and fixing errors</li>
-          <li>Enhancing question relevance and flow</li>
+          <li>To authenticate your account and maintain login sessions</li>
+          <li>To deliver questionnaires and generate screening-support outputs</li>
+          <li>To generate and display personalized screening summaries and reports</li>
+          <li>To improve system usability, stability, and performance</li>
+          <li>To protect system security and prevent misuse</li>
         </ul>
-        <h4>2.3 Compliance With Legal Obligations</h4>
-        <p>If required under applicable laws, we may disclose information to regulatory authorities.</p>
-        <h3>3. Data Storage and Protection</h3>
-        <h4>3.1 Storage</h4>
+        <p>We do not use your data for advertising, commercial profiling, or marketing.</p>
+
+        <h3>4. AI and Automated Processing</h3>
+        <p>
+          Osler uses AI-assisted logic to guide questionnaire flow and generate screening-support insights.
+          Outputs are informational and supportive only.
+        </p>
+        <p><strong>Osler does not provide medical diagnosis or treatment.</strong> Always consult qualified healthcare professionals for clinical advice.</p>
+
+        <h3>5. Data Storage &amp; Security</h3>
+        <h4>5.1 Storage</h4>
         <ul>
-          <li>Account credentials are stored in a local MySQL database.</li>
-          <li>Questionnaire responses and generated reports are stored on secure backend servers.</li>
+          <li>Authentication: Firebase Authentication</li>
+          <li>User profile and screening data: Firebase Firestore (user-linked documents)</li>
         </ul>
-        <h4>3.2 Security Measures</h4>
-        <p>We implement industry-standard security practices, including:</p>
+
+        <h4>5.2 Security Measures</h4>
         <ul>
-          <li>Password hashing (secure, irreversible encryption)</li>
-          <li>Restricted access control for server environments</li>
-          <li>Secure communication protocols (e.g., HTTPS, encrypted transport)</li>
-          <li>Regular system updates and security patches</li>
+          <li>Encrypted transmission (HTTPS)</li>
+          <li>Access control enforced via authentication</li>
+          <li>Database access rules (Firestore Security Rules)</li>
+          <li>Principle of least privilege for administrative access</li>
         </ul>
-        <h4>3.3 Data Retention</h4>
-        <p>We retain data only as long as necessary to provide our services or comply with legal requirements. Users may request data deletion at any time.</p>
-        <h3>4. Data Sharing and Disclosure</h3>
-        <p>We do not:</p>
+
+        <h3>6. Data Sharing &amp; Disclosure</h3>
+        <p>We do not sell, rent, or trade your personal data.</p>
+        <p>We may disclose data only when:</p>
         <ul>
-          <li>Sell your personal data</li>
-          <li>Share your data with advertisers or marketing companies</li>
-          <li>Upload your questionnaire content to third-party AI platforms</li>
+          <li>You give explicit consent</li>
+          <li>Required by applicable law or regulatory authorities</li>
+          <li>Necessary to protect system security and integrity</li>
         </ul>
-        <p>Data may only be shared under the following circumstances:</p>
+        <p>We do not share personal questionnaire content with third-party AI providers for training purposes.</p>
+
+        <h3>7. Data Retention</h3>
+        <p>
+          We retain data only as long as needed to provide the service, maintain screening history, or comply with legal/academic requirements.
+          You may request deletion of your account and associated records.
+        </p>
+
+        <h3>8. Your Rights (PDPA)</h3>
         <ul>
-          <li>With your explicit consent</li>
-          <li>If required by law or regulatory authorities</li>
-          <li>To ensure system security (e.g., detecting malicious access attempts)</li>
+          <li>Access your personal data</li>
+          <li>Correct inaccurate information</li>
+          <li>Withdraw consent (where applicable)</li>
+          <li>Request deletion of your account and data</li>
         </ul>
-        <h3>5. Your Rights (Under PDPA)</h3>
-        <p>You have the following rights:</p>
-        <ul>
-          <li>Right to access your personal data</li>
-          <li>Right to correct inaccurate or outdated information</li>
-          <li>Right to withdraw consent</li>
-          <li>Right to request deletion of your account and related records</li>
-        </ul>
-        <p>Requests may be submitted via email (see Section 9).</p>
-        <h3>6. Cookies</h3>
-        <p>We may use cookies to:</p>
-        <ul>
-          <li>Maintain login sessions</li>
-          <li>Analyse anonymized usage patterns</li>
-          <li>Improve user experience</li>
-        </ul>
-        <p>You may disable cookies in your browser at any time. Cookies do not store sensitive data.</p>
-        <h3>7. Third-Party Services</h3>
-        <p>Our system may interact with:</p>
-        <ul>
-          <li>Standard web technologies</li>
-          <li>Node.js backend services</li>
-          <li>MySQL database</li>
-          <li>Python-based analytical modules</li>
-        </ul>
-        <p>However, your questionnaire data is never shared with external AI providers unless explicitly stated.</p>
-        <h3>8. Changes to This Privacy Policy</h3>
-        <p>We may update this Privacy Policy from time to time to reflect system improvements or legal requirements. Updates will take effect immediately upon publication on the platform or accompanying documentation.</p>
-        <h3>9. Contact Information</h3>
-        <p>If you have any questions about this Privacy Policy or wish to exercise your data rights, please contact us at:</p>
-        <p>Email: hbw9698397@outlook.com</p>
+
+        <h3>9. Cookies &amp; Local Storage</h3>
+        <p>
+          We may use cookies/local storage to keep you signed in and store non-sensitive preferences.
+          We do not store passwords or sensitive medical data in cookies/local storage.
+        </p>
+
+        <h3>10. Changes to This Policy</h3>
+        <p>We may update this Privacy Policy. Continued use of the System indicates acceptance of the latest version.</p>
+
+        <h3>11. Contact</h3>
+        <p>If you have questions or requests about your personal data, contact:</p>
+        <p><strong>Email:</strong> hbw9698397@outlook.com</p>
       </div>
     </div>
   </div>
@@ -186,7 +1166,7 @@
       <div class="modal-header">
         <h2 class="modal-title" id="legal-title">Legal Notice</h2>
         <button class="modal-close" id="close-legal" aria-label="Close legal notice">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <line x1="18" y1="6" x2="6" y2="18"/>
             <line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
@@ -223,7 +1203,7 @@
         </ul>
 
         <h3>6. Intellectual Property</h3>
-        <p>All system components&mdash;including code, algorithms, UI design, documentation, and screening logic&mdash;are the intellectual property of the MAQ-SCREEN development team. Unauthorized copying, modification, distribution, or sublicensing is prohibited unless permitted under an official open-source license.</p>
+        <p>All system components&#8212;including code, algorithms, UI design, documentation, and screening logic&#8212;are the intellectual property of the MAQ-SCREEN development team. Unauthorized copying, modification, distribution, or sublicensing is prohibited unless permitted under an official open-source license.</p>
 
         <h3>7. Compliance with PDPA (Malaysia)</h3>
         <p>The System adheres to principles of the Malaysia Personal Data Protection Act (PDPA). Personal data is collected solely for authentication and screening purposes and will be processed securely in accordance with PDPA requirements.</p>
@@ -237,6 +1217,206 @@
       </div>
     </div>
   </div>
+
+  <div class="modal-backdrop" id="team-modal" aria-modal="true" role="dialog" aria-labelledby="team-title">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="team-title">About Our Team</h2>
+        <button class="modal-close" id="close-team" aria-label="Close about our team">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="team-image-wrapper">
+          <img src="../resource/teams.png" alt="Osler Development Team" class="team-image" />
+        </div>
+        <p>We are the development team behind Osler (MAQ-SCREEN), an LLM-driven lung cancer early screening system for conversational screening, intelligent Q&amp;A, and personal health data management.</p>
+
+        <h3>Team Members</h3>
+        <ul>
+          <li>Han Bowen — Project Lead / Full-stack</li>
+          <li>Cao Chengwei — Knowledge Base / RAG</li>
+          <li>Zhang Runxin — Report &amp; Analysis</li>
+          <li>Jiang Yuyang — Questionnaire &amp; Validation</li>
+        </ul>
+
+        <h3>Project Highlights</h3>
+        <ul>
+          <li>Multi-agent questionnaire workflow</li>
+          <li>Early risk estimation &amp; explainable report generation</li>
+          <li>Health database management</li>
+        </ul>
+
+        <p><strong>Support:</strong> hbw9698397@outlook.com</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="terms-modal" aria-modal="true" role="dialog" aria-labelledby="terms-title">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="terms-title">Terms &amp; Conditions</h2>
+        <button class="modal-close" id="close-terms" aria-label="Close terms and conditions">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p><strong>Last Updated:</strong> 2025</p>
+        <h3>1. Purpose</h3>
+        <p>This site is a student project and friendly prototype that showcases patient experience flows. It is offered for demonstration and feedback, not for production use.</p>
+
+        <h3>2. Not Medical Advice</h3>
+        <p>The content, questionnaires, and outputs are educational only. They do not provide medical advice, diagnosis, or treatment and should not be relied on in place of a licensed healthcare professional.</p>
+
+        <h3>3. User Responsibilities</h3>
+        <ul>
+          <li>Provide accurate, honest inputs when using the prototype.</li>
+          <li>Do not upload sensitive personal data beyond what the form requests.</li>
+          <li>Avoid misuse, reverse engineering, or attempting to breach the system.</li>
+        </ul>
+
+        <h3>4. Accounts &amp; Access</h3>
+        <ul>
+          <li>Accounts may be created or removed at any time during the prototype period.</li>
+          <li>We may suspend access to maintain system stability or address misuse.</li>
+        </ul>
+
+        <h3>5. Availability</h3>
+        <p>Because this is a prototype, uptime and data persistence are not guaranteed. Features may change or be removed without notice.</p>
+
+        <h3>6. Intellectual Property</h3>
+        <p>All interface designs, copy, and code in this prototype remain the property of the project team. No rights are granted to copy or redistribute without permission.</p>
+
+        <h3>7. Limitation of Liability</h3>
+        <p>Use of this prototype is at your own risk. The project team is not liable for any direct or indirect losses arising from access, reliance on outputs, data loss, or downtime.</p>
+
+        <h3>8. Contact</h3>
+        <p>Questions about these terms? Email hbw9698397@outlook.com.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="cookies-modal" aria-modal="true" role="dialog" aria-labelledby="cookies-title">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="cookies-title">Cookies Notice</h2>
+        <button class="modal-close" id="close-cookies" aria-label="Close cookies notice">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p><strong>Last Updated:</strong> 2025</p>
+
+        <h3>1. What are cookies?</h3>
+        <p>Cookies are small text files stored by your browser to remember settings and improve your experience while using the prototype.</p>
+
+        <h3>2. How we use cookies</h3>
+        <ul>
+          <li><strong>Essential/session:</strong> Keep you signed in and allow navigation between pages.</li>
+          <li><strong>Preferences:</strong> Remember simple UI choices such as language or layout selections.</li>
+          <li><strong>Diagnostics:</strong> Collect minimal, anonymized signals to help us understand errors and improve stability.</li>
+        </ul>
+
+        <h3>3. Managing cookies</h3>
+        <p>You can clear or block cookies in your browser settings at any time. Disabling cookies may limit certain prototype features.</p>
+
+        <h3>4. Contact</h3>
+        <p>If you have questions about cookies on this prototype, email hbw9698397@outlook.com.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const mobileMenu = document.getElementById('mobileMenu');
+    const menuToggle = document.getElementById('menuToggle');
+    const closeMenu = () => {
+      mobileMenu?.classList.remove('open');
+      menuToggle?.setAttribute('aria-expanded', 'false');
+    };
+    document.querySelectorAll('.primary-nav a, .mobile-menu a').forEach((link) => {
+      link.addEventListener('click', (event) => {
+        const targetId = link.getAttribute('href') || '';
+        if (targetId.startsWith('#')) {
+          event.preventDefault();
+          document.querySelector(targetId)?.scrollIntoView({ behavior: 'smooth' });
+        }
+        closeMenu();
+      });
+    });
+    menuToggle?.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const nextState = !(mobileMenu?.classList.contains('open'));
+      mobileMenu?.classList.toggle('open', nextState);
+      menuToggle?.setAttribute('aria-expanded', String(nextState));
+    });
+    document.addEventListener('click', (event) => {
+      if (!mobileMenu?.contains(event.target) && !menuToggle?.contains(event.target)) {
+        closeMenu();
+      }
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeMenu();
+    });
+
+    const openModals = new Set();
+    const syncBodyScroll = () => {
+      document.body.style.overflow = openModals.size ? 'hidden' : '';
+    };
+
+    function bindModal(openBtnId, closeBtnId, modalId) {
+      const openBtn = document.getElementById(openBtnId);
+      const closeBtn = document.getElementById(closeBtnId);
+      const modal = document.getElementById(modalId);
+      if (!modal) return;
+
+      const open = () => {
+        modal.classList.add('show');
+        openModals.add(modalId);
+        syncBodyScroll();
+      };
+
+      const close = () => {
+        modal.classList.remove('show');
+        openModals.delete(modalId);
+        syncBodyScroll();
+      };
+
+      openBtn?.addEventListener('click', open);
+      closeBtn?.addEventListener('click', close);
+      modal.addEventListener('click', (event) => {
+        if (event.target === modal) close();
+      });
+
+      return { open, close };
+    }
+
+    [
+      ['open-privacy', 'close-privacy', 'privacy-modal'],
+      ['open-legal', 'close-legal', 'legal-modal'],
+      ['open-team', 'close-team', 'team-modal'],
+      ['open-terms', 'close-terms', 'terms-modal'],
+      ['open-cookies', 'close-cookies', 'cookies-modal'],
+    ].forEach(([openId, closeId, modalId]) => bindModal(openId, closeId, modalId));
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        document.querySelectorAll('.modal-backdrop.show').forEach((modalEl) => {
+          modalEl.classList.remove('show');
+          openModals.delete(modalEl.id);
+        });
+        syncBodyScroll();
+      }
+    });
+  </script>
   <script type="module" src="./firebase-config.js"></script>
   <script type="module" src="../script.js"></script>
 </body>

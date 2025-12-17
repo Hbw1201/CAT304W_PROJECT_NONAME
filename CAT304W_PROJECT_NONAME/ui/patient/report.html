@@ -1,23 +1,16 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Osler Report</title>
-  <script>
-    const role = localStorage.getItem("userRole");
-    if (!role) {
-      window.location.href = "../login.html";
-    } else if (role !== "patient") {
-      window.location.href = "../doctor/dashboard.html";
-    }
-  </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../dashboard.css">
-  <link rel="stylesheet" href="../shared-layout.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../dashboard.css" />
+  <link rel="stylesheet" href="../shared-layout.css" />
 </head>
+
 <body class="dash-body">
   <div class="page-layout">
     <aside class="sidebar">
@@ -33,13 +26,14 @@
             <a class="nav-item" href="dashboard.html">
               <span class="nav-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M3 11.5 12 4l9 7.5v7a1.5 1.5 0 0 1-1.5 1.5H4.5A1.5 1.5 0 0 1 3 18.5v-7Z"/>
-                  <path d="M9 21V12h6v9"/>
+                  <path d="M3 11.5 12 4l9 7.5v7a1.5 1.5 0 0 1-1.5 1.5H4.5A1.5 1.5 0 0 1 3 18.5v-7Z" />
+                  <path d="M9 21V12h6v9" />
                 </svg>
               </span>
               Dashboard
             </a>
           </li>
+
           <li>
             <a class="nav-item active" href="report.html">
               <span class="nav-icon">
@@ -51,6 +45,7 @@
               Report
             </a>
           </li>
+
           <li>
             <a class="nav-item" href="chatbot.html">
               <span class="nav-icon">
@@ -62,6 +57,7 @@
               Chatbot
             </a>
           </li>
+
           <li>
             <a class="nav-item" href="question.html">
               <span class="nav-icon">
@@ -74,6 +70,7 @@
               Question
             </a>
           </li>
+
           <li>
             <a class="nav-item" href="appointment.html">
               <span class="nav-icon">
@@ -85,6 +82,7 @@
               Appointment
             </a>
           </li>
+
           <li>
             <a class="nav-item" href="screening.html">
               <span class="nav-icon">
@@ -107,9 +105,9 @@
             <a class="nav-item" href="index.html" id="logout-link">
               <span class="nav-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-                  <polyline points="10 17 15 12 10 7"/>
-                  <line x1="15" y1="12" x2="3" y2="12"/>
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                  <polyline points="10 17 15 12 10 7" />
+                  <line x1="15" y1="12" x2="3" y2="12" />
                 </svg>
               </span>
               Logout
@@ -119,8 +117,8 @@
             <a class="nav-item" href="profile.html">
               <span class="nav-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="7" r="4"/>
-                  <path d="M5 21a7 7 0 0 1 14 0"/>
+                  <circle cx="12" cy="7" r="4" />
+                  <path d="M5 21a7 7 0 0 1 14 0" />
                 </svg>
               </span>
               Profile Settings
@@ -128,7 +126,6 @@
           </li>
         </ul>
       </div>
-
     </aside>
 
     <main class="main-content main-panel">
@@ -141,36 +138,479 @@
       </section>
 
       <section class="card">
-        <p class="value">Report workspace</p>
-        <p class="label">Drop in report summaries, export links, and status widgets here.</p>
-        <div class="pill plain" style="display: inline-block; margin-top: 8px;">Coming soon</div>
+        <div class="section-head">
+          <div>
+            <p class="value">Report workspace</p>
+            <p class="label">Your screening reports, downloads, and PDF previews.</p>
+          </div>
+          <div class="search-wrap">
+            <input id="reportSearch" type="search" placeholder="Search by reportId or screeningId" />
+          </div>
+        </div>
+
+        <div class="report-grid">
+          <div class="report-list">
+            <div class="list-head">
+              <div>
+                <p class="eyebrow">My Reports</p>
+                <p class="label">Latest first</p>
+              </div>
+              <span id="reportStatus" class="pill plain">Loading...</span>
+            </div>
+            <div id="reportList" class="report-items"></div>
+            <div id="reportEmpty" class="empty-state" hidden>No reports yet.</div>
+          </div>
+
+          <div class="report-preview">
+            <div class="list-head">
+              <div>
+                <p class="eyebrow">Preview</p>
+                <p class="label">Select a report to preview</p>
+              </div>
+            </div>
+            <div id="previewPlaceholder" class="empty-state">Select a report to preview</div>
+            <iframe id="reportPreview" title="Report preview" hidden></iframe>
+          </div>
+        </div>
       </section>
     </main>
   </div>
-  <script>
-    (function () {
-      const profile = (() => {
-        try {
-          return JSON.parse(localStorage.getItem("userProfile") || "null");
-        } catch {
-          return null;
+
+  <style>
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .search-wrap input {
+      padding: 10px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      min-width: 240px;
+      font-size: 14px;
+    }
+    .report-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 16px;
+      margin-top: 8px;
+    }
+    .report-list,
+    .report-preview {
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 16px;
+      background: #fff;
+      box-shadow: 0 10px 30px rgba(2, 6, 23, 0.06);
+    }
+    .list-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .report-items {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .report-item {
+      border: 1px solid #eef0f4;
+      border-radius: 12px;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      background: #fafbfc;
+    }
+    .report-item.active {
+      outline: 2px solid #2563eb;
+      background: #eef2ff;
+    }
+    .report-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 6px 12px;
+      font-size: 13px;
+    }
+    .report-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .report-actions button {
+      border: 1px solid #2563eb;
+      background: #2563eb;
+      color: #ffffff;
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      box-shadow: 0 10px 30px rgba(37, 99, 235, 0.2);
+    }
+    .report-actions button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .pill {
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      background: #f1f5f9;
+      color: #475569;
+    }
+    .pill.risk-high { background: #FEE2E2; color: #991B1B; border: 1px solid #FECACA; }
+    .pill.risk-medium { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+    .pill.risk-low { background: #DCFCE7; color: #166534; border: 1px solid #BBF7D0; }
+    .empty-state {
+      padding: 16px;
+      border: 1px dashed #e5e7eb;
+      border-radius: 12px;
+      text-align: center;
+      color: #6b7280;
+    }
+    .report-preview iframe {
+      width: 100%;
+      height: 520px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #fff;
+    }
+    @media (max-width: 960px) {
+      .report-grid { grid-template-columns: 1fr; }
+      .report-item { grid-template-columns: 1fr; }
+      .report-preview iframe { height: 420px; }
+    }
+  </style>
+
+  <script type="module">
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    // ✅ IMPORTANT: these are the correct paths from patient/report.html
+    import { auth } from "../ui/firebase-config.js";
+    import {
+      getCurrentUserProfile,
+      getReportsByPatient,
+      getReportPdfUrl,
+    } from "../ui/firestoreService.js";
+
+    const ui = {
+      status: document.getElementById("reportStatus"),
+      list: document.getElementById("reportList"),
+      empty: document.getElementById("reportEmpty"),
+      search: document.getElementById("reportSearch"),
+      previewFrame: document.getElementById("reportPreview"),
+      previewPlaceholder: document.getElementById("previewPlaceholder"),
+    };
+
+    const state = {
+      reports: [],
+      filtered: [],
+      pdfCache: new Map(),
+      selectedId: null,
+    };
+
+    function tsToMillis(ts) {
+      if (!ts) return 0;
+      if (typeof ts.toMillis === "function") return ts.toMillis();
+      if (typeof ts.toDate === "function") return ts.toDate().getTime();
+      if (typeof ts === "number") return ts;
+      if (typeof ts === "object" && typeof ts.seconds === "number") {
+        const nanos = Number(ts.nanoseconds || 0);
+        return ts.seconds * 1000 + Math.floor(nanos / 1_000_000);
+      }
+      return 0;
+    }
+
+    function formatDate(ts) {
+      if (!ts) return "-";
+      if (typeof ts.toDate === "function") return ts.toDate().toLocaleString();
+      if (typeof ts === "number") return new Date(ts).toLocaleString();
+      if (typeof ts === "object" && typeof ts.seconds === "number") return new Date(tsToMillis(ts)).toLocaleString();
+      return String(ts);
+    }
+
+    function riskClass(level) {
+      const val = String(level || "").toLowerCase();
+      if (val === "high") return "risk-high";
+      if (val === "medium" || val === "med") return "risk-medium";
+      return "risk-low";
+    }
+
+    function truncateId(id = "") {
+      if (id.length <= 12) return id || "-";
+      return `${id.slice(0, 6)}...${id.slice(-4)}`;
+    }
+
+    function setStatus(message) {
+      if (ui.status) ui.status.textContent = message || "";
+    }
+
+    function renderEmpty(showEmpty) {
+      if (ui.empty) ui.empty.hidden = !showEmpty;
+      if (ui.list) ui.list.style.display = showEmpty ? "none" : "flex";
+      if (showEmpty) setStatus("No reports yet.");
+    }
+
+    function setPreview(url) {
+      if (!ui.previewFrame || !ui.previewPlaceholder) return;
+      if (url) {
+        ui.previewPlaceholder.hidden = true;
+        ui.previewFrame.hidden = false;
+        ui.previewFrame.src = url;
+      } else {
+        ui.previewFrame.hidden = true;
+        ui.previewFrame.removeAttribute("src");
+        ui.previewPlaceholder.hidden = false;
+      }
+    }
+
+    async function ensurePdf(reportId, statusEl, viewBtn, downloadBtn) {
+      if (!reportId) {
+        if (statusEl) statusEl.textContent = "Missing reportId";
+        if (viewBtn) viewBtn.disabled = true;
+        if (downloadBtn) downloadBtn.disabled = true;
+        return null;
+      }
+
+      if (state.pdfCache.has(reportId)) {
+        const cached = state.pdfCache.get(reportId);
+        if (!cached) {
+          if (statusEl) statusEl.textContent = "PDF not uploaded";
+          if (viewBtn) viewBtn.disabled = true;
+          if (downloadBtn) downloadBtn.disabled = true;
+        } else {
+          if (statusEl) statusEl.textContent = "";
+          if (viewBtn) viewBtn.disabled = false;
+          if (downloadBtn) downloadBtn.disabled = false;
         }
-      })();
-      const name = (profile?.name || "osler").trim() || "osler";
+        return cached;
+      }
+
+      if (statusEl) statusEl.textContent = "Checking PDF...";
+      if (viewBtn) viewBtn.disabled = true;
+      if (downloadBtn) downloadBtn.disabled = true;
+
+      const url = await getReportPdfUrl(reportId);
+      console.log("[report] pdf url", url);
+      state.pdfCache.set(reportId, url || null);
+
+      if (!url) {
+        if (statusEl) statusEl.textContent = "PDF not uploaded";
+        if (viewBtn) viewBtn.disabled = true;
+        if (downloadBtn) downloadBtn.disabled = true;
+      } else {
+        if (statusEl) statusEl.textContent = "";
+        if (viewBtn) viewBtn.disabled = false;
+        if (downloadBtn) downloadBtn.disabled = false;
+      }
+
+      return url;
+    }
+
+    function setActiveItem(reportId) {
+      if (!ui.list) return;
+      ui.list.querySelectorAll(".report-item").forEach((el) => {
+        el.classList.toggle("active", el.dataset.reportId === reportId);
+      });
+    }
+
+    async function handleView(report) {
+      const statusEl = document.querySelector(`[data-status="${report.reportId}"]`);
+      const viewBtn = document.querySelector(`[data-view="${report.reportId}"]`);
+      const downloadBtn = document.querySelector(`[data-download="${report.reportId}"]`);
+      const url = await ensurePdf(report.reportId, statusEl, viewBtn, downloadBtn);
+      if (!url) return;
+      state.selectedId = report.reportId;
+      setPreview(url);
+      setActiveItem(report.reportId);
+    }
+
+    async function handleDownload(report) {
+      const statusEl = document.querySelector(`[data-status="${report.reportId}"]`);
+      const viewBtn = document.querySelector(`[data-view="${report.reportId}"]`);
+      const downloadBtn = document.querySelector(`[data-download="${report.reportId}"]`);
+      const url = await ensurePdf(report.reportId, statusEl, viewBtn, downloadBtn);
+      if (!url) return;
+      window.open(url, "_blank", "noopener");
+    }
+
+    function renderList(reports) {
+      if (!ui.list) return;
+      ui.list.innerHTML = "";
+
+      if (!reports.length) {
+        renderEmpty(true);
+        setPreview(null);
+        return;
+      }
+
+      renderEmpty(false);
+
+      reports.forEach((report) => {
+        const item = document.createElement("div");
+        item.className = "report-item";
+        item.dataset.reportId = report.reportId || "";
+
+        const meta = document.createElement("div");
+        meta.className = "report-meta";
+        meta.innerHTML = `
+          <div><strong>Report ID:</strong> ${report.reportId || "-"}</div>
+          <div><strong>Risk:</strong> <span class="pill ${riskClass(report.riskLevel)}">${report.riskLevel || "-"}</span></div>
+          <div><strong>Created:</strong> ${formatDate(report.createdAt)}</div>
+          <div><strong>Doctor:</strong> ${truncateId(report.doctorId)}</div>
+          <div><strong>Screening:</strong> ${report.screeningId || "-"}</div>
+        `;
+
+        const actions = document.createElement("div");
+        actions.className = "report-actions";
+
+        const viewBtn = document.createElement("button");
+        viewBtn.textContent = "View PDF";
+        viewBtn.dataset.view = report.reportId;
+
+        const downloadBtn = document.createElement("button");
+        downloadBtn.textContent = "Download";
+        downloadBtn.dataset.download = report.reportId;
+
+        const status = document.createElement("span");
+        status.className = "label";
+        status.dataset.status = report.reportId;
+
+        viewBtn.addEventListener("click", () => handleView(report));
+        downloadBtn.addEventListener("click", () => handleDownload(report));
+
+        actions.append(viewBtn, downloadBtn, status);
+
+        item.append(meta, actions);
+        ui.list.appendChild(item);
+
+        if (state.selectedId === report.reportId) item.classList.add("active");
+
+        if (report.reportId) {
+          ensurePdf(report.reportId, status, viewBtn, downloadBtn);
+        } else {
+          status.textContent = "Missing reportId";
+          viewBtn.disabled = true;
+          downloadBtn.disabled = true;
+        }
+      });
+    }
+
+    function applySearch(term) {
+      const q = (term || "").trim().toLowerCase();
+      if (!q) {
+        state.filtered = [...state.reports];
+      } else {
+        state.filtered = state.reports.filter((r) => {
+          const reportId = (r.reportId || "").toLowerCase();
+          const screeningId = (r.screeningId || "").toLowerCase();
+          return reportId.includes(q) || screeningId.includes(q);
+        });
+      }
+      renderList(state.filtered);
+    }
+
+    async function loadReports(patientId) {
+      setStatus("Loading...");
+      setPreview(null);
+
+      const reports = await getReportsByPatient(patientId);
+      console.log("[report] reports", reports);
+
+      state.reports = [...(reports || [])].sort((a, b) => tsToMillis(b.createdAt) - tsToMillis(a.createdAt));
+      state.filtered = [...state.reports];
+
+      if (!state.reports.length) {
+        renderEmpty(true);
+        return;
+      }
+
+      setStatus(`${state.reports.length} report${state.reports.length === 1 ? "" : "s"}`);
+      renderList(state.filtered);
+    }
+
+    function hydrateBrand(profile) {
+      const name =
+        (profile?.fullName ||
+          profile?.name ||
+          (profile?.email || "").split("@")[0] ||
+          localStorage.getItem("userName") ||
+          "user")
+          .toString()
+          .trim() || "user";
+
       const initial = name.charAt(0).toUpperCase() || "O";
+
       const brandName = document.getElementById("brand-name");
       const brandAvatar = document.getElementById("brand-avatar");
       if (brandName) brandName.textContent = name;
       if (brandAvatar) brandAvatar.textContent = initial;
+    }
 
+    function syncLocalSession(user, profile) {
+      if (!user) return;
+
+      const displayName =
+        (profile?.fullName ||
+          profile?.name ||
+          (profile?.email || "").split("@")[0] ||
+          localStorage.getItem("userName") ||
+          "user")
+          .toString()
+          .trim() || "user";
+
+      localStorage.setItem("userName", displayName);
+      localStorage.setItem("uid", user.uid);
+      localStorage.setItem("userRole", (profile?.role || "patient").toLowerCase());
+      try {
+        localStorage.setItem("userProfile", JSON.stringify({ uid: user.uid, ...(profile || {}) }));
+      } catch {
+        /* ignore */
+      }
+      hydrateBrand(profile || { name: displayName });
+    }
+
+    function attachLogout() {
       const logoutLink = document.getElementById("logout-link");
       logoutLink?.addEventListener("click", (e) => {
         e.preventDefault();
         localStorage.clear();
         window.location.href = "index.html";
       });
-    })();
+    }
+
+    function initSearch() {
+      ui.search?.addEventListener("input", (e) => applySearch(e.target.value || ""));
+    }
+
+    function init() {
+      hydrateBrand();
+      attachLogout();
+      initSearch();
+      setPreview(null);
+
+      onAuthStateChanged(auth, async (user) => {
+        console.log("[report] auth user", user);
+        if (!user) {
+          console.warn("No authenticated user; cannot load reports.");
+          return;
+        }
+
+        const profile = await getCurrentUserProfile();
+        console.log("[report] profile", profile);
+
+        syncLocalSession(user, profile);
+        await loadReports(user.uid);
+      });
+    }
+
+    init();
   </script>
 </body>
 </html>
-

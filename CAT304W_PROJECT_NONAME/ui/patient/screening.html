@@ -171,10 +171,12 @@
         </div>
 
         <div id="screenError" class="error-text" aria-live="polite" style="display:none;"></div>
+        <div id="screenStatus" class="label" aria-live="polite" style="margin-bottom: 12px;"></div>
 
         <div class="qa-controls">
           <button type="button" class="pill" id="record-toggle">Start Recording</button>
           <button type="button" class="pill plain" id="next-question">Next Question</button>
+          <button type="button" class="pill" id="finish-screening">Finish &amp; Generate Report</button>
         </div>
       </section>
     </main>
@@ -389,5 +391,170 @@
     })();
   </script>
   <script type="module" src="screening.metagpt.js"></script>
+  <script type="module">
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { ref, uploadBytes } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+    import { jsPDF } from "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.es.min.js";
+    import { auth, db, storage } from "../firebase-config.js";
+    import { getCurrentUserProfile } from "../firestoreService.js";
+
+    const finishBtn = document.getElementById("finish-screening");
+    const statusEl = document.getElementById("screenStatus");
+    const errorEl = document.getElementById("screenError");
+    const answerEl = document.getElementById("qa-answer");
+    const answerInput = document.getElementById("answerInput");
+    const questionEl = document.getElementById("questionText");
+
+    let currentUser = null;
+    let currentProfile = null;
+    let currentDoctorId = "unassigned";
+
+    function setStatus(message, isError = false) {
+      if (statusEl) {
+        statusEl.textContent = message || "";
+        statusEl.style.color = isError ? "#c0392b" : "";
+      }
+      if (isError && errorEl) {
+        errorEl.textContent = message || "";
+        errorEl.style.display = message ? "block" : "none";
+      } else if (errorEl && !isError) {
+        errorEl.style.display = "none";
+      }
+    }
+
+    function getAnswerText() {
+      const typed = (answerInput?.value || "").trim();
+      if (typed) return typed;
+      return (answerEl?.textContent || "").trim();
+    }
+
+    function deriveRiskLevel(answerText) {
+      const txt = (answerText || "").toLowerCase();
+      if (!txt) return "low";
+      if (txt.includes("pain") || txt.includes("bleed") || txt.includes("severe") || txt.includes("emergency")) {
+        return "high";
+      }
+      if (txt.includes("dizzy") || txt.includes("fever") || txt.includes("nausea") || txt.includes("cough")) {
+        return "medium";
+      }
+      return "low";
+    }
+
+    function buildReportId(patientId) {
+      const now = new Date();
+      const ymd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+      const safePid = (patientId || "patient").replace(/[^A-Za-z0-9]/g, "").slice(0, 6) || "patient";
+      return `noname_${ymd}_${safePid}_${Date.now()}`;
+    }
+
+    function buildScreeningId() {
+      return `demo_screening_${Date.now()}`;
+    }
+
+    async function createPdfBlob(payload) {
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text("Screening Report", 14, 18);
+
+      doc.setFontSize(11);
+      doc.text(`Patient ID: ${payload.patientId}`, 14, 30);
+      doc.text(`Doctor ID: ${payload.doctorId || "unassigned"}`, 14, 38);
+      doc.text(`Screening ID: ${payload.screeningId}`, 14, 46);
+      doc.text(`Risk Level: ${payload.riskLevel}`, 14, 54);
+      doc.text(`Created: ${new Date().toLocaleString()}`, 14, 62);
+
+      doc.setFontSize(12);
+      doc.text("Question:", 14, 76);
+      const questionLines = doc.splitTextToSize(payload.question || "N/A", 180);
+      doc.text(questionLines, 14, 84);
+
+      doc.text("Answer:", 14, 110);
+      const answerLines = doc.splitTextToSize(payload.answer || "N/A", 180);
+      doc.text(answerLines, 14, 118);
+
+      return doc.output("blob");
+    }
+
+    async function uploadPdf(reportId, pdfBlob) {
+      const fileRef = ref(storage, `reports/${reportId}.pdf`);
+      await uploadBytes(fileRef, pdfBlob, { contentType: "application/pdf" });
+    }
+
+    async function saveReportDoc({ doctorId, patientId, reportId, riskLevel, screeningId }) {
+      await addDoc(collection(db, "reports"), {
+        createdAt: serverTimestamp(),
+        doctorId: doctorId || "unassigned",
+        patientId,
+        reportId,
+        riskLevel,
+        screeningId,
+      });
+    }
+
+    async function handleFinish() {
+      if (!currentUser) {
+        alert("Please sign in to generate a report.");
+        window.location.href = "../login.html";
+        return;
+      }
+      const answer = getAnswerText();
+      const question = (questionEl?.textContent || "").trim() || "N/A";
+      const patientId = currentUser.uid;
+      const reportId = buildReportId(patientId);
+      const screeningId = buildScreeningId();
+      const riskLevel = deriveRiskLevel(answer);
+      const doctorId = currentDoctorId || "unassigned";
+
+      try {
+        finishBtn.disabled = true;
+        setStatus("Generating PDF...");
+        const pdfBlob = await createPdfBlob({ patientId, doctorId, screeningId, riskLevel, question, answer });
+
+        setStatus("Uploading PDF...");
+        await uploadPdf(reportId, pdfBlob);
+
+        setStatus("Saving report record...");
+        await saveReportDoc({ doctorId, patientId, reportId, riskLevel, screeningId });
+
+        setStatus("Report generated and uploaded.");
+        const go = confirm("Report generated and uploaded. View reports now?");
+        if (go) {
+          window.location.href = "report.html";
+        }
+      } catch (err) {
+        console.error("Report generation failed", err);
+        setStatus(err?.message || "Failed to generate report", true);
+        alert(err?.message || "Failed to generate report");
+      } finally {
+        finishBtn.disabled = false;
+      }
+    }
+
+    finishBtn?.addEventListener("click", handleFinish);
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        alert("Please sign in to continue screening.");
+        window.location.href = "../login.html";
+        return;
+      }
+      currentUser = user;
+      currentProfile = await getCurrentUserProfile();
+      const role = (currentProfile?.role || "").toLowerCase();
+      if (role && role !== "patient") {
+        alert("Only patients can complete screenings here.");
+        if (role === "doctor") {
+          window.location.href = "/doctor/dashboard.html";
+        } else {
+          window.location.href = "../login.html";
+        }
+      }
+      currentDoctorId =
+        currentProfile?.doctorId ||
+        currentProfile?.assignedDoctorId ||
+        currentDoctorId;
+    });
+  </script>
 </body>
 </html>

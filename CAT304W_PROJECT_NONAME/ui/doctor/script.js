@@ -1,17 +1,13 @@
 import { auth, db } from "../firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
-  collection,
   doc,
   getDoc,
-  getDocs,
-  query,
   setDoc,
-  where,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   getCurrentUserProfile,
-  getDoctorPatientLinks,
+  getDoctorPatients,
   getPatientsByIds,
 } from "./firestoreService.js";
 
@@ -286,9 +282,8 @@ async function loadDoctorPatients(user) {
     return;
   }
 
-  const links = await getDoctorPatientLinks(user.uid);
-  const activeLinks = links.filter((link) => !link.status || link.status === "active");
-  const patientIds = activeLinks.map((l) => l.patientId).filter(Boolean);
+  const links = await getDoctorPatients(user.uid);
+  const patientIds = links.map((l) => l.patientId).filter(Boolean);
   console.log("[doctorPatients] patientIds:", patientIds.length);
 
   let patients = [];
@@ -377,33 +372,10 @@ function initDashboardPatients() {
     searchInput.addEventListener("input", applySearch);
   }
 
-  const fetchPatientProfiles = async (patientIds) => {
-    const results = [];
-    for (const pid of patientIds) {
-      try {
-        const snap = await getDoc(doc(db, "users", pid));
-        if (snap.exists()) {
-          const data = snap.data() || {};
-          console.log("[doctor-dashboard] fetched patient", pid);
-          results.push({ id: pid, ...data });
-        } else {
-          console.log("[doctor-dashboard] patient missing", pid);
-        }
-      } catch (err) {
-        console.error("[doctor-dashboard] fetch patient error", pid, err);
-      }
-    }
-    return results;
-  };
-
   const refreshPatients = async (user) => {
     try {
       stateEl.textContent = "Loading...";
       table.hidden = true;
-
-      if (!db) {
-        throw new Error("Firebase not initialized");
-      }
 
       if (!user) {
         stateEl.textContent = "Not logged in";
@@ -418,45 +390,16 @@ function initDashboardPatients() {
         return;
       }
 
-      const doctorIds = [];
-      const storedUid = localStorage.getItem("uid");
-      if (user?.uid) doctorIds.push(user.uid);
-      if (profile?.uid && !doctorIds.includes(profile.uid)) doctorIds.push(profile.uid);
-      if (storedUid && !doctorIds.includes(storedUid)) doctorIds.push(storedUid);
-
-      let links = [];
-      for (const did of doctorIds) {
-        try {
-          console.log("[doctor-dashboard] querying doctorPatients for doctorId", did);
-          const q = query(collection(db, "doctorPatients"), where("doctorId", "==", did));
-          const snap = await getDocs(q);
-          console.log("[doctor-dashboard] doctorPatients count for", did, "=", snap.size);
-          snap.forEach((docSnap) => {
-            const data = docSnap.data() || {};
-            const status = (data.status || "active").toLowerCase();
-            links.push({
-              id: docSnap.id,
-              doctorId: data.doctorId,
-              patientId: data.patientId,
-              status,
-              assignedAt: data.assignedAt,
-            });
-          });
-        } catch (err) {
-          console.error("[doctor-dashboard] doctorPatients query error", did, err);
-        }
-      }
-
-      links = links.filter((l) => !l.status || l.status === "active");
+      const links = await getDoctorPatients(user.uid);
       const patientIds = [...new Set(links.map((l) => l.patientId).filter(Boolean))];
       console.log("[doctor-dashboard] patientIds length", patientIds.length);
 
-      const patients = patientIds.length ? await fetchPatientProfiles(patientIds) : [];
+      const patients = patientIds.length ? await getPatientsByIds(patientIds) : [];
       console.log("[doctor-dashboard] patients=", patients.length);
       doctorState.patients = patients;
       renderRows(patients);
     } catch (err) {
-      console.error(err);
+      console.error("[doctor-dashboard] load patients error", err);
       stateEl.textContent = err?.message || "Failed to load patients.";
       doctorState.patients = [];
       table.hidden = true;

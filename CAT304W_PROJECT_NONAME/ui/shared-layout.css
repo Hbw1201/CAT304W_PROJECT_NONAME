@@ -1,4 +1,30 @@
 :root {
+  --bg-0: #F5FAFF;
+  --bg-1: #ECF4FF;
+  --card: #FFFFFF;
+  --text: #0B1220;
+  --muted: #516070;
+  --border: #D8E6FF;
+  --primary: #2F6BFF;
+  --primary-600: #2457D6;
+  --primary-100: #E8F0FF;
+  --shadow: 0 18px 40px rgba(15, 23, 42, 0.10);
+  --shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --radius-lg: 24px;
+  --radius-md: 16px;
+
+  /* legacy maps */
+  --brand-primary: var(--primary);
+  --brand-primary-light: #3C7CFF;
+  --brand-primary-soft: var(--primary-100);
+  --bg-page: var(--bg-0);
+  --bg-card: var(--card);
+  --bg-muted: var(--primary-100);
+  --text-primary: var(--text);
+  --text-secondary: var(--muted);
+  --text-muted: #7A889A;
+  --border-light: var(--border);
+  --divider: #E3ECFF;
   --sidebar-width: 280px;
   --layout-padding: 24px;
   --layout-gap: 24px;
@@ -81,4 +107,18 @@ body {
     padding: var(--layout-padding);
     gap: var(--layout-gap);
   }
+}
+
+body {
+  background: linear-gradient(var(--bg-0), var(--bg-1));
+  color: var(--text-primary);
+  font-family: "Manrope", system-ui, -apple-system, sans-serif;
+}
+
+.sidebar {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-right: 1px solid var(--divider);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-soft);
 }

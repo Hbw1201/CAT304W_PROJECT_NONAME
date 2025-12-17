@@ -1,20 +1,87 @@
 :root {
-  --bg: #f1f3ef;
-  --panel: #fdfdfb;
-  --border: #e5e9e2;
-  --text: #1e2a23;
-  --muted: #6f7f74;
-  --muted-2: #9ca9a0;
-  --green-700: #4cb231;
-  --green-600: #64c92f;
-  --green-500: #7ae141;
-  --green-300: #9af169;
-  --yellow: #f6c542;
-  --red: #f35b68;
-  --dark: #1c2e24;
-  --dark-2: #21382a;
-  --shadow: 0 22px 48px rgba(0, 0, 0, 0.08);
-  --radius: 22px;
+  --bg-0: #F5FAFF;
+  --bg-1: #ECF4FF;
+  --card: #FFFFFF;
+  --text: #0B1220;
+  --muted: #516070;
+  --border: #D8E6FF;
+  --primary: #2F6BFF;
+  --primary-600: #2457D6;
+  --primary-100: #E8F0FF;
+  --shadow: 0 18px 40px rgba(15, 23, 42, 0.10);
+  --shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --radius-lg: 24px;
+  --radius-md: 16px;
+
+  /* Legacy / compatibility */
+  --brand-primary: var(--primary);
+  --brand-primary-light: #3C7CFF;
+  --brand-primary-soft: var(--primary-100);
+  --bg-page: var(--bg-0);
+  --bg-card: var(--card);
+  --bg-muted: var(--primary-100);
+  --text-primary: var(--text);
+  --text-secondary: var(--muted);
+  --text-muted: #7A889A;
+  --border-light: var(--border);
+  --divider: #E3ECFF;
+  --success: #18C07A;
+  --warning: #F5A524;
+  --danger: #E5484D;
+  --bg: var(--bg-page);
+  --panel: var(--bg-card);
+  --muted-2: var(--text-muted);
+  --green-700: var(--primary);
+  --green-600: var(--primary-600);
+  --green-500: #5A8FFF;
+  --green-300: #D5E4FF;
+  --yellow: var(--warning);
+  --red: var(--danger);
+  --dark: #0F172A;
+  --dark-2: #1E293B;
+  --radius: var(--radius-md);
+}
+
+/* Osler palette overrides */
+.card,
+.panel,
+.qa-item,
+.qa-window,
+.report-list,
+.report-preview,
+.login-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-soft);
+  color: var(--text-primary);
+  border-radius: var(--radius-lg);
+}
+
+button,
+.primary-btn,
+.qa-controls .pill,
+.chat-input button,
+.upgrade .cta,
+.invite-btn {
+  background: var(--primary);
+  color: #ffffff;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--primary);
+  box-shadow: var(--shadow);
+}
+
+button:hover,
+.primary-btn:hover,
+.qa-controls .pill:hover,
+.chat-input button:hover,
+.upgrade .cta:hover,
+.invite-btn:hover {
+  background: var(--primary-600);
+  border-color: var(--primary-600);
+}
+
+.nav-item.active {
+  color: var(--brand-primary);
 }
 
 *,
@@ -30,7 +97,7 @@ html {
 body.dash-body {
   margin: 0;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f6f9f4 0%, #eef2ec 60%, #e3e7df 100%);
+  background: linear-gradient(var(--bg-0), var(--bg-1));
   font-family: "Manrope", system-ui, -apple-system, sans-serif;
   color: var(--text);
   overflow-x: hidden;
@@ -49,7 +116,7 @@ body.dash-body {
   width: 44px;
   height: 44px;
   border-radius: 14px;
-  background: #eef8e6;
+  background: var(--brand-primary-soft);
   color: var(--green-700);
   font-weight: 800;
   font-family: "Baloo 2", "Manrope", sans-serif;
@@ -97,15 +164,15 @@ body.dash-body {
 }
 
 .nav-item:hover {
-  background: #eef6ea;
+  background: var(--brand-primary-soft);
   color: var(--text);
   transform: translateX(2px);
 }
 
 .nav-item.active {
-  background: linear-gradient(120deg, #e9f8de 0%, #d7f2c5 100%);
-  color: var(--text);
-  border: 1px solid #d2edbb;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+  border: 1px solid var(--brand-primary-light);
 }
 
 .nav-icon {
@@ -121,8 +188,8 @@ body.dash-body {
 
 .invite-card {
   margin-top: 6px;
-  background: linear-gradient(140deg, #f3f6f1 0%, #e5eae3 80%);
-  border: 1px dashed #d2d9ce;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-light);
   border-radius: var(--radius);
   padding: 16px;
   display: grid;
@@ -143,11 +210,11 @@ body.dash-body {
   height: 44px;
   border-radius: 14px;
   border: none;
-  background: var(--green-600);
+  background: var(--brand-primary);
   color: #fff;
   font-size: 26px;
   cursor: pointer;
-  box-shadow: 0 12px 24px rgba(100, 201, 47, 0.3);
+  box-shadow: var(--shadow);
 }
 
 /* 👉 主内容区：上面 hero 一行，下面内容一行，第二行填满 */
@@ -286,8 +353,8 @@ body.dash-body {
   width: 42px;
   height: 42px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #e9f5e2, #cdebb3);
-  color: var(--green-700);
+  background: linear-gradient(135deg, #E8F0FF, #D5E4FF);
+  color: var(--primary);
   display: grid;
   place-items: center;
   font-weight: 700;
@@ -298,8 +365,8 @@ body.dash-body {
   height: 66px;
   border-radius: 18px;
   font-size: 20px;
-  background: linear-gradient(135deg, #eaf7e4, #c9e8ad);
-  color: #2e6b1f;
+  background: linear-gradient(135deg, #EAF2FF, #D6E5FF);
+  color: var(--primary-600);
 }
 
 .card {
@@ -340,7 +407,7 @@ body.dash-body {
   font-family: "Baloo 2", "Manrope", sans-serif;
   font-size: 22px;
   margin: 0 0 6px;
-  color: #0f2a16;
+  color: var(--text);
 }
 
 .wave {
@@ -357,7 +424,7 @@ body.dash-body {
   position: relative;
   width: 100%;
   height: 10px;
-  background: #dfe9d6;
+  background: var(--primary-100);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -365,7 +432,7 @@ body.dash-body {
 .progress-fill {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, #73d64b 0%, #52b833 100%);
+  background: linear-gradient(90deg, var(--primary) 0%, var(--primary-600) 100%);
 }
 
 .progress.mini {
@@ -373,14 +440,14 @@ body.dash-body {
 }
 
 .progress.mini .progress-fill {
-  background: linear-gradient(90deg, #64c92f 0%, #4cb231 100%);
+  background: linear-gradient(90deg, var(--primary) 0%, var(--primary-600) 100%);
 }
 
 .hero {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #5bd92f 0%, #44b72c 100%);
-  color: #0b2a10;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: var(--text-primary);
 }
 
 .hero > :not(.hero-pattern) {
@@ -398,7 +465,7 @@ body.dash-body {
 
 /* 👉 hero 标题稍微小一点 */
 .hero .lede {
-  color: #0b2a10;
+  color: var(--text-primary);
   font-family: "Baloo 2", "Manrope", sans-serif;
   font-size: 24px;
   font-weight: 700;
@@ -416,7 +483,7 @@ body.dash-body {
 
 .overview-card {
   min-height: 240px;
-  color: #0f2a16;
+  color: var(--text);
   overflow: hidden;
 }
 
@@ -443,28 +510,28 @@ body.dash-body {
   gap: 6px;
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid #dbe7d7;
-  background: #f4f9f1;
-  color: #1c2e24;
+  border: 1px solid var(--border);
+  background: var(--primary-100);
+  color: var(--text);
   font-size: 12px;
 }
 
 .chip.success {
-  border-color: #b8e3a0;
-  background: #e6f7dc;
-  color: #245c16;
+  border-color: var(--border);
+  background: #E4EDFF;
+  color: var(--primary-600);
 }
 
 .chip.calm {
-  border-color: #c6d7c6;
-  background: #f1f6f0;
-  color: #2d4638;
+  border-color: var(--border);
+  background: var(--primary-100);
+  color: var(--muted);
 }
 
 .chip.ghost {
   border-color: rgba(255, 255, 255, 0.5);
   background: rgba(255, 255, 255, 0.22);
-  color: #0f2a16;
+  color: var(--text);
 }
 
 .health-score {
@@ -479,10 +546,10 @@ body.dash-body {
   width: 148px;
   height: 148px;
   border-radius: 50%;
-  background: conic-gradient(#62d337 0% 72%, #d9e4d8 72% 100%);
+  background: conic-gradient(#2563eb 0% 72%, #dbeafe 72% 100%);
   display: grid;
   place-items: center;
-  box-shadow: 0 16px 36px rgba(68, 183, 44, 0.22);
+  box-shadow: 0 16px 36px rgba(37, 99, 235, 0.22);
 }
 
 .ring::after {
@@ -501,7 +568,7 @@ body.dash-body {
   place-items: center;
   text-align: center;
   line-height: 1.2;
-  color: #0f2a16;
+  color: var(--text);
 }
 
 .score-number {
@@ -694,16 +761,16 @@ body.dash-body {
   display: grid;
   place-items: center;
   font-weight: 700;
-  color: #0f2a16;
-  background: linear-gradient(135deg, #e2f4db 0%, #cdeac3 100%);
-  border: 1px solid #d6e9cb;
+  color: var(--primary-600);
+  background: linear-gradient(135deg, #E8F0FF 0%, #D5E4FF 100%);
+  border: 1px solid var(--border);
   flex-shrink: 0;
 }
 
 .chat-row.user .chat-avatar {
   background: #e9edf2;
   border-color: #d6dde7;
-  color: #1c2a23;
+  color: var(--text);
 }
 
 .chat-bubble {
@@ -713,15 +780,15 @@ body.dash-body {
   font-size: 14px;
   line-height: 1.55;
   border: 1px solid var(--border);
-  background: #eef6ea;
-  color: #0f2a16;
-  box-shadow: 0 6px 10px rgba(16, 36, 26, 0.05);
+  background: var(--primary-100);
+  color: var(--text);
+  box-shadow: 0 6px 10px rgba(36, 87, 214, 0.05);
 }
 
 .chat-bubble.user {
-  background: #f3f4f6;
-  color: #1c2a23;
-  border-color: #e2e6eb;
+  background: #ffffff;
+  color: var(--text);
+  border-color: var(--border);
 }
 
 .chat-bubble ul {
@@ -779,7 +846,7 @@ body.dash-body {
   width: 100%; /* 【修改】只占卡片宽度 */
   right: auto; /* 【新增】移除向右扩展 */
   height: 4px;
-  background: #dfe6dd;
+  background: var(--primary-100);
   border-radius: 999px;
 }
 
@@ -790,7 +857,7 @@ body.dash-body {
   left: 0;
   height: 4px;
   width: var(--flow-progress, 0%);
-  background: linear-gradient(90deg, #64c92f 0%, #4cb231 100%);
+  background: linear-gradient(90deg, var(--primary) 0%, var(--primary-600) 100%);
   border-radius: 999px;
 }
 
@@ -821,8 +888,8 @@ body.dash-body {
 }
 
 .flow-step.done .flow-dot {
-  background: #64c92f;
-  box-shadow: 0 0 0 6px #e4f6dc;
+  background: var(--primary);
+  box-shadow: 0 0 0 6px rgba(47, 107, 255, 0.18);
 }
 
 .flow-step.active .flow-dot {
@@ -841,12 +908,12 @@ body.dash-body {
   justify-content: center;
   padding: 10px 14px;
   border-radius: 12px;
-  border: 1px solid #62d337;
-  background: linear-gradient(135deg, #6cdc3c 0%, #46b72d 100%);
-  color: #0f2a16;
+  border: 1px solid var(--primary);
+  background: linear-gradient(135deg, var(--primary), var(--primary-600));
+  color: #ffffff;
   font-weight: 700;
   text-decoration: none;
-  box-shadow: 0 14px 28px rgba(76, 178, 49, 0.26);
+  box-shadow: 0 14px 28px rgba(36, 87, 214, 0.22);
 }
 
 .reminder-body {
@@ -868,7 +935,7 @@ body.dash-body {
   padding: 12px;
   border-radius: 14px;
   border: 1px solid var(--border);
-  background: #f8fbf6;
+  background: var(--primary-100);
 }
 
 .med-card,
@@ -898,12 +965,12 @@ body.dash-body {
   padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid var(--border);
-  background: #fdfdfb;
+  background: var(--card);
 }
 
 .med-item.done {
-  border-color: #cfe8bc;
-  background: #f2faec;
+  border-color: var(--border);
+  background: #EFF4FF;
 }
 
 .med-item.pending {
@@ -916,10 +983,10 @@ body.dash-body {
   border-radius: 12px;
   display: grid;
   place-items: center;
-  background: #eef6ea;
-  color: var(--green-700);
+  background: var(--primary-100);
+  color: var(--primary);
   font-weight: 700;
-  border: 1px solid #cfe8bc;
+  border: 1px solid var(--border);
 }
 
 .med-item.pending .med-check {
@@ -959,7 +1026,7 @@ body.dash-body {
 
 .knowledge-tile {
   border: 1px solid var(--border);
-  background: #f8fbf6;
+  background: var(--card);
   border-radius: 14px;
   padding: 12px;
   display: grid;
@@ -974,7 +1041,7 @@ body.dash-body {
   padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid var(--border);
-  background: #fdfdfb;
+  background: var(--card);
 }
 
 .lede.small {
@@ -988,7 +1055,7 @@ body.dash-body {
 
 .qa-window {
   border: 1px solid var(--border);
-  background: #f8fbf6;
+  background: var(--card);
   border-radius: 16px;
   padding: 12px;
   display: grid;
@@ -1089,9 +1156,9 @@ body.dash-body {
 }
 
 .pill.active {
-  background: #1f3527;
+  background: var(--primary);
   color: #fff;
-  border-color: #1f3527;
+  border-color: var(--primary);
 }
 
 .pill.vertical {
@@ -1189,7 +1256,7 @@ body.dash-body {
 }
 
 .bar.dark {
-  background: #1f3527;
+  background: var(--primary-600);
 }
 
 .bar.warning {
@@ -1205,9 +1272,9 @@ body.dash-body {
 }
 
 .right-rail .card {
-  background: #22362a;
-  border: 1px solid #23402d;
-  color: #e5f0e6;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
 }
 
 .profile {
@@ -1241,26 +1308,26 @@ body.dash-body {
 }
 
 .tag.success {
-  background: #294d36;
-  color: #7ae141;
+  background: var(--primary-100);
+  color: var(--primary);
 }
 
 .tag.pro {
-  background: #514027;
-  color: #f6c542;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--text);
 }
 
 .ghost {
-  background: #263c2d;
-  border-color: #2d4a35;
-  color: #d5e4d7;
+  background: var(--primary-100);
+  border-color: var(--border);
+  color: var(--text);
 }
 
 .calendar {
-  background: #1f3326;
+  background: var(--card);
   border-radius: 18px;
   padding: 12px 12px 10px;
-  border: 1px solid #2d4234;
+  border: 1px solid var(--border);
 }
 
 .cal-head {
@@ -1283,12 +1350,12 @@ body.dash-body {
 }
 
 .day {
-  background: #22382a;
+  background: var(--card);
   border-radius: 14px;
   padding: 8px 6px;
   text-align: center;
-  color: #c9d6c9;
-  border: 1px solid #2c4536;
+  color: var(--text);
+  border: 1px solid var(--border);
   display: grid;
   gap: 2px;
 }
@@ -1298,10 +1365,10 @@ body.dash-body {
 }
 
 .day.active {
-  background: linear-gradient(135deg, #63d336, #3b9c24);
-  color: #0d2b14;
-  border-color: #63d336;
-  box-shadow: 0 10px 22px rgba(99, 211, 54, 0.35);
+  background: linear-gradient(135deg, var(--primary), var(--primary-600));
+  color: #ffffff;
+  border-color: var(--primary);
+  box-shadow: 0 10px 22px rgba(36, 87, 214, 0.25);
 }
 
 .upcoming {
@@ -1311,7 +1378,7 @@ body.dash-body {
 }
 
 .see-all {
-  color: #9ddf9f;
+  color: var(--primary);
   font-size: 13px;
   text-decoration: none;
 }
@@ -1329,8 +1396,8 @@ body.dash-body {
   grid-template-columns: auto 1fr auto;
   gap: 10px;
   align-items: center;
-  background: #1f3326;
-  border: 1px solid #2f4838;
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 10px 12px;
   min-width: 0;
@@ -1346,8 +1413,8 @@ body.dash-body {
   border-radius: 14px;
   display: grid;
   place-items: center;
-  background: #2e4635;
-  color: #a7e597;
+  background: var(--primary-100);
+  color: var(--primary);
 }
 
 .meta {
@@ -1359,22 +1426,22 @@ body.dash-body {
 .upgrade {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #1f3326 0%, #2c4434 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-600) 100%);
 }
 
 .upgrade .badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #293f30;
-  color: #9ddf9f;
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
   padding: 6px 10px;
   border-radius: 999px;
   font-size: 12px;
 }
 
 .upgrade .meta {
-  color: #9ab8a5;
+  color: rgba(255, 255, 255, 0.9);
   margin-bottom: 12px;
 }
 
@@ -1382,11 +1449,11 @@ body.dash-body {
   padding: 10px 16px;
   border-radius: 12px;
   border: none;
-  background: #8ce45c;
-  color: #0f2b15;
+  background: #ffffff;
+  color: var(--primary);
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 12px 26px rgba(140, 228, 92, 0.28);
+  box-shadow: 0 12px 26px rgba(36, 87, 214, 0.25);
 }
 
 .upgrade .bot {
@@ -1455,8 +1522,8 @@ body.dash-body {
 
 .ghost.pill {
   padding: 6px 10px;
-  color: #cfe2d4;
-  border-color: #355540;
+  color: var(--primary);
+  border-color: var(--border);
 }
 
 /* 🟢 AI 正在思考的小圆点动画 */
