@@ -267,7 +267,7 @@
 
       async function postJson(path, payload) {
         try {
-          const resp = await fetch(path, {
+          const resp = await fetchWithAuth(path, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload || {})
@@ -281,7 +281,7 @@
 
       async function postForm(path, formData) {
         try {
-          const resp = await fetch(path, {
+          const resp = await fetchWithAuth(path, {
             method: "POST",
             body: formData
           });
@@ -390,13 +390,14 @@
       nextBtn?.addEventListener("click", cycleDefaultQuestion);
     })();
   </script>
+  <script type="module" src="../firebase-config.js"></script>
+  <script type="module" src="../common/fetchWithAuth.js"></script>
   <script type="module" src="screening.metagpt.js"></script>
   <script type="module">
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import { ref, uploadBytes } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
     import { jsPDF } from "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.es.min.js";
-    import { auth, db, storage } from "../firebase-config.js";
+    import { fetchWithAuth } from "../common/fetchWithAuth.js";
+    import { auth, db } from "../firebase-config.js";
     import { getCurrentUserProfile } from "../firestoreService.js";
 
     const finishBtn = document.getElementById("finish-screening");
@@ -476,20 +477,28 @@
       return doc.output("blob");
     }
 
-    async function uploadPdf(reportId, pdfBlob) {
-      const fileRef = ref(storage, `reports/${reportId}.pdf`);
-      await uploadBytes(fileRef, pdfBlob, { contentType: "application/pdf" });
-    }
+    async function uploadReportToBackend({ reportId, screeningId, riskLevel, doctorId, pdfBlob }) {
+      const form = new FormData();
+      form.append("pdf", pdfBlob, `${reportId}.pdf`);
+      if (reportId) form.append("reportId", reportId);
+      if (screeningId) form.append("screeningId", screeningId);
+      if (riskLevel) form.append("riskLevel", riskLevel);
+      if (doctorId) form.append("doctorId", doctorId);
 
-    async function saveReportDoc({ doctorId, patientId, reportId, riskLevel, screeningId }) {
-      await addDoc(collection(db, "reports"), {
-        createdAt: serverTimestamp(),
-        doctorId: doctorId || "unassigned",
-        patientId,
-        reportId,
-        riskLevel,
-        screeningId,
+      const resp = await fetchWithAuth("/api/reports", {
+        method: "POST",
+        body: form,
       });
+      let data = {};
+      try {
+        data = await resp.json();
+      } catch {
+        throw new Error(`Report upload failed (${resp.status})`);
+      }
+      if (!resp.ok || data?.ok === false) {
+        throw new Error(data?.error || `Report upload failed (${resp.status})`);
+      }
+      return data;
     }
 
     async function handleFinish() {
@@ -511,16 +520,17 @@
         setStatus("Generating PDF...");
         const pdfBlob = await createPdfBlob({ patientId, doctorId, screeningId, riskLevel, question, answer });
 
-        setStatus("Uploading PDF...");
-        await uploadPdf(reportId, pdfBlob);
-
-        setStatus("Saving report record...");
-        await saveReportDoc({ doctorId, patientId, reportId, riskLevel, screeningId });
+        setStatus("Uploading report...");
+        const result = await uploadReportToBackend({ reportId, screeningId, riskLevel, doctorId, pdfBlob });
 
         setStatus("Report generated and uploaded.");
         const go = confirm("Report generated and uploaded. View reports now?");
         if (go) {
-          window.location.href = "report.html";
+          if (result?.downloadUrl) {
+            window.open(result.downloadUrl, "_blank", "noopener");
+          } else {
+            window.location.href = "report.html";
+          }
         }
       } catch (err) {
         console.error("Report generation failed", err);

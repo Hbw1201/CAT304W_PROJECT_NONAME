@@ -17,6 +17,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../dashboard.css">
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script type="module" src="../firebase-config.js"></script>
+  <script type="module" src="../common/fetchWithAuth.js"></script>
 
   <!-- 璁╁姪鎵嬫秷鎭洿鏄撹鐨勭畝鍗曟牱寮?-->
   <style>
@@ -298,7 +300,7 @@ How can I help today?
     };
 
     const sendToBackend = async () => {
-      const res = await fetch('/api/chat', {
+      const res = await fetchWithAuth('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

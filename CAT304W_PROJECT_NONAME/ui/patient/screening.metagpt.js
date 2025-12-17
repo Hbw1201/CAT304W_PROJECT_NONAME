@@ -29,8 +29,10 @@ function getAnswerValue() {
   return (transcriptEl?.textContent || "").trim();
 }
 
+import { fetchWithAuth } from "../common/fetchWithAuth.js";
+
 async function requestJson(path, payload) {
-  const resp = await fetch(path, {
+  const resp = await fetchWithAuth(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload ?? {}),

@@ -13,13 +13,28 @@ import socket
 import subprocess
 import sys
 import time
+import logging
+import base64
+from datetime import timedelta
+from functools import wraps
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Callable
 from urllib.parse import urlparse
 
-from flask import Flask, abort, jsonify, request, send_from_directory, Response
+from flask import Flask, abort, jsonify, request, send_from_directory, Response, g
 from flask_cors import CORS
 import requests
+from firebase_admin import firestore as admin_firestore
+
+from firebase_admin_init import (
+    get_firestore_client,
+    get_user_role,
+    verify_id_token as verify_firebase_id_token,
+    get_storage_bucket,
+)
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -34,6 +49,7 @@ CHAT_PORT = int(os.environ.get("NODE_CHAT_PORT", 3000))
 DEFAULT_NODE_CHAT_URL = f"http://{CHAT_HOST}:{CHAT_PORT}"
 _screen_process: Optional[subprocess.Popen] = None
 _chat_process: Optional[subprocess.Popen] = None
+MAX_PDF_BYTES = 10 * 1024 * 1024  # 10MB limit
 
 # Allowlist of root-level UI assets that can be served directly from /ui.
 ROOT_UI_ALLOWLIST = {
@@ -51,6 +67,120 @@ ROOT_UI_ALLOWLIST = {
 
 # Legacy /patient/login.* assets that live at the UI root.
 PATIENT_ROOT_FALLBACKS = {"login.css", "script.js"}
+
+
+def _extract_bearer_token() -> Optional[str]:
+    header = request.headers.get("Authorization", "")
+    if not header:
+        return None
+    parts = header.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        return None
+    return parts[1].strip() or None
+
+
+def _set_identity(decoded: Dict[str, Any], token: str) -> None:
+    uid = decoded.get("uid") or decoded.get("sub") or ""
+    email = decoded.get("email", "") or ""
+    role = "patient"
+    if uid:
+        try:
+            role = get_user_role(uid) or "patient"
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[auth] failed to read role for %s: %s", uid, exc)
+            role = "patient"
+    g.firebase_uid = uid
+    g.firebase_email = email
+    g.firebase_role = role
+    g.firebase_token = token
+
+
+def require_firebase_auth(allowed_roles: Optional[set[str]] = None) -> Callable:
+    """Decorator enforcing Firebase ID token auth; optional role allowlist."""
+
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            token = _extract_bearer_token()
+            if not token:
+                return jsonify({"error": "Missing Authorization Bearer token"}), 401
+            try:
+                decoded = verify_firebase_id_token(token)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("[auth] token verification failed: %s", exc)
+                return jsonify({"error": "Invalid Firebase ID token", "detail": str(exc)}), 401
+
+            _set_identity(decoded, token)
+            if not getattr(g, "firebase_uid", None):
+                return jsonify({"error": "Token missing uid"}), 401
+
+            if allowed_roles:
+                role = (getattr(g, "firebase_role", "") or "").lower()
+                if role not in allowed_roles:
+                    return jsonify({"error": "Forbidden", "role": role}), 403
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+def _identity_headers() -> Dict[str, str]:
+    return {
+        "X-Firebase-UID": getattr(g, "firebase_uid", "") or "",
+        "X-Firebase-Role": getattr(g, "firebase_role", "") or "",
+        "X-Firebase-Email": getattr(g, "firebase_email", "") or "",
+    }
+
+
+def _build_report_id(uid: str) -> str:
+    now = time.localtime()
+    ymd = f"{now.tm_year}{now.tm_mon:02d}{now.tm_mday:02d}"
+    safe_uid = "".join(ch for ch in uid if ch.isalnum())[:12] or "patient"
+    return f"noname_{ymd}_{safe_uid}_{int(time.time() * 1000)}"
+
+
+def _build_screening_id() -> str:
+    return f"demo_screening_{int(time.time() * 1000)}"
+
+
+def _decode_pdf_bytes() -> tuple[Optional[bytes], Dict[str, Any]]:
+    """
+    Return (pdf_bytes, metadata) where metadata contains optional fields from form/json.
+    """
+    meta: Dict[str, Any] = {
+        "reportId": None,
+        "screeningId": None,
+        "doctorId": None,
+        "riskLevel": None,
+    }
+    pdf_bytes: Optional[bytes] = None
+
+    content_type = request.content_type or ""
+    if "multipart/form-data" in content_type:
+        pdf_file = request.files.get("pdf")
+        if pdf_file:
+            pdf_bytes = pdf_file.read()
+        meta["reportId"] = request.form.get("reportId")
+        meta["screeningId"] = request.form.get("screeningId")
+        meta["doctorId"] = request.form.get("doctorId")
+        meta["riskLevel"] = request.form.get("riskLevel")
+    else:
+        data = request.get_json(silent=True, force=True) or {}
+        meta["reportId"] = data.get("reportId")
+        meta["screeningId"] = data.get("screeningId")
+        meta["doctorId"] = data.get("doctorId")
+        meta["riskLevel"] = data.get("riskLevel")
+        pdf_b64 = data.get("pdfBase64")
+        if pdf_b64:
+            try:
+                payload = pdf_b64.split(",", 1)[-1]
+                pdf_bytes = base64.b64decode(payload)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("[reports] failed to decode pdfBase64: %s", exc)
+                raise
+
+    return pdf_bytes, meta
 
 
 def system_init() -> Flask:
@@ -85,7 +215,95 @@ def system_init() -> Flask:
         }
         return jsonify(status)
 
+    @app.route("/api/reports", methods=["GET", "POST", "OPTIONS"])
+    @require_firebase_auth()
+    def create_report() -> Any:
+        uid = getattr(g, "firebase_uid", None)
+        if not uid:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        if request.method == "GET":
+            return jsonify({"ok": True, "reports": []})
+
+        try:
+            pdf_bytes, meta = _decode_pdf_bytes()
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"error": "Invalid payload", "detail": str(exc)}), 400
+
+        if not pdf_bytes:
+            return jsonify({"error": "PDF is required"}), 400
+        if len(pdf_bytes) > MAX_PDF_BYTES:
+            return jsonify({"error": "PDF too large", "limit": MAX_PDF_BYTES}), 413
+
+        report_id = meta.get("reportId") or _build_report_id(uid)
+        screening_id = meta.get("screeningId") or _build_screening_id()
+        doctor_id = meta.get("doctorId") or "unassigned"
+        risk_level = (meta.get("riskLevel") or "low").strip() or "low"
+
+        try:
+            bucket = get_storage_bucket()
+            path = f"reports/{report_id}.pdf"
+            blob = bucket.blob(path)
+            blob.upload_from_string(pdf_bytes, content_type="application/pdf")
+            signed_url = None
+            try:
+                signed_url = blob.generate_signed_url(expiration=timedelta(minutes=15))
+            except Exception as exc:  # noqa: BLE001
+                logger.info("[reports] signed URL not generated for %s: %s", report_id, exc)
+        except Exception as exc:  # noqa: BLE001
+            logger.error("[reports] storage upload failed uid=%s reportId=%s error=%s", uid, report_id, exc)
+            return jsonify({"error": "Storage upload failed", "detail": str(exc)}), 500
+
+        try:
+            db = get_firestore_client()
+            doc_ref, _ = db.collection("reports").add(
+                {
+                    "createdAt": admin_firestore.SERVER_TIMESTAMP,
+                    "doctorId": doctor_id or "unassigned",
+                    "patientId": uid,
+                    "reportId": report_id,
+                    "screeningId": screening_id,
+                    "riskLevel": risk_level,
+                }
+            )
+            doc_id = doc_ref.id
+        except Exception as exc:  # noqa: BLE001
+            logger.error("[reports] firestore write failed uid=%s reportId=%s error=%s", uid, report_id, exc)
+            return jsonify({"error": "Firestore write failed", "detail": str(exc)}), 500
+
+        logger.info("[reports] created uid=%s reportId=%s docId=%s", uid, report_id, doc_id)
+        return jsonify(
+            {
+                "ok": True,
+                "docId": doc_id,
+                "reportId": report_id,
+                "screeningId": screening_id,
+                "storagePath": path,
+                "downloadUrl": signed_url,
+            }
+        )
+
+    @app.route("/api/health/firebase", methods=["GET"])
+    def health_firebase() -> Any:
+        try:
+            db = get_firestore_client()
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"ok": False, "error": str(exc)}), 503
+
+        try:
+            doc_ref = db.collection("_health").document("ping")
+            doc_ref.set({"ok": True, "ts": admin_firestore.SERVER_TIMESTAMP}, merge=True)
+            snap = doc_ref.get()
+            return jsonify({
+                "ok": True,
+                "exists": snap.exists,
+                "data": snap.to_dict() if snap.exists else {},
+            })
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"ok": False, "error": str(exc)}), 500
+
     @app.route("/api/chat", methods=["POST"])
+    @require_firebase_auth()
     def chat() -> Any:
         target_base = (os.environ.get("NODE_CHAT_URL") or DEFAULT_NODE_CHAT_URL).rstrip("/")
         parsed_target = urlparse(target_base if "://" in target_base else f"http://{target_base}")
@@ -99,15 +317,21 @@ def system_init() -> Flask:
 
         content_type = request.content_type or "application/json"
         raw_body = request.get_data(cache=True, as_text=False) or b""
+        auth_header = request.headers.get("Authorization")
+
+        headers = {
+            "Content-Type": content_type,
+            "Accept": "application/json",
+            **_identity_headers(),
+        }
+        if auth_header:
+            headers["Authorization"] = auth_header
 
         try:
             proxied = requests.post(
                 target_url,
                 data=raw_body,
-                headers={
-                    "Content-Type": content_type,
-                    "Accept": "application/json",
-                },
+                headers=headers,
                 timeout=15,
             )
             print(f"[/api/chat proxy] -> {target_url} status={proxied.status_code}")
@@ -121,13 +345,20 @@ def system_init() -> Flask:
 
     def proxy_screen(path: str, method: str = "GET"):
         target_url = f"{SCREEN_BACKEND_URL}{path}"
+        auth_header = request.headers.get("Authorization")
+        common_headers = {
+            "Accept": "application/json",
+            **_identity_headers(),
+        }
+        if auth_header:
+            common_headers["Authorization"] = auth_header
         try:
             if method.upper() == "GET":
                 proxied = requests.get(
                     target_url,
                     params=request.args,
                     timeout=20,
-                    headers={"Accept": "application/json"},
+                    headers=common_headers,
                 )
             else:
                 raw_body = request.get_data(cache=True, as_text=False) or b""
@@ -138,7 +369,7 @@ def system_init() -> Flask:
                     data=raw_body,
                     headers={
                         "Content-Type": request.headers.get("Content-Type", "application/json"),
-                        "Accept": "application/json",
+                        **common_headers,
                     },
                     timeout=20,
                 )
@@ -149,33 +380,43 @@ def system_init() -> Flask:
         return Response(proxied.content, status=proxied.status_code, headers=resp_headers)
 
     @app.route("/api/screen/voice/start", methods=["POST"])
+    @require_firebase_auth()
     def screen_voice_start():
         return proxy_screen("/voice/start", "POST")
 
     @app.route("/api/screen/voice/stop", methods=["POST"])
+    @require_firebase_auth()
     def screen_voice_stop():
         return proxy_screen("/voice/stop", "POST")
 
     @app.route("/api/screen/voice/status", methods=["GET"])
+    @require_firebase_auth()
     def screen_voice_status():
         return proxy_screen("/voice/status", "GET")
 
     @app.route("/api/screen/metagpt/start", methods=["POST"])
+    @require_firebase_auth()
     def screen_metagpt_start():
         return proxy_screen("/metagpt/start", "POST")
 
     @app.route("/api/screen/metagpt/next", methods=["POST"])
+    @require_firebase_auth()
     def screen_metagpt_next():
         return proxy_screen("/metagpt/next", "POST")
 
     @app.route("/api/screen/health", methods=["GET"])
+    @require_firebase_auth()
     def screen_health():
         target_url = f"{SCREEN_BACKEND_URL}/health"
+        auth_header = request.headers.get("Authorization")
+        headers = {"Accept": "application/json", **_identity_headers()}
+        if auth_header:
+            headers["Authorization"] = auth_header
         try:
             proxied = requests.get(
                 target_url,
                 timeout=5,
-                headers={"Accept": "application/json"},
+                headers=headers,
                 params=request.args,
             )
             print(f"[screen proxy] -> {target_url} status={proxied.status_code}")
@@ -416,5 +657,10 @@ app = system_init()
 if __name__ == "__main__":
     ensure_chat_backend()
     ensure_screen_backend()
+    print("\n=== ROUTES (runtime) ===")
+    for r in app.url_map.iter_rules():
+        if "reports" in r.rule:
+            print(r.rule, r.endpoint, r.methods)
+    print("=== END ===\n")
     port = int(os.environ.get("PORT", 8001))
     app.run(host="0.0.0.0", port=port, debug=False)

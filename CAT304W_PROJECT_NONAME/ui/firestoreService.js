@@ -7,6 +7,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  limit,
   where,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
@@ -98,7 +99,8 @@ export async function getReportsByPatient(patientId) {
     const q = query(
       collection(db, "reports"),
       where("patientId", "==", patientId),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
+      limit(50)
     );
     const snap = await getDocs(q);
     return snap.docs.map((docSnap) => ({
@@ -106,8 +108,7 @@ export async function getReportsByPatient(patientId) {
       ...docSnap.data(),
     }));
   } catch (error) {
-    console.error("[firestore] getReportsByPatient error", error);
-    return [];
+    throw error;
   }
 }
 

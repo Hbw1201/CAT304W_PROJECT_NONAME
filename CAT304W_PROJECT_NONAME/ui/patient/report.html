@@ -157,6 +157,9 @@
               </div>
               <span id="reportStatus" class="pill plain">Loading...</span>
             </div>
+            <div id="indexNotice" class="dev-banner" hidden>
+              This Firestore query needs a composite index. Open console for the index creation link.
+            </div>
             <div id="reportList" class="report-items"></div>
             <div id="reportEmpty" class="empty-state" hidden>No reports yet.</div>
           </div>
@@ -194,9 +197,10 @@
     }
     .report-grid {
       display: grid;
-      grid-template-columns: 1.1fr 1fr;
+      grid-template-columns: 0.35fr 0.65fr;
       gap: 16px;
       margin-top: 8px;
+      min-height: 70vh;
     }
     .report-list,
     .report-preview {
@@ -205,6 +209,10 @@
       padding: 16px;
       background: #fff;
       box-shadow: 0 10px 30px rgba(2, 6, 23, 0.06);
+    }
+    .report-list {
+      overflow-y: auto;
+      max-height: 75vh;
     }
     .list-head {
       display: flex;
@@ -276,15 +284,52 @@
     }
     .report-preview iframe {
       width: 100%;
-      height: 520px;
+      min-height: 70vh;
       border: 1px solid #e5e7eb;
       border-radius: 12px;
       background: #fff;
     }
+    .preview-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .preview-actions button {
+      border: 1px solid #2563eb;
+      background: #2563eb;
+      color: #ffffff;
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      box-shadow: 0 10px 30px rgba(37, 99, 235, 0.2);
+    }
+    .preview-actions button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .preview-fallback {
+      border: 1px dashed #e5e7eb;
+      border-radius: 12px;
+      padding: 14px;
+      color: #475569;
+      background: #f8fafc;
+    }
+    .dev-banner {
+      background: #fff7ed;
+      color: #9a3412;
+      border: 1px solid #fdba74;
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+    }
     @media (max-width: 960px) {
       .report-grid { grid-template-columns: 1fr; }
       .report-item { grid-template-columns: 1fr; }
-      .report-preview iframe { height: 420px; }
+      .report-preview iframe { min-height: 420px; }
     }
   </style>
 
@@ -298,6 +343,8 @@
       getReportsByPatient,
       getReportPdfUrl,
     } from "../ui/firestoreService.js";
+    import { getStorage, ref, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+    import { storage } from "../ui/firebase-config.js";
 
     const ui = {
       status: document.getElementById("reportStatus"),
@@ -306,6 +353,8 @@
       search: document.getElementById("reportSearch"),
       previewFrame: document.getElementById("reportPreview"),
       previewPlaceholder: document.getElementById("previewPlaceholder"),
+      indexNotice: document.getElementById("indexNotice"),
+      previewActions: null,
     };
 
     const state = {
@@ -315,15 +364,16 @@
       selectedId: null,
     };
 
-    function tsToMillis(ts) {
-      if (!ts) return 0;
-      if (typeof ts.toMillis === "function") return ts.toMillis();
-      if (typeof ts.toDate === "function") return ts.toDate().getTime();
-      if (typeof ts === "number") return ts;
-      if (typeof ts === "object" && typeof ts.seconds === "number") {
-        const nanos = Number(ts.nanoseconds || 0);
-        return ts.seconds * 1000 + Math.floor(nanos / 1_000_000);
+    function toMillis(v) {
+      if (!v) return 0;
+      if (typeof v === "number") return v;
+      if (typeof v === "string") {
+        const t = Date.parse(v);
+        return Number.isFinite(t) ? t : 0;
       }
+      if (typeof v.toMillis === "function") return v.toMillis();
+      if (typeof v.toDate === "function") return v.toDate().getTime();
+      if (typeof v.seconds === "number") return v.seconds * 1000;
       return 0;
     }
 
@@ -351,6 +401,12 @@
       if (ui.status) ui.status.textContent = message || "";
     }
 
+    function showIndexNotice(show) {
+      if (!ui.indexNotice) return;
+      const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+      ui.indexNotice.hidden = !(show && isLocal);
+    }
+
     function renderEmpty(showEmpty) {
       if (ui.empty) ui.empty.hidden = !showEmpty;
       if (ui.list) ui.list.style.display = showEmpty ? "none" : "flex";
@@ -370,7 +426,7 @@
       }
     }
 
-    async function ensurePdf(reportId, statusEl, viewBtn, downloadBtn) {
+    async function ensurePdf(reportId, statusEl, viewBtn, downloadBtn, storagePath, signedUrl) {
       if (!reportId) {
         if (statusEl) statusEl.textContent = "Missing reportId";
         if (viewBtn) viewBtn.disabled = true;
@@ -396,7 +452,24 @@
       if (viewBtn) viewBtn.disabled = true;
       if (downloadBtn) downloadBtn.disabled = true;
 
-      const url = await getReportPdfUrl(reportId);
+      let url = signedUrl || null;
+      if (!url) {
+        const path = storagePath || `reports/${reportId}.pdf`;
+        try {
+          url = await getReportPdfUrl(reportId);
+          if (!url) {
+            url = await getDownloadURL(ref(storage, path));
+          }
+        } catch (err) {
+          console.warn("[report] failed to get PDF URL, will fallback", err);
+          try {
+            url = await getDownloadURL(ref(storage, path));
+          } catch (err2) {
+            console.error("[report] failed to get PDF URL from storage", err2);
+            url = null;
+          }
+        }
+      }
       console.log("[report] pdf url", url);
       state.pdfCache.set(reportId, url || null);
 
@@ -424,18 +497,20 @@
       const statusEl = document.querySelector(`[data-status="${report.reportId}"]`);
       const viewBtn = document.querySelector(`[data-view="${report.reportId}"]`);
       const downloadBtn = document.querySelector(`[data-download="${report.reportId}"]`);
-      const url = await ensurePdf(report.reportId, statusEl, viewBtn, downloadBtn);
+      const url = await ensurePdf(report.reportId, statusEl, viewBtn, downloadBtn, report.storagePath, report.downloadUrl);
       if (!url) return;
       state.selectedId = report.reportId;
       setPreview(url);
       setActiveItem(report.reportId);
+      state.selectedUrl = url;
+      state.selectedStoragePath = report.storagePath || `reports/${report.reportId}.pdf`;
     }
 
     async function handleDownload(report) {
       const statusEl = document.querySelector(`[data-status="${report.reportId}"]`);
       const viewBtn = document.querySelector(`[data-view="${report.reportId}"]`);
       const downloadBtn = document.querySelector(`[data-download="${report.reportId}"]`);
-      const url = await ensurePdf(report.reportId, statusEl, viewBtn, downloadBtn);
+      const url = await ensurePdf(report.reportId, statusEl, viewBtn, downloadBtn, report.storagePath, report.downloadUrl);
       if (!url) return;
       window.open(url, "_blank", "noopener");
     }
@@ -493,7 +568,7 @@
         if (state.selectedId === report.reportId) item.classList.add("active");
 
         if (report.reportId) {
-          ensurePdf(report.reportId, status, viewBtn, downloadBtn);
+          ensurePdf(report.reportId, status, viewBtn, downloadBtn, report.storagePath, report.downloadUrl);
         } else {
           status.textContent = "Missing reportId";
           viewBtn.disabled = true;
@@ -519,20 +594,42 @@
     async function loadReports(patientId) {
       setStatus("Loading...");
       setPreview(null);
+      showIndexNotice(false);
 
-      const reports = await getReportsByPatient(patientId);
-      console.log("[report] reports", reports);
+      try {
+        const reports = await getReportsByPatient(patientId);
+        console.log("[report] reports", reports);
 
-      state.reports = [...(reports || [])].sort((a, b) => tsToMillis(b.createdAt) - tsToMillis(a.createdAt));
-      state.filtered = [...state.reports];
+        const stabilized = [];
+        const fallbacks = [];
+        for (const r of reports || []) {
+          const ms = toMillis(r.createdAt);
+          if (ms > 0) {
+            stabilized.push(r);
+          } else {
+            fallbacks.push(r);
+          }
+        }
+        // Firestore returns ordered already; only append missing createdAt to the end.
+        state.reports = stabilized.concat(fallbacks);
+        state.filtered = [...state.reports];
 
-      if (!state.reports.length) {
+        if (!state.reports.length) {
+          renderEmpty(true);
+          return;
+        }
+
+        setStatus(`${state.reports.length} report${state.reports.length === 1 ? "" : "s"}`);
+        renderList(state.filtered);
+      } catch (error) {
+        console.error(
+          "[report] Failed to load reports. If Firestore says 'requires an index', create the composite index via the provided console link:",
+          error?.message || error
+        );
+        setStatus(error?.message || "Failed to load reports");
+        showIndexNotice(error?.code === "failed-precondition" && String(error?.message || "").includes("requires an index"));
         renderEmpty(true);
-        return;
       }
-
-      setStatus(`${state.reports.length} report${state.reports.length === 1 ? "" : "s"}`);
-      renderList(state.filtered);
     }
 
     function hydrateBrand(profile) {
