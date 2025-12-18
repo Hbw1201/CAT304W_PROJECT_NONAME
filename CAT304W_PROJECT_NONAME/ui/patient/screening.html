@@ -478,27 +478,57 @@
     }
 
     async function uploadReportToBackend({ reportId, screeningId, riskLevel, doctorId, pdfBlob }) {
+      if (!pdfBlob) throw new Error("PDF not generated");
+      let finalBlob = pdfBlob;
+      if (!finalBlob.type || finalBlob.type !== "application/pdf") {
+        finalBlob = new Blob([pdfBlob], { type: "application/pdf" });
+      }
+      if (!finalBlob.size) throw new Error("PDF is empty");
+
+      const file = new File([finalBlob], `${reportId}.pdf`, { type: "application/pdf" });
       const form = new FormData();
-      form.append("pdf", pdfBlob, `${reportId}.pdf`);
+      form.append("pdf", file);
       if (reportId) form.append("reportId", reportId);
       if (screeningId) form.append("screeningId", screeningId);
       if (riskLevel) form.append("riskLevel", riskLevel);
       if (doctorId) form.append("doctorId", doctorId);
 
-      const resp = await fetchWithAuth("/api/reports", {
-        method: "POST",
-        body: form,
-      });
-      let data = {};
+      console.log("[report-upload] reportId:", reportId, "screeningId:", screeningId, "pdf size:", file.size);
+
+      const doRequest = async (forceRefresh = false) => {
+        const opts = { method: "POST", body: form };
+        if (forceRefresh) {
+          try {
+            await auth?.currentUser?.getIdToken(true);
+          } catch (err) {
+            console.error("[report-upload] token refresh failed", err);
+          }
+        }
+        const resp = await fetchWithAuth("/api/reports", opts);
+        let data = {};
+        try {
+          data = await resp.json();
+        } catch {
+          throw new Error(`Report upload failed (${resp.status})`);
+        }
+        if (resp.status === 401 || resp.status === 403) {
+          throw Object.assign(new Error("auth_error"), { retryAuth: true, data });
+        }
+        if (!resp.ok || data?.ok === false) {
+          throw new Error(data?.error || `Report upload failed (${resp.status})`);
+        }
+        return data;
+      };
+
       try {
-        data = await resp.json();
-      } catch {
-        throw new Error(`Report upload failed (${resp.status})`);
+        return await doRequest(false);
+      } catch (err) {
+        if (err?.retryAuth) {
+          console.warn("[report-upload] retrying after token refresh");
+          return await doRequest(true);
+        }
+        throw err;
       }
-      if (!resp.ok || data?.ok === false) {
-        throw new Error(data?.error || `Report upload failed (${resp.status})`);
-      }
-      return data;
     }
 
     async function handleFinish() {

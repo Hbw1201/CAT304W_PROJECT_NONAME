@@ -69,6 +69,7 @@ ROOT_UI_ALLOWLIST = {
 PATIENT_ROOT_FALLBACKS = {"login.css", "script.js"}
 
 
+
 def _extract_bearer_token() -> Optional[str]:
     header = request.headers.get("Authorization", "")
     if not header:
@@ -215,15 +216,12 @@ def system_init() -> Flask:
         }
         return jsonify(status)
 
-    @app.route("/api/reports", methods=["GET", "POST", "OPTIONS"])
+    @app.route("/api/reports", methods=["POST"])
     @require_firebase_auth()
     def create_report() -> Any:
         uid = getattr(g, "firebase_uid", None)
         if not uid:
             return jsonify({"error": "Unauthorized"}), 401
-
-        if request.method == "GET":
-            return jsonify({"ok": True, "reports": []})
 
         try:
             pdf_bytes, meta = _decode_pdf_bytes()
@@ -234,6 +232,12 @@ def system_init() -> Flask:
             return jsonify({"error": "PDF is required"}), 400
         if len(pdf_bytes) > MAX_PDF_BYTES:
             return jsonify({"error": "PDF too large", "limit": MAX_PDF_BYTES}), 413
+        content_type = request.headers.get("Content-Type", "")
+        if "multipart/form-data" in (content_type or "").lower():
+            if "pdf" not in request.files:
+                return jsonify({"error": "PDF file field 'pdf' is required"}), 400
+        if content_type and "pdf" not in content_type and "multipart/form-data" not in content_type:
+            return jsonify({"error": "Unsupported Content-Type, expected application/pdf or multipart/form-data"}), 415
 
         report_id = meta.get("reportId") or _build_report_id(uid)
         screening_id = meta.get("screeningId") or _build_screening_id()
@@ -251,7 +255,7 @@ def system_init() -> Flask:
             except Exception as exc:  # noqa: BLE001
                 logger.info("[reports] signed URL not generated for %s: %s", report_id, exc)
         except Exception as exc:  # noqa: BLE001
-            logger.error("[reports] storage upload failed uid=%s reportId=%s error=%s", uid, report_id, exc)
+            logger.error("[reports] storage upload failed uid=%s reportId=%s bytes=%s error=%s", uid, report_id, len(pdf_bytes), exc)
             return jsonify({"error": "Storage upload failed", "detail": str(exc)}), 500
 
         try:
@@ -271,7 +275,7 @@ def system_init() -> Flask:
             logger.error("[reports] firestore write failed uid=%s reportId=%s error=%s", uid, report_id, exc)
             return jsonify({"error": "Firestore write failed", "detail": str(exc)}), 500
 
-        logger.info("[reports] created uid=%s reportId=%s docId=%s", uid, report_id, doc_id)
+        logger.info("[reports] created uid=%s reportId=%s docId=%s bytes=%s", uid, report_id, doc_id, len(pdf_bytes))
         return jsonify(
             {
                 "ok": True,
@@ -280,6 +284,8 @@ def system_init() -> Flask:
                 "screeningId": screening_id,
                 "storagePath": path,
                 "downloadUrl": signed_url,
+                "patientId": uid,
+                "createdAt": admin_firestore.SERVER_TIMESTAMP,
             }
         )
 
@@ -649,6 +655,11 @@ def ensure_chat_backend():
     else:
         print("[chat launcher] warning: chat backend did not open port in time")
 
+print("\n=== ROUTES (runtime) ===")
+for r in app.url_map.iter_rules():
+    if "reports" in r.rule:
+        print(r.rule, r.endpoint, r.methods)
+print("=== END ===\n")
 
 # Expose the app instance for WSGI servers (e.g., gunicorn main:app).
 app = system_init()
@@ -657,10 +668,5 @@ app = system_init()
 if __name__ == "__main__":
     ensure_chat_backend()
     ensure_screen_backend()
-    print("\n=== ROUTES (runtime) ===")
-    for r in app.url_map.iter_rules():
-        if "reports" in r.rule:
-            print(r.rule, r.endpoint, r.methods)
-    print("=== END ===\n")
     port = int(os.environ.get("PORT", 8001))
     app.run(host="0.0.0.0", port=port, debug=False)

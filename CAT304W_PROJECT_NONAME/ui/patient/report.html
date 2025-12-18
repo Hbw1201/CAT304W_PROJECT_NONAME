@@ -419,6 +419,11 @@
         ui.previewPlaceholder.hidden = true;
         ui.previewFrame.hidden = false;
         ui.previewFrame.src = url;
+        ui.previewFrame.onerror = () => {
+          ui.previewFrame.hidden = true;
+          ui.previewPlaceholder.hidden = false;
+          ui.previewPlaceholder.textContent = "Preview unavailable. Try Open or Download.";
+        };
       } else {
         ui.previewFrame.hidden = true;
         ui.previewFrame.removeAttribute("src");
