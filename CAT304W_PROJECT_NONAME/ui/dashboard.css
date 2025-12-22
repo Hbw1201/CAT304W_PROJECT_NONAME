@@ -546,10 +546,23 @@ body.dash-body {
   width: 148px;
   height: 148px;
   border-radius: 50%;
-  background: conic-gradient(#2563eb 0% 72%, #dbeafe 72% 100%);
+  --risk-color: #22c55e;
+  background: conic-gradient(var(--risk-color) 0% 100%);
   display: grid;
   place-items: center;
   box-shadow: 0 16px 36px rgba(37, 99, 235, 0.22);
+}
+
+.ring[data-risk="low"] {
+  --risk-color: #22c55e;
+}
+
+.ring[data-risk="medium"] {
+  --risk-color: #f59e0b;
+}
+
+.ring[data-risk="high"] {
+  --risk-color: #ef4444;
 }
 
 .ring::after {
@@ -573,14 +586,44 @@ body.dash-body {
 
 .score-number {
   margin: 0;
+  font-family: "Baloo 2", "Manrope", sans-serif;
   font-size: 34px;
   font-weight: 800;
+  letter-spacing: 0.4px;
+  color: #000;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7), 0 3px 8px rgba(0, 0, 0, 0.12);
 }
 
 .score-label {
-  margin: 2px 0 0;
+  margin: 4px 0 0;
   font-size: 13px;
-  color: #1c2e24;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: #000;
+}
+
+.ring.risk-low .score-number {
+  color: #000;
+}
+
+.ring.risk-low .score-label {
+  color: #000;
+}
+
+.ring.risk-medium .score-number {
+  color: #000;
+}
+
+.ring.risk-medium .score-label {
+  color: #000;
+}
+
+.ring.risk-high .score-number {
+  color: #000;
+}
+
+.ring.risk-high .score-label {
+  color: #000;
 }
 
 .overview-stats {

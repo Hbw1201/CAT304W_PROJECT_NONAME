@@ -175,19 +175,24 @@ async function handleRegister({
       throw new Error("User ID not found after registration");
     }
 
-    await setDoc(doc(db, "users", uid), {
-      uid,
-      name,
-      email,
-      age: numericAge,
-      gender,
-      weight: numericWeight,
-      height: numericHeight,
-      relationship: mode === "other" ? relationship || "Unknown" : null,
-      registeringFor: mode,
-      riskLevel: "low",
-      createdAt: serverTimestamp(),
-    });
+    const userRef = doc(db, "users", uid);
+    const existing = await getDoc(userRef);
+    if (!existing.exists()) {
+      await setDoc(userRef, {
+        uid,
+        name,
+        email,
+        age: numericAge,
+        gender,
+        weight: numericWeight,
+        height: numericHeight,
+        relationship: mode === "other" ? relationship || "Unknown" : null,
+        registeringFor: mode,
+        riskLevel: "low",
+        role: "patient",
+        createdAt: serverTimestamp(),
+      });
+    }
 
     alert("注册成功");
     window.location.href = "login.html";

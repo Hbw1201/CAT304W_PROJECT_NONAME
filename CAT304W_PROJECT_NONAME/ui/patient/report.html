@@ -171,7 +171,9 @@
                 <p class="label">Select a report to preview</p>
               </div>
             </div>
+            <div id="reportSummary" class="report-summary" hidden></div>
             <div id="previewPlaceholder" class="empty-state">Select a report to preview</div>
+            <div id="reportText" class="preview-fallback" hidden></div>
             <iframe id="reportPreview" title="Report preview" hidden></iframe>
           </div>
         </div>
@@ -316,6 +318,47 @@
       color: #475569;
       background: #f8fafc;
     }
+    .report-summary {
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px;
+      background: #f8fafc;
+      margin-bottom: 12px;
+      color: #334155;
+      font-size: 13px;
+      display: grid;
+      gap: 10px;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 8px 12px;
+    }
+    .summary-item strong {
+      display: block;
+      font-size: 11px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .summary-item span {
+      font-size: 14px;
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .summary-list {
+      display: grid;
+      gap: 6px;
+    }
+    .summary-list .label {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .summary-list ul {
+      margin: 0;
+      padding-left: 18px;
+      color: #0f172a;
+    }
     .dev-banner {
       background: #fff7ed;
       color: #9a3412;
@@ -336,15 +379,14 @@
   <script type="module">
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-    // ✅ IMPORTANT: these are the correct paths from patient/report.html
-    import { auth } from "../ui/firebase-config.js";
+    import { auth } from "../firebase-config.js";
     import {
       getCurrentUserProfile,
       getReportsByPatient,
       getReportPdfUrl,
-    } from "../ui/firestoreService.js";
+    } from "../firestoreService.js";
     import { getStorage, ref, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-    import { storage } from "../ui/firebase-config.js";
+    import { storage } from "../firebase-config.js";
 
     const ui = {
       status: document.getElementById("reportStatus"),
@@ -353,6 +395,8 @@
       search: document.getElementById("reportSearch"),
       previewFrame: document.getElementById("reportPreview"),
       previewPlaceholder: document.getElementById("previewPlaceholder"),
+      textPreview: document.getElementById("reportText"),
+      summary: document.getElementById("reportSummary"),
       indexNotice: document.getElementById("indexNotice"),
       previewActions: null,
     };
@@ -381,7 +425,7 @@
       if (!ts) return "-";
       if (typeof ts.toDate === "function") return ts.toDate().toLocaleString();
       if (typeof ts === "number") return new Date(ts).toLocaleString();
-      if (typeof ts === "object" && typeof ts.seconds === "number") return new Date(tsToMillis(ts)).toLocaleString();
+      if (typeof ts === "object" && typeof ts.seconds === "number") return new Date(toMillis(ts)).toLocaleString();
       return String(ts);
     }
 
@@ -401,20 +445,38 @@
       if (ui.status) ui.status.textContent = message || "";
     }
 
+    function clearLoading() {
+      if (ui.status && ui.status.textContent === "Loading...") {
+        ui.status.textContent = "";
+      }
+    }
+
     function showIndexNotice(show) {
       if (!ui.indexNotice) return;
       const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
       ui.indexNotice.hidden = !(show && isLocal);
     }
 
-    function renderEmpty(showEmpty) {
+    function renderEmpty(showEmpty, message) {
       if (ui.empty) ui.empty.hidden = !showEmpty;
       if (ui.list) ui.list.style.display = showEmpty ? "none" : "flex";
-      if (showEmpty) setStatus("No reports yet.");
+      if (showEmpty) {
+        const text = message || "No reports yet. Please complete screening first.";
+        if (ui.empty) ui.empty.textContent = text;
+        setStatus(text);
+      }
     }
 
     function setPreview(url) {
       if (!ui.previewFrame || !ui.previewPlaceholder) return;
+      if (ui.summary) {
+        ui.summary.hidden = true;
+        ui.summary.innerHTML = "";
+      }
+      if (ui.textPreview) {
+        ui.textPreview.hidden = true;
+        ui.textPreview.textContent = "";
+      }
       if (url) {
         ui.previewPlaceholder.hidden = true;
         ui.previewFrame.hidden = false;
@@ -431,7 +493,116 @@
       }
     }
 
-    async function ensurePdf(reportId, statusEl, viewBtn, downloadBtn, storagePath, signedUrl) {
+    function setTextPreview(text) {
+      if (!ui.textPreview || !ui.previewPlaceholder || !ui.previewFrame) return;
+      const content = String(text || "").trim();
+      if (!content) {
+        if (ui.summary) {
+          ui.summary.hidden = true;
+          ui.summary.innerHTML = "";
+        }
+        ui.textPreview.hidden = true;
+        ui.textPreview.textContent = "";
+        ui.previewPlaceholder.hidden = false;
+        ui.previewFrame.hidden = true;
+        ui.previewFrame.removeAttribute("src");
+        return;
+      }
+      ui.previewFrame.hidden = true;
+      ui.previewFrame.removeAttribute("src");
+      ui.previewPlaceholder.hidden = true;
+      ui.textPreview.textContent = content;
+      ui.textPreview.hidden = false;
+    }
+
+    function normalizeList(value) {
+      if (!value) return [];
+      if (Array.isArray(value)) {
+        return value.map((item) => String(item || "").trim()).filter(Boolean);
+      }
+      if (typeof value === "string") {
+        return value
+          .split(/\n|•|-/)
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+      if (typeof value === "object") {
+        return Object.values(value)
+          .map((item) => String(item || "").trim())
+          .filter(Boolean);
+      }
+      return [];
+    }
+
+    function renderSummary(report) {
+      if (!ui.summary) return;
+      if (!report) {
+        ui.summary.hidden = true;
+        ui.summary.innerHTML = "";
+        return;
+      }
+      const riskLevel = report.riskLevel || report.risk_level || "-";
+      const riskScore = report.riskScore || report.risk_score || "-";
+      const createdAt = report.createdAt || report.created_at || "-";
+      const riskFactors = normalizeList(report.riskFactors || report.risk_factors).slice(0, 5);
+      const recommendations = normalizeList(report.recommendations || report.recommendation).slice(0, 5);
+
+      ui.summary.innerHTML = "";
+      ui.summary.hidden = false;
+
+      const grid = document.createElement("div");
+      grid.className = "summary-grid";
+      const fields = [
+        { label: "Risk Level", value: riskLevel },
+        { label: "Risk Score", value: riskScore },
+        { label: "Created", value: formatDate(createdAt) },
+      ];
+      fields.forEach((item) => {
+        const cell = document.createElement("div");
+        cell.className = "summary-item";
+        const label = document.createElement("strong");
+        label.textContent = item.label;
+        const value = document.createElement("span");
+        value.textContent = item.value ?? "-";
+        cell.append(label, value);
+        grid.appendChild(cell);
+      });
+      ui.summary.appendChild(grid);
+
+      if (riskFactors.length) {
+        const block = document.createElement("div");
+        block.className = "summary-list";
+        const label = document.createElement("div");
+        label.className = "label";
+        label.textContent = "Risk factors";
+        const list = document.createElement("ul");
+        riskFactors.forEach((item) => {
+          const li = document.createElement("li");
+          li.textContent = item;
+          list.appendChild(li);
+        });
+        block.append(label, list);
+        ui.summary.appendChild(block);
+      }
+
+      if (recommendations.length) {
+        const block = document.createElement("div");
+        block.className = "summary-list";
+        const label = document.createElement("div");
+        label.className = "label";
+        label.textContent = "Recommendations";
+        const list = document.createElement("ul");
+        recommendations.forEach((item) => {
+          const li = document.createElement("li");
+          li.textContent = item;
+          list.appendChild(li);
+        });
+        block.append(label, list);
+        ui.summary.appendChild(block);
+      }
+    }
+
+    async function ensurePdf(reportId, statusEl, viewBtn, downloadBtn, storagePath, signedUrl, hasText) {
       if (!reportId) {
         if (statusEl) statusEl.textContent = "Missing reportId";
         if (viewBtn) viewBtn.disabled = true;
@@ -442,9 +613,15 @@
       if (state.pdfCache.has(reportId)) {
         const cached = state.pdfCache.get(reportId);
         if (!cached) {
-          if (statusEl) statusEl.textContent = "PDF not uploaded";
-          if (viewBtn) viewBtn.disabled = true;
-          if (downloadBtn) downloadBtn.disabled = true;
+          if (hasText) {
+            if (statusEl) statusEl.textContent = "Text report available";
+            if (viewBtn) viewBtn.disabled = false;
+            if (downloadBtn) downloadBtn.disabled = true;
+          } else {
+            if (statusEl) statusEl.textContent = "PDF not uploaded";
+            if (viewBtn) viewBtn.disabled = true;
+            if (downloadBtn) downloadBtn.disabled = true;
+          }
         } else {
           if (statusEl) statusEl.textContent = "";
           if (viewBtn) viewBtn.disabled = false;
@@ -479,9 +656,15 @@
       state.pdfCache.set(reportId, url || null);
 
       if (!url) {
-        if (statusEl) statusEl.textContent = "PDF not uploaded";
-        if (viewBtn) viewBtn.disabled = true;
-        if (downloadBtn) downloadBtn.disabled = true;
+        if (hasText) {
+          if (statusEl) statusEl.textContent = "Text report available";
+          if (viewBtn) viewBtn.disabled = false;
+          if (downloadBtn) downloadBtn.disabled = true;
+        } else {
+          if (statusEl) statusEl.textContent = "PDF not uploaded";
+          if (viewBtn) viewBtn.disabled = true;
+          if (downloadBtn) downloadBtn.disabled = true;
+        }
       } else {
         if (statusEl) statusEl.textContent = "";
         if (viewBtn) viewBtn.disabled = false;
@@ -499,23 +682,47 @@
     }
 
     async function handleView(report) {
-      const statusEl = document.querySelector(`[data-status="${report.reportId}"]`);
-      const viewBtn = document.querySelector(`[data-view="${report.reportId}"]`);
-      const downloadBtn = document.querySelector(`[data-download="${report.reportId}"]`);
-      const url = await ensurePdf(report.reportId, statusEl, viewBtn, downloadBtn, report.storagePath, report.downloadUrl);
-      if (!url) return;
-      state.selectedId = report.reportId;
-      setPreview(url);
-      setActiveItem(report.reportId);
+      const reportId = report.reportId || report.report_id || report.id || "";
+      const statusEl = document.querySelector(`[data-status="${reportId}"]`);
+      const viewBtn = document.querySelector(`[data-view="${reportId}"]`);
+      const downloadBtn = document.querySelector(`[data-download="${reportId}"]`);
+      const url = await ensurePdf(
+        reportId,
+        statusEl,
+        viewBtn,
+        downloadBtn,
+        report.storagePath,
+        report.downloadUrl,
+        Boolean(report.contentText)
+      );
+      state.selectedId = reportId;
+      renderSummary(report);
+      if (url) {
+        setPreview(url);
+      } else if (report.contentText) {
+        setTextPreview(report.contentText);
+      } else {
+        setPreview(null);
+      }
+      setActiveItem(reportId);
       state.selectedUrl = url;
-      state.selectedStoragePath = report.storagePath || `reports/${report.reportId}.pdf`;
+      state.selectedStoragePath = report.storagePath || `reports/${reportId}.pdf`;
     }
 
     async function handleDownload(report) {
-      const statusEl = document.querySelector(`[data-status="${report.reportId}"]`);
-      const viewBtn = document.querySelector(`[data-view="${report.reportId}"]`);
-      const downloadBtn = document.querySelector(`[data-download="${report.reportId}"]`);
-      const url = await ensurePdf(report.reportId, statusEl, viewBtn, downloadBtn, report.storagePath, report.downloadUrl);
+      const reportId = report.reportId || report.report_id || report.id || "";
+      const statusEl = document.querySelector(`[data-status="${reportId}"]`);
+      const viewBtn = document.querySelector(`[data-view="${reportId}"]`);
+      const downloadBtn = document.querySelector(`[data-download="${reportId}"]`);
+      const url = await ensurePdf(
+        reportId,
+        statusEl,
+        viewBtn,
+        downloadBtn,
+        report.storagePath,
+        report.downloadUrl,
+        Boolean(report.contentText)
+      );
       if (!url) return;
       window.open(url, "_blank", "noopener");
     }
@@ -526,6 +733,7 @@
 
       if (!reports.length) {
         renderEmpty(true);
+        renderSummary(null);
         setPreview(null);
         return;
       }
@@ -533,34 +741,39 @@
       renderEmpty(false);
 
       reports.forEach((report) => {
+        const reportId = report.reportId || report.report_id || report.id || "";
+        const displayName = report.summaryUserInfo?.name || report.patientName || report.patient_name || "-";
+        const riskLevel = report.riskLevel || report.risk_level || "-";
+        const createdAt = report.createdAt || report.created_at;
+        const source = report.source || "-";
         const item = document.createElement("div");
         item.className = "report-item";
-        item.dataset.reportId = report.reportId || "";
+        item.dataset.reportId = reportId;
 
         const meta = document.createElement("div");
         meta.className = "report-meta";
         meta.innerHTML = `
-          <div><strong>Report ID:</strong> ${report.reportId || "-"}</div>
-          <div><strong>Risk:</strong> <span class="pill ${riskClass(report.riskLevel)}">${report.riskLevel || "-"}</span></div>
-          <div><strong>Created:</strong> ${formatDate(report.createdAt)}</div>
-          <div><strong>Doctor:</strong> ${truncateId(report.doctorId)}</div>
-          <div><strong>Screening:</strong> ${report.screeningId || "-"}</div>
+          <div><strong>Name:</strong> ${displayName}</div>
+          <div><strong>Risk:</strong> <span class="pill ${riskClass(riskLevel)}">${riskLevel}</span></div>
+          <div><strong>Created:</strong> ${formatDate(createdAt)}</div>
+          <div><strong>Source:</strong> ${source}</div>
+          <div><strong>Report ID:</strong> ${reportId || "-"}</div>
         `;
 
         const actions = document.createElement("div");
         actions.className = "report-actions";
 
         const viewBtn = document.createElement("button");
-        viewBtn.textContent = "View PDF";
-        viewBtn.dataset.view = report.reportId;
+        viewBtn.textContent = "View";
+        viewBtn.dataset.view = reportId;
 
         const downloadBtn = document.createElement("button");
         downloadBtn.textContent = "Download";
-        downloadBtn.dataset.download = report.reportId;
+        downloadBtn.dataset.download = reportId;
 
         const status = document.createElement("span");
         status.className = "label";
-        status.dataset.status = report.reportId;
+        status.dataset.status = reportId;
 
         viewBtn.addEventListener("click", () => handleView(report));
         downloadBtn.addEventListener("click", () => handleDownload(report));
@@ -570,10 +783,11 @@
         item.append(meta, actions);
         ui.list.appendChild(item);
 
-        if (state.selectedId === report.reportId) item.classList.add("active");
+        if (state.selectedId === reportId) item.classList.add("active");
 
-        if (report.reportId) {
-          ensurePdf(report.reportId, status, viewBtn, downloadBtn, report.storagePath, report.downloadUrl);
+        if (reportId) {
+          report.reportId = reportId;
+          ensurePdf(reportId, status, viewBtn, downloadBtn, report.storagePath, report.downloadUrl, Boolean(report.contentText));
         } else {
           status.textContent = "Missing reportId";
           viewBtn.disabled = true;
@@ -588,8 +802,8 @@
         state.filtered = [...state.reports];
       } else {
         state.filtered = state.reports.filter((r) => {
-          const reportId = (r.reportId || "").toLowerCase();
-          const screeningId = (r.screeningId || "").toLowerCase();
+          const reportId = (r.reportId || r.report_id || r.id || "").toLowerCase();
+          const screeningId = (r.screeningId || r.screening_id || "").toLowerCase();
           return reportId.includes(q) || screeningId.includes(q);
         });
       }
@@ -599,24 +813,24 @@
     async function loadReports(patientId) {
       setStatus("Loading...");
       setPreview(null);
+      renderSummary(null);
       showIndexNotice(false);
 
       try {
+        // Previously the page could stay stuck on "Loading..." when auth or Firestore failed.
+        // This flow always surfaces errors and clears loading in finally.
         const reports = await getReportsByPatient(patientId);
         console.log("[report] reports", reports);
 
-        const stabilized = [];
-        const fallbacks = [];
-        for (const r of reports || []) {
-          const ms = toMillis(r.createdAt);
-          if (ms > 0) {
-            stabilized.push(r);
-          } else {
-            fallbacks.push(r);
-          }
-        }
-        // Firestore returns ordered already; only append missing createdAt to the end.
-        state.reports = stabilized.concat(fallbacks);
+        const sorted = [...(reports || [])].sort((a, b) => {
+          const aMs = toMillis(a.createdAt || a.created_at);
+          const bMs = toMillis(b.createdAt || b.created_at);
+          if (aMs === bMs) return 0;
+          if (!aMs) return 1;
+          if (!bMs) return -1;
+          return bMs - aMs;
+        });
+        state.reports = sorted;
         state.filtered = [...state.reports];
 
         if (!state.reports.length) {
@@ -629,11 +843,14 @@
       } catch (error) {
         console.error(
           "[report] Failed to load reports. If Firestore says 'requires an index', create the composite index via the provided console link:",
-          error?.message || error
+          error
         );
-        setStatus(error?.message || "Failed to load reports");
+        const message = error?.message || "Failed to load reports";
+        setStatus(`Failed to load reports: ${message}`);
         showIndexNotice(error?.code === "failed-precondition" && String(error?.message || "").includes("requires an index"));
-        renderEmpty(true);
+        renderEmpty(true, `Failed to load reports: ${message}`);
+      } finally {
+        clearLoading();
       }
     }
 
@@ -696,23 +913,42 @@
       attachLogout();
       initSearch();
       setPreview(null);
+      renderSummary(null);
 
       onAuthStateChanged(auth, async (user) => {
-        console.log("[report] auth user", user);
-        if (!user) {
-          console.warn("No authenticated user; cannot load reports.");
-          return;
+        try {
+          console.log("[report] auth user", user);
+          if (!user) {
+            console.warn("No authenticated user; cannot load reports.");
+            setStatus("Please sign in to view reports.");
+            renderEmpty(true, "Please sign in to view reports.");
+            return;
+          }
+
+          const profile = await getCurrentUserProfile();
+          console.log("[report] profile", profile);
+
+          syncLocalSession(user, profile);
+          await loadReports(user.uid);
+        } catch (err) {
+          console.error("[report] auth init failed", err);
+          const message = err?.message || "Failed to initialize report page";
+          setStatus(`Failed to load reports: ${message}`);
+          renderEmpty(true, `Failed to load reports: ${message}`);
+          clearLoading();
         }
-
-        const profile = await getCurrentUserProfile();
-        console.log("[report] profile", profile);
-
-        syncLocalSession(user, profile);
-        await loadReports(user.uid);
       });
     }
 
-    init();
+    try {
+      init();
+    } catch (err) {
+      console.error("[report] init crash", err);
+      const message = err?.message || "Failed to initialize report page";
+      setStatus(`Failed to load reports: ${message}`);
+      renderEmpty(true, `Failed to load reports: ${message}`);
+      clearLoading();
+    }
   </script>
 </body>
 </html>

@@ -56,6 +56,12 @@ body.auth-body {
   backdrop-filter: blur(0);
 }
 
+.auth-shell > .auth-card:only-child {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: min(520px, 100%);
+}
+
 .auth-footer-link {
   margin-top: 12px;
   text-align: center;

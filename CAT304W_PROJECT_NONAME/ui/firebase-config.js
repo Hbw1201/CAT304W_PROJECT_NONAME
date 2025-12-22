@@ -18,3 +18,8 @@ export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getA
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+const firestoreSettings = db && db._settings ? db._settings : {};
+const firestoreHost = firestoreSettings.host || "(default)";
+const firestoreEmulator = /^(localhost|127\.0\.0\.1)/.test(firestoreHost);
+console.log("[firebase] Firestore host:", firestoreHost, "emulator:", firestoreEmulator);

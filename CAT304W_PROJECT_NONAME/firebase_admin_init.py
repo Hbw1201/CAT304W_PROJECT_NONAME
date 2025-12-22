@@ -1,61 +1,86 @@
 """
 Lazy Firebase Admin bootstrap and helpers.
 
-Env vars:
-- FIREBASE_SERVICE_ACCOUNT: path to service account JSON file (preferred).
-- FIREBASE_SERVICE_ACCOUNT_JSON: raw JSON string (fallback).
-- FIREBASE_PROJECT_ID: optional project override.
+Uses secrets/serviceAccount.json and enforces project_id = feiai-7c59e.
 """
 from __future__ import annotations
 
 import json
+import logging
 import os
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import firebase_admin
 from firebase_admin import auth as admin_auth
 from firebase_admin import credentials, firestore, storage
 
+BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_SERVICE_ACCOUNT_PATH = BASE_DIR / "secrets" / "serviceAccount.json"
+EXPECTED_PROJECT_ID = "feiai-7c59e"
+
+logger = logging.getLogger(__name__)
+
 _app: Optional[firebase_admin.App] = None
 _db: Optional[firestore.Client] = None
 _bucket = None
+_project_id: Optional[str] = None
+_init_logged = False
 
 
-def _load_credential() -> credentials.Base:
-    path = os.getenv("FIREBASE_SERVICE_ACCOUNT")
-    raw_json = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
+def _read_service_account(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        raise FileNotFoundError(f"Firebase service account not found: {path}")
+    with path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
 
-    if path:
-        if not os.path.exists(path):
-            raise FileNotFoundError(f"FIREBASE_SERVICE_ACCOUNT path not found: {path}")
-        return credentials.Certificate(path)
 
-    if raw_json:
-        try:
-            data = json.loads(raw_json)
-        except json.JSONDecodeError as exc:
-            raise ValueError("FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON") from exc
-        return credentials.Certificate(data)
+def _validate_project_id(project_id: Optional[str]) -> str:
+    if not project_id:
+        raise RuntimeError("Firebase service account is missing project_id.")
+    if project_id != EXPECTED_PROJECT_ID:
+        raise RuntimeError(
+            "Firebase project_id mismatch. "
+            f"service_account={project_id} expected={EXPECTED_PROJECT_ID}"
+        )
+    return project_id
 
-    raise RuntimeError("Firebase service account is not configured. Set FIREBASE_SERVICE_ACCOUNT or FIREBASE_SERVICE_ACCOUNT_JSON.")
+
+def _load_credential() -> tuple[credentials.Base, str]:
+    if not DEFAULT_SERVICE_ACCOUNT_PATH.exists():
+        raise RuntimeError(
+            "Firebase service account is not configured. "
+            "Expected secrets/serviceAccount.json."
+        )
+    data = _read_service_account(DEFAULT_SERVICE_ACCOUNT_PATH)
+    project_id = _validate_project_id(data.get("project_id"))
+    return credentials.Certificate(data), project_id
+
+
+def _log_init(project_id: str, credential_type: str) -> None:
+    global _init_logged
+    if _init_logged:
+        return
+    logger.info("[firebase-admin] initialized project_id=%s credential=%s", project_id, credential_type)
+    _init_logged = True
 
 
 def _init_app() -> firebase_admin.App:
-    global _app
+    global _app, _project_id
     if _app:
         return _app
 
     if firebase_admin._apps:
         _app = firebase_admin.get_app()
+        _project_id = _validate_project_id(_app.project_id)
+        _log_init(_project_id, "Certificate")
         return _app
 
-    cred = _load_credential()
-    options: Dict[str, Any] = {}
-    project_id = os.getenv("FIREBASE_PROJECT_ID")
-    if project_id:
-        options["projectId"] = project_id
-
-    _app = firebase_admin.initialize_app(cred, options or None)
+    cred, project_id = _load_credential()
+    _project_id = project_id
+    options: Dict[str, Any] = {"projectId": EXPECTED_PROJECT_ID}
+    _app = firebase_admin.initialize_app(cred, options)
+    _log_init(project_id, "Certificate")
     return _app
 
 
@@ -90,6 +115,12 @@ def verify_id_token(id_token: str) -> Dict[str, Any]:
     """Verify a Firebase ID token and return the decoded claims."""
     app = _init_app()
     return admin_auth.verify_id_token(id_token, app=app)
+
+
+def get_project_id() -> str:
+    """Return the Firebase project_id resolved from credentials."""
+    app = _init_app()
+    return _project_id or app.project_id or ""
 
 
 def get_user_role(uid: str) -> str:

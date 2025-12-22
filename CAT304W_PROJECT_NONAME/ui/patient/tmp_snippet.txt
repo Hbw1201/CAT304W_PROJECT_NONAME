@@ -1,0 +1,4 @@
+<!--
+Test steps:
+1. 登录病人账号，确保 users/{uid} 有 doctorId（或 doctor!="---"）
+2. 打开 /pat

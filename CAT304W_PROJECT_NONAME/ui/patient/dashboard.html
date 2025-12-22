@@ -144,10 +144,10 @@
             </div>
           </div>
           <div class="health-score" aria-hidden="true">
-            <div class="ring">
+            <div class="ring" data-risk="low">
               <div class="ring-center">
-                <p class="score-number">82</p>
-                <p class="score-label">Health score</p>
+                <p class="score-number">LOW</p>
+                <p class="score-label">Risk level</p>
               </div>
             </div>
             <p class="meta">Based on recent CT, questionnaire, and follow-up data</p>
@@ -535,6 +535,46 @@
         navItems.forEach((el) => el.classList.remove("active"));
         item.classList.add("active");
       });
+    });
+  </script>
+  <script type="module">
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { auth, db } from "./firebase-config.js";
+
+    const ring = document.querySelector(".health-score .ring");
+    const scoreNumber = ring?.querySelector(".score-number");
+    const scoreLabel = ring?.querySelector(".score-label");
+    const riskClasses = ["risk-low", "risk-medium", "risk-high"];
+
+    const normalizeRiskLevel = (value) => {
+      const normalized = String(value ?? "low").toLowerCase().trim();
+      if (normalized === "low" || normalized === "medium" || normalized === "high") {
+        return normalized;
+      }
+      return "low";
+    };
+
+    const setRiskRing = (level) => {
+      if (!ring) return;
+      const normalized = normalizeRiskLevel(level);
+      ring.setAttribute("data-risk", normalized);
+      ring.classList.remove(...riskClasses);
+      ring.classList.add(`risk-${normalized}`);
+      if (scoreNumber) scoreNumber.textContent = normalized.toUpperCase();
+      if (scoreLabel) scoreLabel.textContent = "Risk level";
+    };
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
+      try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        const level = snap.exists() ? snap.data()?.riskLevel : "low";
+        setRiskRing(level);
+      } catch (error) {
+        console.error("[dashboard] Failed to load risk level:", error);
+        setRiskRing("low");
+      }
     });
   </script>
 </body>

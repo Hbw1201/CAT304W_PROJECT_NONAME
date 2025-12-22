@@ -1,0 +1,6 @@
+/* Compatibility wrapper for legacy /static/style.css requests.
+   Import the patient stylesheet so pages referencing /static/style.css
+   pick up the main patient styles. */
+@import url("/patient/style.css");
+
+

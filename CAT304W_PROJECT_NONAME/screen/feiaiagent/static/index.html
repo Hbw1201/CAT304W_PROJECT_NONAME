@@ -4,16 +4,32 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>肺癌早筛智能体</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css?v=1.1"/>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
-<body>
+<body class="screen-body">
   <div class="container">
-    <h1>肺癌早筛智能体</h1>
-
-    <div id="status">状态：未开始</div>
+    <section class="screen-hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Osler · MAQ-SCREEN</p>
+        <h1>肺癌早筛智能体</h1>
+        <p class="lede">语音或 MetaGPT 完成早筛问卷并生成评估报告。</p>
+      </div>
+      <div id="status" class="status-pill">状态：未开始</div>
+      <div class="hero-pattern" aria-hidden="true"></div>
+    </section>
     
-    <div class="controls">
+    <section class="controls-card">
+      <div class="section-head">
+        <div>
+          <p class="value">对话控制</p>
+          <p class="label">选择模式并开始问诊。</p>
+        </div>
+      </div>
+      <div class="controls">
       <button id="btnStart">开始对话</button>
       <button id="btnStartMeta" class="local-btn">🧠 MetaGPT问卷</button>
       <button id="btnMetaInit" class="secondary-btn">🛠️ 初始化MetaGPT</button>
@@ -21,7 +37,8 @@
       <button id="btnRec" disabled style="display: none;">开始录音</button>
       <button id="btnStop" disabled style="display: none;">停止录音</button>
       <button id="btnRestart" class="secondary-btn" style="display: none;">重新开始</button>
-    </div>
+      </div>
+    </section>
 
     <div class="recording-indicator" id="recordingIndicator" style="display: none;">
       <div class="recording-dot"></div>

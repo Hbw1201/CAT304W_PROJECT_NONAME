@@ -15,6 +15,7 @@ import sys
 import time
 import logging
 import base64
+import json
 from datetime import timedelta
 from functools import wraps
 from pathlib import Path
@@ -28,6 +29,7 @@ from firebase_admin import firestore as admin_firestore
 
 from firebase_admin_init import (
     get_firestore_client,
+    get_project_id,
     get_user_role,
     verify_id_token as verify_firebase_id_token,
     get_storage_bucket,
@@ -59,6 +61,7 @@ ROOT_UI_ALLOWLIST = {
     "forgot.html",
     "script.js",
     "firebase-config.js",
+    "firestoreService.js",
     "forgot.js",
     "dashboard.css",
     "login.css",
@@ -80,9 +83,27 @@ def _extract_bearer_token() -> Optional[str]:
     return parts[1].strip() or None
 
 
+def _decode_jwt_part(part: str) -> Dict[str, Any]:
+    padding = "=" * (-len(part) % 4)
+    try:
+        decoded = base64.urlsafe_b64decode(part + padding)
+        return json.loads(decoded)
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _decode_jwt_unverified(token: str) -> tuple[Dict[str, Any], Dict[str, Any]]:
+    parts = token.split(".")
+    if len(parts) < 2:
+        return {}, {}
+    return _decode_jwt_part(parts[0]), _decode_jwt_part(parts[1])
+
+
 def _set_identity(decoded: Dict[str, Any], token: str) -> None:
     uid = decoded.get("uid") or decoded.get("sub") or ""
     email = decoded.get("email", "") or ""
+    g.firebase_aud = decoded.get("aud", "") or ""
+    g.firebase_iss = decoded.get("iss", "") or ""
     role = "patient"
     if uid:
         try:
@@ -108,7 +129,17 @@ def require_firebase_auth(allowed_roles: Optional[set[str]] = None) -> Callable:
             try:
                 decoded = verify_firebase_id_token(token)
             except Exception as exc:  # noqa: BLE001
-                logger.warning("[auth] token verification failed: %s", exc)
+                token_prefix = token[:20] if token else ""
+                header_claims, payload_claims = _decode_jwt_unverified(token) if token else ({}, {})
+                logger.warning(
+                    "[auth] token verification failed: %s | token_prefix=%s header_aud=%s header_iss=%s payload_aud=%s payload_iss=%s",
+                    exc,
+                    token_prefix,
+                    header_claims.get("aud"),
+                    header_claims.get("iss"),
+                    payload_claims.get("aud"),
+                    payload_claims.get("iss"),
+                )
                 return jsonify({"error": "Invalid Firebase ID token", "detail": str(exc)}), 401
 
             _set_identity(decoded, token)
@@ -154,6 +185,10 @@ def _decode_pdf_bytes() -> tuple[Optional[bytes], Dict[str, Any]]:
         "screeningId": None,
         "doctorId": None,
         "riskLevel": None,
+        "answers": None,
+        "mode": None,
+        "sessionId": None,
+        "reportText": None,
     }
     pdf_bytes: Optional[bytes] = None
 
@@ -166,12 +201,20 @@ def _decode_pdf_bytes() -> tuple[Optional[bytes], Dict[str, Any]]:
         meta["screeningId"] = request.form.get("screeningId")
         meta["doctorId"] = request.form.get("doctorId")
         meta["riskLevel"] = request.form.get("riskLevel")
+        meta["answers"] = request.form.get("answers")
+        meta["mode"] = request.form.get("mode")
+        meta["sessionId"] = request.form.get("session_id") or request.form.get("sessionId")
+        meta["reportText"] = request.form.get("reportText")
     else:
         data = request.get_json(silent=True, force=True) or {}
         meta["reportId"] = data.get("reportId")
         meta["screeningId"] = data.get("screeningId")
         meta["doctorId"] = data.get("doctorId")
         meta["riskLevel"] = data.get("riskLevel")
+        meta["answers"] = data.get("answers")
+        meta["mode"] = data.get("mode")
+        meta["sessionId"] = data.get("session_id") or data.get("sessionId")
+        meta["reportText"] = data.get("reportText")
         pdf_b64 = data.get("pdfBase64")
         if pdf_b64:
             try:
@@ -182,6 +225,191 @@ def _decode_pdf_bytes() -> tuple[Optional[bytes], Dict[str, Any]]:
                 raise
 
     return pdf_bytes, meta
+
+
+def _parse_answers_payload(raw: Any) -> list[Dict[str, Any]]:
+    if not raw:
+        return []
+    if isinstance(raw, list):
+        return [item for item in raw if isinstance(item, dict)]
+    if isinstance(raw, dict):
+        return [{"question": key, "answer": value} for key, value in raw.items()]
+    if isinstance(raw, str):
+        try:
+            data = json.loads(raw)
+            if isinstance(data, list):
+                return [item for item in data if isinstance(item, dict)]
+            if isinstance(data, dict):
+                return [{"question": key, "answer": value} for key, value in data.items()]
+        except Exception:  # noqa: BLE001
+            return []
+    return []
+
+
+def _answers_list_to_map(answers_list: list[Dict[str, Any]]) -> Dict[str, str]:
+    answers_map: Dict[str, str] = {}
+    for item in answers_list:
+        question = str(item.get("question") or "").strip()
+        answer = str(item.get("answer") or "").strip()
+        if not question or not answer:
+            continue
+        answers_map[question] = answer
+    return answers_map
+
+
+_ANSWER_KEY_MAP = {
+    "full name": "fullName",
+    "full_name": "fullName",
+    "name": "fullName",
+    "姓名": "fullName",
+    "gender": "gender",
+    "sex": "gender",
+    "性别": "gender",
+    "性别(1男2女)": "gender",
+    "year of birth": "yearOfBirth",
+    "birth year": "yearOfBirth",
+    "birth_year": "yearOfBirth",
+    "dob": "yearOfBirth",
+    "date of birth": "yearOfBirth",
+    "出生年份": "yearOfBirth",
+    "height (cm)": "height",
+    "height": "height",
+    "weight (kg)": "weight",
+    "weight": "weight",
+    "smoking history": "smokingHistory",
+    "smoking_history": "smokingHistory",
+    "passive smoking exposure": "passiveSmoking",
+    "passive_smoking": "passiveSmoking",
+    "long-term exposure to kitchen fumes": "kitchenFumes",
+    "kitchen_fumes": "kitchenFumes",
+    "exposure to occupational carcinogens": "occupationExposure",
+    "occupation_exposure": "occupationExposure",
+    "lung cancer in first-degree relatives": "familyCancerHistory",
+    "family_cancer_history": "familyCancerHistory",
+    "personal cancer history": "personalCancerHistory",
+    "personal_tumor_history": "personalCancerHistory",
+    "chest ct scan in the past year": "chestCtLastYear",
+    "chest_ct_last_year": "chestCtLastYear",
+    "chronic lung disease history": "chronicLungDisease",
+    "chronic_lung_disease": "chronicLungDisease",
+    "unexplained weight loss (last 6 months)": "recentWeightLoss",
+    "recent_weight_loss": "recentWeightLoss",
+    "symptoms such as persistent cough, blood in sputum, hoarseness": "recentSymptoms",
+    "recent_symptoms": "recentSymptoms",
+    "general health self-rating (1 good, 2 average, 3 poor)": "selfFeeling",
+    "self_feeling": "selfFeeling",
+    "occupation": "occupation",
+}
+
+
+def _normalize_key(raw_key: Any) -> str:
+    return str(raw_key or "").strip()
+
+
+def normalize_answers(answers_raw: Dict[str, str]) -> Dict[str, Any]:
+    normalized: Dict[str, Any] = {}
+    for key, value in (answers_raw or {}).items():
+        cleaned = _normalize_key(key)
+        lowered = cleaned.lower()
+        mapped = _ANSWER_KEY_MAP.get(cleaned) or _ANSWER_KEY_MAP.get(lowered)
+        if not mapped:
+            continue
+        normalized[mapped] = value
+    return normalized
+
+
+def normalize_gender(value: Any) -> str:
+    raw = str(value or "").strip()
+    lowered = raw.lower()
+    if lowered in {"1", "male", "man", "m", "男"}:
+        return "male"
+    if lowered in {"2", "female", "woman", "f", "女"}:
+        return "female"
+    return raw or "unknown"
+
+
+def map_option(question_key: str, raw_value: Any) -> Dict[str, Any]:
+    text = str(raw_value or "").strip()
+    lowered = text.lower()
+    numeric_map = {
+        "smokingHistory": {"1": True, "2": False},
+        "passiveSmoking": {"1": True, "2": False},
+        "kitchenFumes": {"1": True, "2": False},
+        "occupationExposure": {"1": True, "2": False},
+        "familyCancerHistory": {"1": True, "2": False},
+        "recentSymptoms": {"1": True, "2": False},
+    }
+    if question_key in numeric_map and lowered in numeric_map[question_key]:
+        bool_val = numeric_map[question_key][lowered]
+        return {
+            "raw": text,
+            "normalized": "yes" if bool_val else "no",
+            "bool": bool_val,
+            "note": "numeric_map",
+        }
+    yes_values = {
+        "1",
+        "yes",
+        "y",
+        "true",
+        "smoke",
+        "smoked",
+        "i smoke",
+        "former smoker",
+        "used to smoke",
+        "exposed",
+        "是",
+        "有",
+        "有的",
+        "存在",
+        "接触",
+    }
+    no_values = {
+        "2",
+        "no",
+        "n",
+        "false",
+        "never",
+        "none",
+        "non-smoker",
+        "non smoker",
+        "否",
+        "无",
+        "没有",
+        "不",
+        "不吸烟",
+        "不抽烟",
+    }
+    if lowered in yes_values:
+        return {"raw": text, "normalized": "yes", "bool": True}
+    if lowered in no_values:
+        return {"raw": text, "normalized": "no", "bool": False}
+    if lowered in {"1", "2"}:
+        assumed = "yes" if lowered == "1" else "no"
+        return {
+            "raw": text,
+            "normalized": assumed,
+            "bool": lowered == "1",
+            "note": "numeric_assumed",
+        }
+    if not text:
+        return {"raw": text, "normalized": "unknown", "bool": None, "note": "empty"}
+    return {"raw": text, "normalized": text, "bool": None, "note": "unparsed"}
+
+
+def build_content_text(answers_list: list[Dict[str, Any]]) -> str:
+    if not answers_list:
+        return ""
+    lines = ["Screening Report", ""]
+    for idx, item in enumerate(answers_list, start=1):
+        question = str(item.get("question") or "").strip()
+        answer = str(item.get("answer") or "").strip()
+        if not question and not answer:
+            continue
+        lines.append(f"{idx}. {question or 'Question'}")
+        lines.append(f"   Answer: {answer or 'N/A'}")
+        lines.append("")
+    return "\n".join(lines).strip()
 
 
 def system_init() -> Flask:
@@ -216,6 +444,18 @@ def system_init() -> Flask:
         }
         return jsonify(status)
 
+    @app.route("/api/whoami", methods=["GET"])
+    @require_firebase_auth()
+    def whoami() -> Any:
+        return jsonify(
+            {
+                "uid": getattr(g, "firebase_uid", "") or "",
+                "projectId_used_by_admin": get_project_id(),
+                "token_aud": getattr(g, "firebase_aud", "") or "",
+                "token_iss": getattr(g, "firebase_iss", "") or "",
+            }
+        )
+
     @app.route("/api/reports", methods=["POST"])
     @require_firebase_auth()
     def create_report() -> Any:
@@ -239,10 +479,33 @@ def system_init() -> Flask:
         if content_type and "pdf" not in content_type and "multipart/form-data" not in content_type:
             return jsonify({"error": "Unsupported Content-Type, expected application/pdf or multipart/form-data"}), 415
 
-        report_id = meta.get("reportId") or _build_report_id(uid)
+        answers_list = _parse_answers_payload(meta.get("answers"))
+        answers_raw = _answers_list_to_map(answers_list)
+        normalized = normalize_answers(answers_raw)
+        answers_normalized: Dict[str, Any] = dict(normalized)
+        for key in ("smokingHistory", "passiveSmoking", "kitchenFumes", "occupationExposure", "familyCancerHistory", "recentSymptoms"):
+            if key in normalized:
+                answers_normalized[key] = map_option(key, normalized.get(key))
+        if "gender" in normalized:
+            answers_normalized["gender"] = normalize_gender(normalized.get("gender"))
+
+        mode = (meta.get("mode") or "voice").strip().lower()
+        session_id = (meta.get("sessionId") or "").strip() or None
+
+        report_id = meta.get("reportId") or session_id or _build_report_id(uid)
+        if session_id and report_id != session_id:
+            logger.info("[reports] overriding reportId to session_id reportId=%s session_id=%s", report_id, session_id)
+            report_id = session_id
         screening_id = meta.get("screeningId") or _build_screening_id()
         doctor_id = meta.get("doctorId") or "unassigned"
         risk_level = (meta.get("riskLevel") or "low").strip() or "low"
+        content_text = meta.get("reportText") or build_content_text(answers_list)
+
+        summary_user_info = {
+            "name": normalized.get("fullName") or "未知",
+            "gender": normalize_gender(normalized.get("gender")) if normalized.get("gender") else "未知",
+            "yearOfBirth": normalized.get("yearOfBirth") or "未知",
+        }
 
         try:
             bucket = get_storage_bucket()
@@ -260,22 +523,41 @@ def system_init() -> Flask:
 
         try:
             db = get_firestore_client()
-            doc_ref, _ = db.collection("reports").add(
+            doc_ref = db.collection("reports").document(report_id)
+            doc_ref.set(
                 {
                     "createdAt": admin_firestore.SERVER_TIMESTAMP,
+                    "updatedAt": admin_firestore.SERVER_TIMESTAMP,
                     "doctorId": doctor_id or "unassigned",
                     "patientId": uid,
                     "reportId": report_id,
                     "screeningId": screening_id,
                     "riskLevel": risk_level,
-                }
+                    "source": mode,
+                    "status": "ready",
+                    "answersRaw": answers_raw,
+                    "answersNormalized": answers_normalized,
+                    "summaryUserInfo": summary_user_info,
+                    "contentText": content_text,
+                    "storagePath": path,
+                    "downloadUrl": signed_url,
+                },
+                merge=True,
             )
             doc_id = doc_ref.id
         except Exception as exc:  # noqa: BLE001
             logger.error("[reports] firestore write failed uid=%s reportId=%s error=%s", uid, report_id, exc)
             return jsonify({"error": "Firestore write failed", "detail": str(exc)}), 500
 
-        logger.info("[reports] created uid=%s reportId=%s docId=%s bytes=%s", uid, report_id, doc_id, len(pdf_bytes))
+        logger.info(
+            "[reports] created uid=%s reportId=%s docId=%s bytes=%s mode=%s answers=%s",
+            uid,
+            report_id,
+            doc_id,
+            len(pdf_bytes),
+            mode,
+            len(answers_raw),
+        )
         return jsonify(
             {
                 "ok": True,
@@ -358,12 +640,16 @@ def system_init() -> Flask:
         }
         if auth_header:
             common_headers["Authorization"] = auth_header
+        # default timeout and extended timeout for MetaGPT endpoints which may take longer
+        timeout = 20
+        if "/metagpt" in path or "/api/metagpt" in path:
+            timeout = int(os.environ.get("SCREEN_METAGPT_TIMEOUT", "120"))
         try:
             if method.upper() == "GET":
                 proxied = requests.get(
                     target_url,
                     params=request.args,
-                    timeout=20,
+                    timeout=timeout,
                     headers=common_headers,
                 )
             else:
@@ -377,13 +663,45 @@ def system_init() -> Flask:
                         "Content-Type": request.headers.get("Content-Type", "application/json"),
                         **common_headers,
                     },
-                    timeout=20,
+                    timeout=timeout,
                 )
         except requests.RequestException as exc:
             print(f"[screen proxy] -> {target_url} error={exc}")
             return jsonify({"error": "screen backend unreachable", "detail": str(exc)}), 502
-        resp_headers = {"Content-Type": proxied.headers.get("Content-Type", "application/json")}
-        return Response(proxied.content, status=proxied.status_code, headers=resp_headers)
+        content_type = proxied.headers.get("Content-Type", "application/json")
+        resp_content: Any = proxied.content
+        if "text/html" in content_type.lower():
+            # Rewrite HTML asset URLs so screen CSS/JS load through the proxy.
+            import re
+
+            html = proxied.text or ""
+
+            def rewrite_asset(match):
+                attr = match.group(1)
+                quote = match.group(2) or ""
+                url = match.group(3) or ""
+                url_stripped = url.strip()
+                if url_stripped.startswith("/screen_embedded/"):
+                    return match.group(0)
+                if url_stripped.startswith("http://") or url_stripped.startswith("https://") or url_stripped.startswith("data:") or url_stripped.startswith("mailto:") or url_stripped.startswith("//"):
+                    return match.group(0)
+                if url_stripped.startswith("/"):
+                    new_url = f"/screen_embedded{url_stripped}"
+                else:
+                    new_url = f"/screen_embedded/{url_stripped}"
+                return f'{attr}={quote}{new_url}{quote}'
+
+            html = re.sub(r'(?i)(src|href)=([\'"]?)([^\'"\s>]+)\2', rewrite_asset, html)
+            if "<base" not in html.lower():
+                head_close = html.lower().find("</head>")
+                base_tag = '<base href="/screen_embedded/">'
+                if head_close != -1:
+                    html = html[:head_close] + base_tag + html[head_close:]
+                else:
+                    html = base_tag + html
+            resp_content = html
+        resp_headers = {"Content-Type": content_type}
+        return Response(resp_content, status=proxied.status_code, headers=resp_headers)
 
     @app.route("/api/screen/voice/start", methods=["POST"])
     @require_firebase_auth()
@@ -439,6 +757,12 @@ def system_init() -> Flask:
                 502,
             )
 
+    @app.route("/api/metagpt/agents_status", methods=["GET"])
+    @require_firebase_auth()
+    def proxy_metagpt_agents_status():
+        """Proxy to screen's /api/metagpt/agents_status for diagnostics."""
+        return proxy_screen("/api/metagpt/agents_status", "GET")
+
     # Static routes
     @app.route("/", methods=["GET"])
     def serve_root() -> Any:
@@ -476,6 +800,109 @@ def system_init() -> Flask:
         # Compatibility route for direct index paths.
         return send_from_directory(UI_DIR / "patient", "index.html")
 
+    @app.route("/patient/screening.html", methods=["GET"])
+    @app.route("/patient/screening", methods=["GET"])
+    def serve_patient_screening() -> Any:
+        """
+        Serve the patient screening page.
+        If the screen backend is running, proxy to its root (so the UI served by screen/app.py is shown).
+        Otherwise, fall back to the local static patient/screening.html.
+        """
+        # By default serve the local integrated UI so the main site's chrome and styles are preserved.
+        # For development/testing you can force using the remote screen backend by adding ?use_remote=1
+        use_remote = str(request.args.get("use_remote") or "").strip().lower() in ("1", "true", "yes")
+        if use_remote and _is_port_open(SCREEN_HOST, SCREEN_PORT):
+            try:
+                return proxy_screen("/", "GET")
+            except Exception:
+                # fall through to static fallback
+                pass
+        # Serve the local static screening page (preferred for integrated UI)
+        return send_from_directory(UI_DIR / "patient", "screening.html")
+        # Embedded proxy routes for iframe content
+    @app.route("/screen_embedded", defaults={"path": ""}, methods=["GET"])
+    @app.route("/screen_embedded/<path:path>", methods=["GET"])
+    def screen_embedded(path: str) -> Any:
+        """Proxy arbitrary paths to the screen backend for embedding (iframe)."""
+        target = f"/{path}" if path else "/"
+        return proxy_screen(target, "GET")
+
+    @app.route("/screen_fragment", methods=["GET"])
+    def screen_fragment() -> Any:
+        """
+        Fetch the screen backend root HTML, extract the <body> inner HTML,
+        perform lightweight cleanup (remove common sidebar/header blocks),
+        rewrite relative asset URLs to go through `/screen_embedded/*` proxy,
+        and return the fragment so the parent page can insert it directly.
+
+        This keeps the main UI chrome (sidebar/header) in the parent and
+        embeds only the screen application's content.
+        """
+        if not _is_port_open(SCREEN_HOST, SCREEN_PORT):
+            return jsonify({"ok": False, "error": "screen backend unreachable"}), 502
+
+        try:
+            proxied = requests.get(f"{SCREEN_BACKEND_URL}/", timeout=10, headers={"Accept": "text/html"})
+        except requests.RequestException as exc:
+            return jsonify({"ok": False, "error": "failed to fetch screen backend", "detail": str(exc)}), 502
+
+        if proxied.status_code >= 400:
+            return jsonify({"ok": False, "error": "screen backend returned error", "status": proxied.status_code}), 502
+
+        html = proxied.text or ""
+
+        # Lightweight extraction of <body>...</body>
+        lower = html.lower()
+        bstart = lower.find("<body")
+        if bstart == -1:
+            body_inner = html
+        else:
+            # find the start of the body content after the opening tag
+            btag_end = html.find(">", bstart)
+            if btag_end == -1:
+                body_inner = html
+            else:
+                bend = lower.rfind("</body>")
+                if bend == -1:
+                    body_inner = html[btag_end + 1 :]
+                else:
+                    body_inner = html[btag_end + 1 : bend]
+
+        # Remove common sidebar/header blocks to avoid duplicate chrome.
+        import re
+
+        # remove <aside>...</aside>
+        body_inner = re.sub(r"(?is)<aside\b.*?</aside>", "", body_inner)
+        # remove header-like blocks
+        body_inner = re.sub(r"(?is)<header\b.*?</header>", "", body_inner)
+        # remove elements with class names likely to be sidebars/hero areas
+        body_inner = re.sub(r'(?is)<div\b[^>]*class=["\'][^"\']*(sidebar|hero|page-header|topbar)[^"\']*["\'][^>]*>.*?</div>', "", body_inner)
+
+        # Rewrite relative asset URLs (src/href) to go through /screen_embedded proxy.
+        # e.g. <script src="static/app.js"> -> src="/screen_embedded/static/app.js"
+        def rewrite_asset(match):
+            attr = match.group(1)
+            quote = match.group(2) or ""
+            url = match.group(3) or ""
+            url_stripped = url.strip()
+            # If already absolute (http/https) or data:, leave as-is
+            if url_stripped.startswith("http://") or url_stripped.startswith("https://") or url_stripped.startswith("data:") or url_stripped.startswith("mailto:") or url_stripped.startswith("//"):
+                return match.group(0)
+            # If it's an absolute path starting with '/', proxy it
+            if url_stripped.startswith("/"):
+                new_url = f"/screen_embedded{url_stripped}"
+            else:
+                # relative path -> make it under /screen_embedded/
+                new_url = f"/screen_embedded/{url_stripped}"
+            return f'{attr}={quote}{new_url}{quote}'
+
+        body_inner = re.sub(r'(?i)(src|href)=([\'"]?)([^\'"\s>]+)\2', rewrite_asset, body_inner)
+
+        # Add a base to ensure relative links in fragment resolve to proxied root.
+        base_tag = '<base href="/screen_embedded/">'
+        fragment = base_tag + "\n" + body_inner
+        return Response(fragment, status=200, headers={"Content-Type": "text/html"})
+
     @app.route("/patient/login", methods=["GET"])
     @app.route("/patient/login.html", methods=["GET"])
     def serve_patient_login() -> Any:
@@ -486,6 +913,92 @@ def system_init() -> Flask:
     def serve_root_script() -> Any:
         # Compatibility route for root-level script reference.
         return send_from_directory(UI_DIR, "script.js")
+
+    @app.route("/static/style.css", methods=["GET"])
+    def serve_static_style_direct() -> Any:
+        """Direct route for legacy requests to /static/style.css (handles query params in browser)."""
+        candidates = [
+            UI_DIR / "static" / "style.css",
+            UI_DIR / "style.css",
+            UI_DIR / "patient" / "style.css",
+        ]
+        for p in candidates:
+            if p.exists() and p.is_file():
+                logger.info("[static/direct] serving style from %s", p)
+                return send_from_directory(str(p.parent), p.name)
+        logger.warning("[static/direct] style.css not found in candidates")
+        abort(404)
+
+    @app.route("/static/script.js", methods=["GET"])
+    def serve_static_script_direct() -> Any:
+        """Direct route for legacy requests to /static/script.js (handles query params in browser)."""
+        candidates = [
+            UI_DIR / "static" / "script.js",
+            UI_DIR / "script.js",
+            UI_DIR / "patient" / "script.js",
+        ]
+        for p in candidates:
+            if p.exists() and p.is_file():
+                logger.info("[static/direct] serving script from %s", p)
+                return send_from_directory(str(p.parent), p.name)
+        logger.warning("[static/direct] script.js not found in candidates")
+        abort(404)
+
+    @app.route("/style.css", methods=["GET"])
+    def serve_root_style() -> Any:
+        """
+        Serve a root-level style.css for legacy pages that reference /style.css.
+        Prefer root UI/style.css if present, otherwise fallback to patient/style.css.
+        """
+        root_style = UI_DIR / "style.css"
+        patient_style = UI_DIR / "patient" / "style.css"
+        if root_style.exists():
+            return send_from_directory(UI_DIR, "style.css")
+        if patient_style.exists():
+            return send_from_directory(UI_DIR / "patient", "style.css")
+        abort(404)
+
+    @app.route("/patient/script.js", methods=["GET"])
+    def serve_patient_script() -> Any:
+        """
+        Some pages reference /patient/script.js; ensure it resolves to the root script.js.
+        """
+        script_path = UI_DIR / "script.js"
+        if script_path.exists():
+            return send_from_directory(UI_DIR, "script.js")
+        abort(404)
+
+    @app.route("/static/<path:asset_path>", methods=["GET"])
+    def serve_any_static(asset_path: str) -> Any:
+        """
+        Compatibility: serve files requested under /static/* by resolving common locations:
+        - ui/static/{asset}
+        - ui/{asset}
+        - ui/patient/{asset}
+        - ui/doctor/{asset}
+        This prevents 404s when pages reference /static/style.css or /static/script.js.
+        """
+        # sanitize asset_path in case route captured query-like suffixes
+        asset_path = asset_path.split("?", 1)[0].split("#", 1)[0]
+
+        candidates = [
+            UI_DIR / "static" / asset_path,
+            UI_DIR / asset_path,
+            UI_DIR / "patient" / asset_path,
+            UI_DIR / "doctor" / asset_path,
+        ]
+        logger.info("[static] request for %s, candidates=%s", asset_path, [str(p) for p in candidates])
+        for p in candidates:
+            try:
+                exists = p.exists() and p.is_file()
+            except Exception:
+                exists = False
+            logger.info("[static] checking %s exists=%s", p, exists)
+            if exists:
+                logger.info("[static] serving %s", p)
+                return send_from_directory(str(p.parent), p.name)
+        logger.warning("[static] not found for %s", asset_path)
+        abort(404)
 
     @app.route("/firebase-config.js", methods=["GET"])
     def serve_firebase_config() -> Any:
@@ -655,14 +1168,14 @@ def ensure_chat_backend():
     else:
         print("[chat launcher] warning: chat backend did not open port in time")
 
+# Expose the app instance for WSGI servers (e.g., gunicorn main:app).
+app = system_init()
+
 print("\n=== ROUTES (runtime) ===")
 for r in app.url_map.iter_rules():
     if "reports" in r.rule:
         print(r.rule, r.endpoint, r.methods)
 print("=== END ===\n")
-
-# Expose the app instance for WSGI servers (e.g., gunicorn main:app).
-app = system_init()
 
 
 if __name__ == "__main__":
