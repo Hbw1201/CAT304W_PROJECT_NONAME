@@ -15,6 +15,11 @@ from .persistent_agent_manager import process_with_persistent_agent
 
 logger = logging.getLogger(__name__)
 _CJK_PATTERN = re.compile(r"[\u4e00-\u9fff]")
+_SMOKING_HISTORY_IDS = {"smoking_history", "smoking"}
+_SMOKING_FREQ_IDS = {"smoking_freq", "daily_cigarettes"}
+_SMOKING_YEARS_IDS = {"smoking_years"}
+_SMOKING_QUIT_IDS = {"smoking_quit"}
+_SMOKING_QUIT_YEARS_IDS = {"smoking_quit_years"}
 
 
 class SimpleQuestionnaireManager:
@@ -26,6 +31,8 @@ class SimpleQuestionnaireManager:
         self.answered_questions: List[UserResponse] = []
         self.conversation_history: List[Dict[str, Any]] = []
         self.is_completed: bool = False
+        self.structured_answers: Dict[str, Any] = {}
+        self.pending_followup_ids: List[str] = []
 
         # Connected MetaGPT agents (optional)
         self.answer_validator = agent_registry.get_agent("答案审核专家")
@@ -43,6 +50,8 @@ class SimpleQuestionnaireManager:
             self.answered_questions.clear()
             self.conversation_history.clear()
             self.is_completed = False
+            self.structured_answers.clear()
+            self.pending_followup_ids.clear()
             logger.info(f"Questionnaire initialized with {len(questionnaire.questions)} questions.")
             return True
         except Exception as e:
@@ -87,8 +96,74 @@ class SimpleQuestionnaireManager:
                     }
 
                 standardized_answer = user_answer.strip()
-                if current_question.id in {
-                    "smoking_history",
+                if current_question.id in _SMOKING_HISTORY_IDS:
+                    smoking_info = self._normalize_smoking_response(user_answer)
+                    status = smoking_info.get("status")
+                    if status in {"current", "former"}:
+                        standardized_answer = "yes"
+                    elif status == "never":
+                        standardized_answer = "no"
+                    else:
+                        normalized = self._normalize_yes_no(user_answer)
+                        if normalized is True:
+                            standardized_answer = "yes"
+                        elif normalized is False:
+                            standardized_answer = "no"
+                        else:
+                            standardized_answer = "unknown"
+                    self._merge_smoking_details(smoking_info)
+                    self._update_smoking_followup_queue()
+                elif current_question.id in _SMOKING_QUIT_IDS:
+                    normalized = self._normalize_yes_no(user_answer)
+                    if normalized is True:
+                        standardized_answer = "yes"
+                        self._merge_smoking_details({
+                            "status": "former",
+                            "status_source": "explicit",
+                            "raw": user_answer
+                        })
+                    elif normalized is False:
+                        standardized_answer = "no"
+                        self._merge_smoking_details({
+                            "status": "current",
+                            "status_source": "explicit",
+                            "raw": user_answer
+                        })
+                    else:
+                        standardized_answer = "unknown"
+                    self._merge_smoking_details(self._extract_smoking_details(user_answer))
+                    self._update_smoking_followup_queue()
+                elif current_question.id in _SMOKING_FREQ_IDS:
+                    details = self._extract_smoking_details(user_answer)
+                    if details.get("cigarettes_per_day") is None and details.get("packs_per_day") is None:
+                        numeric_value = self._parse_numeric_answer(user_answer)
+                        if numeric_value is not None:
+                            details["cigarettes_per_day"] = numeric_value
+                    self._merge_smoking_details(details)
+                    self._update_smoking_followup_queue()
+                elif current_question.id in _SMOKING_YEARS_IDS:
+                    details = self._extract_smoking_details(user_answer)
+                    if details.get("years_smoked") is None:
+                        numeric_value = self._parse_numeric_answer(user_answer)
+                        if numeric_value is not None:
+                            details["years_smoked"] = numeric_value
+                    self._merge_smoking_details(details)
+                    self._update_smoking_followup_queue()
+                elif current_question.id in _SMOKING_QUIT_YEARS_IDS:
+                    details = self._extract_smoking_details(user_answer)
+                    if details.get("years_since_quit") is None and details.get("quit_year") is None:
+                        numeric_value = self._parse_numeric_answer(user_answer)
+                        if numeric_value is not None:
+                            if numeric_value >= 1900:
+                                details["quit_year"] = int(numeric_value)
+                            else:
+                                details["years_since_quit"] = numeric_value
+                    if details.get("years_since_quit") is not None or details.get("quit_year") is not None:
+                        details.setdefault("status", "former")
+                        details.setdefault("status_source", "explicit")
+                    self._merge_smoking_details(details)
+                    self._update_smoking_followup_queue()
+                elif current_question.id in {
                     "passive_smoking",
                     "kitchen_fumes",
                     "occupation_exposure",
@@ -218,6 +293,26 @@ class SimpleQuestionnaireManager:
         """Build the candidate pool, delegate selection to agents, and return the next question payload."""
         if not self.questionnaire:
             raise RuntimeError("Questionnaire has not been initialized.")
+
+        forced_followup = self._next_pending_followup()
+        if forced_followup:
+            question_index = self._find_question_index_by_id(forced_followup.id)
+            if question_index is None:
+                question_index = len(self.questionnaire.questions) - 1
+            self.current_question_index = question_index
+
+            optimized_question = await self._optimize_question_text(forced_followup)
+            logger.info(f"Next question forced by smoking follow-up: {forced_followup.id}")
+            return {
+                "status": "next_question",
+                "question": optimized_question,
+                "question_id": forced_followup.id,
+                "category": forced_followup.category,
+                "progress": f"{self.current_question_index + 1}/{len(self.questionnaire.questions)}",
+                "question_type": getattr(forced_followup, "type", getattr(forced_followup, "question_type", "text")),
+                "total_questions": len(self.questionnaire.questions),
+                "is_complete": False
+            }
 
         candidates, combined_answers, inferred_facts = self._build_candidate_context()
         if not candidates:
@@ -368,9 +463,42 @@ class SimpleQuestionnaireManager:
             return True
 
         actual_answer = str(answers_lookup.get(dep_id, "")).strip()
+
+        if dep_id in _SMOKING_HISTORY_IDS:
+            smoking = self.structured_answers.get("smoking") or {}
+            status = smoking.get("status")
+            if status in {"current", "former"}:
+                actual_answer = "yes"
+            elif status == "never":
+                actual_answer = "no"
+            elif actual_answer.lower() in {"current", "former"}:
+                actual_answer = "yes"
+            elif actual_answer.lower() == "never":
+                actual_answer = "no"
+
         if not expected_values:
             return bool(actual_answer)
-        return actual_answer in expected_values
+
+        actual_norm = actual_answer.lower()
+        expected_norm = {value.lower() for value in expected_values}
+
+        if actual_norm in {"1", "yes", "y", "true"}:
+            actual_norm = "yes"
+        elif actual_norm in {"2", "no", "n", "false", "never"}:
+            actual_norm = "no"
+
+        if actual_norm in expected_norm:
+            return True
+
+        if actual_norm == "yes" and expected_norm.intersection(
+            {"smoke", "smoked", "smoker", "former smoker", "used to smoke", "current smoker"}
+        ):
+            return True
+
+        if actual_norm == "no" and expected_norm.intersection({"never", "non-smoker", "non smoker"}):
+            return True
+
+        return False
 
     async def _select_next_question(
         self,
@@ -561,12 +689,17 @@ class SimpleQuestionnaireManager:
             if not self.questionnaire:
                 return self._generate_simple_report()
 
+            smoking_summary = ""
             analysis_data: Dict[str, Any] = {
                 "questionnaire": self.questionnaire,
                 "answered_questions": self.answered_questions,
                 "conversation_history": self.conversation_history,
-                "responses": self.answered_questions
+                "responses": self.answered_questions,
+                "structured_answers": self.structured_answers
             }
+            smoking_summary = self._build_smoking_summary()
+            if smoking_summary:
+                analysis_data["smoking_summary"] = smoking_summary
 
             if self.data_analyzer:
                 try:
@@ -605,14 +738,22 @@ class SimpleQuestionnaireManager:
                     report_text = self._extract_report_text(result)
                     if report_text and not self._contains_cjk(report_text):
                         logger.info(f"📝 ReportGeneratorAgent: report generated ({len(report_text)} chars)")
+                        if smoking_summary:
+                            report_text = f"{report_text}\n\n{smoking_summary}"
                         return report_text
                 except Exception as generator_error:
                     logger.warning(f"Report generator failed, fallback to simple report: {generator_error}")
 
-            return self._generate_simple_report()
+            report_text = self._generate_simple_report()
+            if smoking_summary:
+                report_text = f"{report_text}\n\n{smoking_summary}"
+            return report_text
         except Exception as e:
             logger.error(f"Report generation failed: {e}")
-            return self._generate_simple_report()
+            report_text = self._generate_simple_report()
+            if smoking_summary:
+                report_text = f"{report_text}\n\n{smoking_summary}"
+            return report_text
 
     def _generate_simple_report(self) -> str:
         """Fallback English report when smart agents are unavailable."""
@@ -743,7 +884,8 @@ class SimpleQuestionnaireManager:
         # 吸烟史相关跳题逻辑
         # 如果用户没有吸烟史，跳过所有吸烟史相关详细问题
         smoking_ans = str(answers.get('smoking_history', "")).strip()
-        if smoking_ans == '2' or self._is_negative_answer(smoking_ans):
+        smoking_status = (self.structured_answers.get("smoking") or {}).get("status")
+        if smoking_status == "never" or smoking_ans.lower() == "no" or self._is_negative_answer(smoking_ans):
             skip_ids.update([
                 'smoking_freq',           # 吸烟频率
                 'smoking_years',          # 累计吸烟年数
@@ -753,7 +895,8 @@ class SimpleQuestionnaireManager:
         
         # 被动吸烟相关跳题逻辑
         passive_ans = str(answers.get('passive_smoking', "")).strip()
-        if passive_ans == '2' or self._is_negative_answer(passive_ans):
+        passive_flag = self._normalize_yes_no(passive_ans)
+        if passive_flag is False or passive_ans.lower() == "no" or self._is_negative_answer(passive_ans):
             skip_ids.update([
                 'passive_smoking_freq',   # 被动吸烟频率
                 'passive_smoking_years'   # 累计被动吸烟年数
@@ -761,14 +904,16 @@ class SimpleQuestionnaireManager:
         
         # 厨房油烟相关跳题逻辑
         kitchen_ans = str(answers.get('kitchen_fumes', "")).strip()
-        if kitchen_ans == '2' or self._is_negative_answer(kitchen_ans):
+        kitchen_flag = self._normalize_yes_no(kitchen_ans)
+        if kitchen_flag is False or kitchen_ans.lower() == "no" or self._is_negative_answer(kitchen_ans):
             skip_ids.update([
                 'kitchen_fumes_years'     # 累计厨房油烟接触年数
             ])
         
         # 职业致癌物质接触相关跳题逻辑
         exposure_ans = str(answers.get('occupation_exposure', "")).strip()
-        if exposure_ans == '2' or self._is_negative_answer(exposure_ans):
+        exposure_flag = self._normalize_yes_no(exposure_ans)
+        if exposure_flag is False or exposure_ans.lower() == "no" or self._is_negative_answer(exposure_ans):
             skip_ids.update([
                 'occupation_exposure_details'  # 致癌物类型及累计接触年数
             ])
@@ -776,243 +921,395 @@ class SimpleQuestionnaireManager:
         return skip_ids
     
     def _is_negative_answer(self, answer: str) -> bool:
-        """检查回答是否为否定回答（支持中英文）"""
+        """Return True if the answer expresses a negative response."""
         if not answer:
             return False
-        
-        text = str(answer).lower()
-        
-        # 中文否定词汇模式
-        negative_patterns_cn = [
-            r"不吸|不抽|没吸|没抽|否|没有|从不|不会|不接触|没接触|很少|不做饭"
-        ]
-        
-        # 英文否定词汇模式
-        negative_patterns_en = [
-            r"\bno\b",
-            r"\bnot\b",
-            r"\bnever\b",
-            r"\bnone\b",
-            r"\bnope\b",
-            r"\bnah\b",
-            r"don\'t",
-            r"do not",
-            r"doesn\'t",
-            r"does not",
-            r"can\'t",
-            r"cannot",
-            r"\brarely\b",
-            r"\bseldom\b"
-        ]
-        
-        for pattern in negative_patterns_cn:
-            if re.search(pattern, answer):
-                return True
-        
-        for pattern in negative_patterns_en:
-            if re.search(pattern, text, re.IGNORECASE):
-                return True
-        
-        # 直接等于数字/英文否定
-        if text.strip() in ["2", "no", "nope", "nah"]:
+
+        text = str(answer).strip().lower()
+        if text in {"2", "0", "no", "n", "nope", "nah", "false", "never"}:
             return True
-        
+
+        if re.search(r"\b(no|not|never|none|don't|do not|doesn't|does not|cannot|can't|no longer)\b", text):
+            return True
+
+        if re.search(r"\u4e0d\u5438|\u4e0d\u62bd|\u6ca1\u5438|\u6ca1\u62bd|\u4ece\u4e0d|\u5426|\u4e0d\u4f1a", str(answer)):
+            return True
+
         return False
+
+    def _normalize_yes_no(self, text: str) -> Optional[bool]:
+        if not text:
+            return None
+
+        raw = str(text).strip()
+        lowered = raw.lower()
+
+        if self._is_negative_answer(raw):
+            return False
+
+        if lowered in {"yes", "yeah", "yep", "yup", "y", "true", "sure", "ok", "okay", "correct", "right"}:
+            return True
+
+        if re.search(r"\b(yes|yeah|yep|yup|true|sure|correct|right|smoker|smoke|smoking)\b", lowered):
+            return True
+
+        if re.search(r"\u662f|\u6709|\u4f1a|\u5438\u70df|\u62bd\u70df|\u66fe\u7ecf|\u4ee5\u524d|\u5076\u5c14", raw):
+            return True
+
+        return None
+
+    def _normalize_smoking_response(self, text: str) -> Dict[str, Any]:
+        raw = str(text or "").strip()
+        lowered = raw.lower()
+        result = {
+            "status": "unknown",
+            "status_source": "unknown",
+            "raw": raw
+        }
+
+        if not raw:
+            return result
+
+        if (
+            self._is_negative_answer(raw)
+            or re.search(r"\b(never|non-smoker|non smoker)\b", lowered)
+            or re.search(r"\u4ece\u4e0d|\u4e0d\u5438|\u4e0d\u62bd", raw)
+        ):
+            result["status"] = "never"
+            result["status_source"] = "explicit"
+        else:
+            former_patterns = r"\b(former|ex-smoker|used to|quit|stopped|no longer)\b"
+            current_patterns = r"\b(current|still|now|smoker|smoke|smoking|occasionally|sometimes|daily)\b"
+
+            if re.search(former_patterns, lowered) or re.search(r"\u6212\u70df|\u5df2\u6212|\u4ee5\u524d|\u66fe\u7ecf", raw):
+                result["status"] = "former"
+                result["status_source"] = "explicit"
+            elif re.search(current_patterns, lowered) or re.search(r"\u73b0\u5728|\u8fd8\u5728|\u5438\u70df|\u62bd\u70df|\u5076\u5c14|\u7ecf\u5e38", raw):
+                result["status"] = "current"
+                result["status_source"] = "explicit"
+            else:
+                normalized = self._normalize_yes_no(raw)
+                if normalized is True:
+                    result["status"] = "current"
+                    result["status_source"] = "implicit"
+                elif normalized is False:
+                    result["status"] = "never"
+                    result["status_source"] = "explicit"
+
+        details = self._extract_smoking_details(raw)
+        result.update(details)
+        return result
+
+    def _extract_smoking_details(self, text: str) -> Dict[str, Any]:
+        details: Dict[str, Any] = {}
+        if not text:
+            return details
+
+        raw = str(text).strip()
+        lowered = raw.lower()
+        details["raw"] = raw
+
+        pack_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:packs?|ppd)\b", lowered)
+        if pack_match:
+            details["packs_per_day"] = float(pack_match.group(1))
+
+        pack_day_match = re.search(r"(\d+(?:\.\d+)?)\s*pack(?:s)?\s*/\s*day", lowered)
+        if pack_day_match:
+            details["packs_per_day"] = float(pack_day_match.group(1))
+
+        cigs_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:cigarettes|cigs|cig|sticks)\b", lowered)
+        if cigs_match:
+            details["cigarettes_per_day"] = float(cigs_match.group(1))
+
+        if "cigarettes_per_day" not in details:
+            per_day_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:/|per)\s*day", lowered)
+            if per_day_match:
+                details["cigarettes_per_day"] = float(per_day_match.group(1))
+
+        cn_cigs_match = re.search(r"(\d+(?:\.\d+)?)\s*\u652f", raw)
+        if cn_cigs_match:
+            details["cigarettes_per_day"] = float(cn_cigs_match.group(1))
+
+        years_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:years|yrs)\s*(?:of\s*)?(?:smoking|smoked)", lowered)
+        if years_match:
+            details["years_smoked"] = float(years_match.group(1))
+        else:
+            for_years_match = re.search(r"\bfor\s*(\d+(?:\.\d+)?)\s*(?:years|yrs)\b", lowered)
+            if for_years_match:
+                details["years_smoked"] = float(for_years_match.group(1))
+
+        quit_year_match = re.search(r"(?:quit|stopped|since)\s*(?:in|around)?\s*(\d{4})", lowered)
+        if quit_year_match:
+            details["quit_year"] = int(quit_year_match.group(1))
+
+        cn_quit_year = re.search(r"\u6212\u70df.*?(\d{4})", raw)
+        if cn_quit_year:
+            details["quit_year"] = int(cn_quit_year.group(1))
+
+        quit_years_match = re.search(r"(?:quit|stopped)\s*(?:about\s*)?(\d+(?:\.\d+)?)\s*(?:years|yrs)", lowered)
+        if quit_years_match:
+            details["years_since_quit"] = float(quit_years_match.group(1))
+        else:
+            quit_years_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:years|yrs)\s*(?:since|after).*quit", lowered)
+            if quit_years_match:
+                details["years_since_quit"] = float(quit_years_match.group(1))
+
+        cn_quit_years = re.search(r"\u6212\u70df\s*(\d+(?:\.\d+)?)\s*\u5e74", raw)
+        if cn_quit_years:
+            details["years_since_quit"] = float(cn_quit_years.group(1))
+
+        if details.get("years_smoked") is None:
+            cn_years_match = re.search(r"(\d+(?:\.\d+)?)\s*\u5e74", raw)
+            if cn_years_match and not re.search(r"\u6212\u70df", raw):
+                details["years_smoked"] = float(cn_years_match.group(1))
+
+        return details
+
+    def _parse_numeric_answer(self, text: str) -> Optional[float]:
+        if not text:
+            return None
+        raw = str(text).strip().lower()
+        raw = raw.replace(",", " ")
+        match = re.search(r"(\d+(?:\.\d+)?)", raw)
+        if not match:
+            return None
+        try:
+            return float(match.group(1))
+        except (TypeError, ValueError):
+            return None
+
+    def _ensure_smoking_structured(self) -> Dict[str, Any]:
+        smoking = self.structured_answers.get("smoking")
+        if not smoking:
+            smoking = {
+                "status": "unknown",
+                "status_source": "unknown",
+                "cigarettes_per_day": None,
+                "years_smoked": None,
+                "quit_year": None,
+                "years_since_quit": None,
+                "pack_years": None,
+                "raw": None
+            }
+            self.structured_answers["smoking"] = smoking
+        return smoking
+
+    def _merge_smoking_details(self, details: Dict[str, Any]) -> None:
+        smoking = self._ensure_smoking_structured()
+
+        for key in [
+            "status",
+            "status_source",
+            "cigarettes_per_day",
+            "years_smoked",
+            "quit_year",
+            "years_since_quit",
+            "raw"
+        ]:
+            if details.get(key) is not None:
+                smoking[key] = details.get(key)
+
+        if details.get("packs_per_day") is not None:
+            smoking["cigarettes_per_day"] = float(details["packs_per_day"]) * 20.0
+
+        if smoking.get("quit_year") and not smoking.get("years_since_quit"):
+            current_year = datetime.now().year
+            if current_year >= smoking["quit_year"]:
+                smoking["years_since_quit"] = float(current_year - smoking["quit_year"])
+
+        smoking["pack_years"] = self._compute_pack_years(
+            smoking.get("cigarettes_per_day"),
+            smoking.get("years_smoked")
+        )
+
+    def _compute_pack_years(self, cigarettes_per_day: Optional[float], years_smoked: Optional[float]) -> Optional[float]:
+        if cigarettes_per_day is None or years_smoked is None:
+            return None
+        try:
+            return round((float(cigarettes_per_day) / 20.0) * float(years_smoked), 2)
+        except (TypeError, ValueError):
+            return None
+
+    def _update_smoking_followup_queue(self) -> None:
+        if not self.questionnaire:
+            return
+
+        smoking = self.structured_answers.get("smoking") or {}
+        status = smoking.get("status")
+        status_source = smoking.get("status_source")
+
+        if status not in {"current", "former"}:
+            self.pending_followup_ids = []
+            return
+
+        available_ids = {q.id for q in self.questionnaire.questions}
+
+        queue: List[str] = []
+        if "smoking_quit" in available_ids and status_source != "explicit":
+            queue.append("smoking_quit")
+
+        if smoking.get("cigarettes_per_day") is None:
+            for candidate in ["smoking_freq", "daily_cigarettes"]:
+                if candidate in available_ids:
+                    queue.append(candidate)
+                    break
+
+        if smoking.get("years_smoked") is None and "smoking_years" in available_ids:
+            queue.append("smoking_years")
+
+        if status == "former" and smoking.get("years_since_quit") is None and smoking.get("quit_year") is None:
+            if "smoking_quit_years" in available_ids:
+                queue.append("smoking_quit_years")
+
+        self.pending_followup_ids = queue
+
+    def _next_pending_followup(self) -> Optional[Question]:
+        if not self.pending_followup_ids or not self.questionnaire:
+            return None
+
+        answered_ids = {resp.question_id for resp in self._normalize_answer_history()}
+        while self.pending_followup_ids:
+            candidate_id = self.pending_followup_ids[0]
+            if candidate_id in answered_ids:
+                self.pending_followup_ids.pop(0)
+                continue
+            question = next((q for q in self.questionnaire.questions if q.id == candidate_id), None)
+            if question:
+                return question
+            self.pending_followup_ids.pop(0)
+
+        return None
+
+    def _build_smoking_summary(self) -> str:
+        smoking = self.structured_answers.get("smoking")
+        if not smoking:
+            return ""
+
+        lines = ["Smoking History Summary"]
+        status = smoking.get("status", "unknown")
+        if status == "never":
+            lines.append("- Status: Never smoker.")
+        elif status == "former":
+            lines.append("- Status: Former smoker.")
+        elif status == "current":
+            lines.append("- Status: Current smoker.")
+        else:
+            lines.append("- Status: Smoking history reported, current/former unclear.")
+
+        cigs = smoking.get("cigarettes_per_day")
+        years = smoking.get("years_smoked")
+        if cigs is not None:
+            lines.append(f"- Cigarettes per day: {cigs:.1f}.")
+        if years is not None:
+            lines.append(f"- Years smoked: {years:.1f}.")
+
+        if smoking.get("quit_year") is not None:
+            lines.append(f"- Quit year: {int(smoking['quit_year'])}.")
+        elif smoking.get("years_since_quit") is not None:
+            lines.append(f"- Years since quitting: {smoking['years_since_quit']:.1f}.")
+
+        pack_years = smoking.get("pack_years")
+        if pack_years is not None:
+            lines.append(f"- Pack-years: {pack_years:.1f}.")
+
+        missing = []
+        if status in {"current", "former"}:
+            if cigs is None:
+                missing.append("cigarettes per day")
+            if years is None:
+                missing.append("years smoked")
+            if status == "former" and smoking.get("quit_year") is None and smoking.get("years_since_quit") is None:
+                missing.append("quit year or years since quit")
+            if missing:
+                lines.append(f"- Missing details: {', '.join(missing)}.")
+            else:
+                eligibility = self._evaluate_ldct_eligibility(smoking)
+                if eligibility:
+                    lines.append(f"- LDCT eligibility (USPSTF): {eligibility}.")
+
+        return "\n".join(lines)
+
+    def _evaluate_ldct_eligibility(self, smoking: Dict[str, Any]) -> Optional[str]:
+        pack_years = smoking.get("pack_years")
+        if pack_years is None:
+            return None
+
+        age = self._resolve_age_from_answers()
+        status = smoking.get("status")
+        if status not in {"current", "former"}:
+            return "Not eligible (never smoker)"
+
+        if age is None:
+            return "Unable to determine (age missing)"
+
+        if age < 50 or age > 80:
+            return "Not eligible (age outside 50-80)"
+
+        years_since_quit = smoking.get("years_since_quit")
+        if status == "former" and years_since_quit is not None and years_since_quit > 15:
+            return "Not eligible (quit > 15 years ago)"
+
+        if pack_years >= 20:
+            return "Eligible (>= 20 pack-years)"
+        return "Not eligible (< 20 pack-years)"
+
+    def _resolve_age_from_answers(self) -> Optional[int]:
+        answers = self._build_answer_map()
+        age_val = answers.get("age")
+        birth_year_val = answers.get("birth_year")
+        current_year = datetime.now().year
+
+        try:
+            if age_val is not None and str(age_val).strip():
+                return int(float(age_val))
+        except (TypeError, ValueError):
+            pass
+
+        try:
+            if birth_year_val is not None and str(birth_year_val).strip():
+                birth_year = int(float(birth_year_val))
+                if 1900 <= birth_year <= current_year:
+                    return current_year - birth_year
+        except (TypeError, ValueError):
+            pass
+
+        return None
+
     async def _standardize_yes_no_answer(self, question: Question, user_answer: str) -> str:
-        """
-        使用规则 + 持久化智能体标准化是/否类问题的答案
-        支持中英文回答，**内部统一标准化为 "1" (Yes) 或 "2" (No)**。
-        """
+        """Normalize a yes/no answer into "yes" or "no" (or "unknown")."""
         try:
             raw = user_answer.strip()
-            lower = raw.lower()
-            
-            # ---------------------------
-            # 1. 工具函数：根据中英文关键词快速判断
-            # ---------------------------
-            def match_keywords(pos_cn, neg_cn, pos_en, neg_en) -> Optional[str]:
-                # 中文否定
-                for kw in neg_cn:
-                    if kw in raw:
-                        logger.info(f"✅ 中文否定关键词命中: {kw} -> '2'")
-                        return "2"
-                # 中文肯定
-                for kw in pos_cn:
-                    if kw in raw:
-                        logger.info(f"✅ 中文肯定关键词命中: {kw} -> '1'")
-                        return "1"
-                # 英文否定
-                for kw in neg_en:
-                    if kw in lower:
-                        logger.info(f"✅ 英文否定关键词命中: {kw} -> '2'")
-                        return "2"
-                # 英文肯定
-                for kw in pos_en:
-                    if kw in lower:
-                        logger.info(f"✅ 英文肯定关键词命中: {kw} -> '1'")
-                        return "1"
-                return None
-            
-            # 通用英文肯定/否定词
-            positive_words_en = ["yes", "yeah", "yep", "yup", "sure", "of course", "correct", "right"]
-            negative_words_en = ["no", "nope", "nah", "not really"]
-            
-            # ---------- 吸烟史 ----------
-            if question.id == "smoking_history" or "吸烟" in question.text:
-                pos_cn = [
-                    "我吸烟", "我抽烟", "有吸烟", "有抽烟",
-                    "吸烟的习惯", "抽烟的习惯", "会吸烟", "会抽烟",
-                    "有这个习惯", "有习惯", "我吸过", "我抽过",
-                    "吸过烟", "抽过烟"
-                ]
-                neg_cn = [
-                    "不吸烟", "不抽烟", "没有吸烟", "没有抽烟",
-                    "从不吸烟", "从不抽烟", "不会吸烟", "不会抽烟",
-                    "没吸过", "没抽过", "从不吸", "从不抽"
-                ]
-                pos_en = [
-                    "i smoke", "i am a smoker", "i'm a smoker",
-                    "i used to smoke", "i used to be a smoker",
-                    "i do smoke", "i still smoke",
-                    "smoke every day", "smoke everyday", "smoke a lot",
-                    "i smoke sometimes", "i smoke occasionally"
-                ] + positive_words_en
-                neg_en = [
-                    "i don't smoke", "i do not smoke",
-                    "i never smoke", "i have never smoked",
-                    "i have not smoked", "i haven't smoked",
-                    "non-smoker", "non smoker", "no smoking"
-                ] + negative_words_en
-                
-                res = match_keywords(pos_cn, neg_cn, pos_en, neg_en)
-                if res:
-                    return res
-            
-            # ---------- 被动吸烟 ----------
-            elif question.id == "passive_smoking" or "被动吸烟" in question.text:
-                pos_cn = [
-                    "会吸到二手烟", "有二手烟", "经常吸二手烟",
-                    "接触二手烟", "被动吸烟"
-                ]
-                neg_cn = [
-                    "不会吸到二手烟", "不吸到二手烟", "没有二手烟",
-                    "从不吸到二手烟", "没有接触二手烟"
-                ]
-                pos_en = [
-                    "second-hand smoke", "second hand smoke",
-                    "passive smoking", "i breathe smoke",
-                    "i often breathe second hand smoke",
-                    "i am exposed to smoke at work",
-                    "people smoke around me"
-                ] + positive_words_en
-                neg_en = [
-                    "no second-hand smoke", "no second hand smoke",
-                    "no one smokes around me",
-                    "i am not exposed to smoke"
-                ] + negative_words_en
-                
-                res = match_keywords(pos_cn, neg_cn, pos_en, neg_en)
-                if res:
-                    return res
-            
-            # ---------- 厨房油烟 ----------
-            elif question.id == "kitchen_fumes" or "厨房油烟" in question.text:
-                pos_cn = [
-                    "会做饭", "有做饭", "经常做饭", "接触油烟",
-                    "炒菜", "会炒菜", "经常炒菜", "厨房油烟", "油烟"
-                ]
-                neg_cn = [
-                    "不会做饭", "不做饭", "没做饭", "不炒菜",
-                    "从不做饭", "从不炒菜"
-                ]
-                pos_en = [
-                    "i cook a lot", "i often cook", "i cook every day",
-                    "i am exposed to cooking fumes",
-                    "i often stay in kitchen",
-                    "kitchen fumes", "oil fumes", "cooking smoke"
-                ] + positive_words_en
-                neg_en = [
-                    "i don't cook", "i do not cook",
-                    "i never cook", "i rarely cook",
-                    "i seldom cook"
-                ] + negative_words_en
-                
-                res = match_keywords(pos_cn, neg_cn, pos_en, neg_en)
-                if res:
-                    return res
-            
-            # ---------- 职业暴露 ----------
-            elif question.id == "occupation_exposure" or "职业" in question.text or "致癌" in question.text:
-                pos_cn = [
-                    "会接触", "有接触", "经常接触", "工作接触",
-                    "职业暴露", "致癌物质"
-                ]
-                neg_cn = [
-                    "不会接触", "没接触", "不接触",
-                    "从不接触", "没有接触"
-                ]
-                pos_en = [
-                    "i work with", "i work around", "i am exposed to",
-                    "i handle", "i deal with",
-                    "asbestos", "radon", "coal tar", "chemical fumes",
-                    "radioactive materials", "dust exposure"
-                ] + positive_words_en
-                neg_en = [
-                    "i don't work with", "i do not work with",
-                    "i'm not exposed to", "i am not exposed to",
-                    "no exposure at work"
-                ] + negative_words_en
-                
-                res = match_keywords(pos_cn, neg_cn, pos_en, neg_en)
-                if res:
-                    return res
-            
-            # ---------- 其他是/否类 ----------
-            else:
-                pos_cn = ["有", "是", "会", "确实", "对", "嗯"]
-                neg_cn = ["没有", "不", "否", "没", "从不"]
-                pos_en = positive_words_en
-                neg_en = negative_words_en
-                
-                res = match_keywords(pos_cn, neg_cn, pos_en, neg_en)
-                if res:
-                    return res
-            
-            # ---------------------------
-            # 2. 规则未命中 -> 调用持久化智能体
-            # ---------------------------
+            normalized = self._normalize_yes_no(raw)
+            if normalized is True:
+                return "yes"
+            if normalized is False:
+                return "no"
+
             context = {
                 "question": question.text,
                 "user_answer": user_answer,
                 "question_category": question.category,
                 "task": "standardize_yes_no_answer",
-                "instructions": """
-                Please normalize the user's answer to a clear YES or NO.
-                - If the meaning is affirmative (has / is / does / used to / still / often / sometimes), treat it as YES.
-                - If the meaning is negative (no / not / never / none / don't / doesn't / cannot), treat it as NO.
-                Return JSON:
-                {
-                    "standardized_answer": "是" or "否",
-                    "reasoning": "why"
-                }
-                """
+                "instructions": (
+                    "Normalize the user's answer to a clear YES or NO. "
+                    "If the meaning is affirmative, return yes. "
+                    "If the meaning is negative, return no. "
+                    "If unclear, return unknown. "
+                    "Return JSON: {\"standardized_answer\": \"yes|no|unknown\", \"reasoning\": \"...\"}"
+                )
             }
-            
+
             result = await process_with_persistent_agent("Dr. Aiden", context)
-            ai_answer = result.get("standardized_answer", "否")
-            
-            # 把智能体的中文 "是"/"否" 转换为 "1"/"2"
-            if ai_answer == "是":
-                logger.info(f"✅ 持久化智能体标准化答案: '{user_answer}' -> '1'")
-                return "1"
-            else:
-                logger.info(f"✅ 持久化智能体标准化答案: '{user_answer}' -> '2'")
-                return "2"
-        
+            ai_answer = str(result.get("standardized_answer", "unknown")).strip().lower()
+            if ai_answer in {"yes", "y", "true"}:
+                return "yes"
+            if ai_answer in {"no", "n", "false"}:
+                return "no"
+            return "unknown"
+
         except Exception as e:
-            logger.error(f"❌ 答案标准化失败: {e}")
-            # 出错时默认按否处理，返回 "2"
-            return "2"
+            logger.error(f"Failed to standardize yes/no answer: {e}")
+            return "unknown"
 
     # ============================================================
     # 工具：选择输出给用户的文本（优先英文）

@@ -430,6 +430,12 @@ def system_init() -> Flask:
     # Enable CORS for all routes to simplify frontend integration.
     CORS(app)
 
+    @app.after_request
+    def add_permissions_policy(response: Response) -> Response:
+        response.headers["Permissions-Policy"] = "microphone=(self)"
+        response.headers["Feature-Policy"] = "microphone 'self'"
+        return response
+
     @app.route("/health", methods=["GET"])
     def health() -> Any:
         status: Dict[str, Any] = {

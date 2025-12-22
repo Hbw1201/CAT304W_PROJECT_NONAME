@@ -291,6 +291,12 @@ except Exception as e:
     logging.getLogger(__name__).warning(f"Config validation failed (ignored for startup): {e}")
 
 app = Flask(__name__, static_url_path="/static", static_folder="static")
+
+@app.after_request
+def add_permissions_policy(response):
+    response.headers["Permissions-Policy"] = "microphone=(self)"
+    response.headers["Feature-Policy"] = "microphone 'self'"
+    return response
 # CORS(app)  # Temporarily disabled to avoid dependency issues
 
 # --------- Cache control ---------

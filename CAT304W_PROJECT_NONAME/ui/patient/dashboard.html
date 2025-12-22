@@ -17,6 +17,134 @@
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../dashboard.css">
   <link rel="stylesheet" href="../shared-layout.css">
+  <style>
+    #medManageBtn {
+      margin-left: 8px;
+    }
+    .med-manage-modal {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(15, 23, 42, 0.5);
+      z-index: 1000;
+    }
+    .med-manage-modal[hidden] {
+      display: none;
+    }
+    .med-manage-card {
+      width: min(720px, 96vw);
+      max-height: 85vh;
+      overflow: auto;
+      padding: 16px;
+      border-radius: 16px;
+      background: #ffffff;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
+    }
+    .med-manage-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .med-manage-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .med-manage-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+    .med-manage-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 13px;
+      color: #0f172a;
+    }
+    .med-manage-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .med-manage-form {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px dashed #e2e8f0;
+    }
+    .med-manage-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .med-manage-grid label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 12px;
+      color: #475569;
+    }
+    .med-manage-grid input[type="text"],
+    .med-manage-grid input[type="number"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 13px;
+    }
+    .med-manage-note {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    .wb-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .wb-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+    }
+    .wb-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .wb-field select,
+    .wb-field textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: 13px;
+      background: #ffffff;
+      color: #0f172a;
+    }
+    .wb-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #wbStatus {
+      min-height: 18px;
+    }
+    #knowledgeModal #kmBody {
+      white-space: pre-wrap;
+      color: #0f172a;
+    }
+  </style>
 </head>
 <body class="dash-body">
   <div class="page-layout">
@@ -154,15 +282,15 @@
           </div>
         </div>
         <div class="overview-stats">
-          <div class="stat-block">
-            <p class="label">Last screening</p>
-            <p class="value">2025-04-10</p>
-            <p class="meta">Low-dose CT &middot; No suspicious nodules</p>
+          <div class="stat-block" id="lastScreeningCard">
+            <p class="label">Last questionnaire</p>
+            <p class="value" id="lastQuestionnaireDate">—</p>
+            <p class="meta" id="lastQuestionnaireSub">No questionnaire record yet</p>
           </div>
-          <div class="stat-block">
+          <div class="stat-block" id="nextStepCard">
             <p class="label">Next step</p>
-            <p class="value">Update questionnaire</p>
-            <p class="meta">About 5 minutes</p>
+            <p class="value" id="nextStepMain">Update questionnaire</p>
+            <p class="meta" id="nextStepSub">About 5 minutes</p>
           </div>
           <div class="stat-block">
             <p class="label">Follow-up cycle</p>
@@ -182,61 +310,61 @@
         <article class="card flow-card">
           <div class="card-head">
             <p class="value">Screening flow</p>
-            <span class="pill ghost small">Progress 3 / 6</span>
+            <span class="pill ghost small" id="sfProgressBadge">Progress 3 / 6</span>
           </div>
-          <div class="flow-progress" style="--flow-progress: 58%;">
-            <div class="flow-step done">
+          <div class="flow-progress" id="sfTrack" style="--flow-progress: 58%;">
+            <div class="flow-step done" data-step="questionnaire">
               <span class="flow-dot"></span>
               <p class="flow-title">Questionnaire</p>
-              <p class="meta">Done &middot; 2025-04-02</p>
+              <p class="meta" data-sub="questionnaire">Done &middot; 2025-04-02</p>
             </div>
-            <div class="flow-step done">
+            <div class="flow-step done" data-step="appointment">
               <span class="flow-dot"></span>
               <p class="flow-title">Appointment</p>
-              <p class="meta">Hospital locked in</p>
+              <p class="meta" data-sub="appointment">Hospital locked in</p>
             </div>
-            <div class="flow-step active">
+            <div class="flow-step current" data-step="ct">
               <span class="flow-dot"></span>
               <p class="flow-title">CT scan</p>
-              <p class="meta">Scheduled: Jul 22</p>
+              <p class="meta" data-sub="ct">Scheduled: Jul 22</p>
             </div>
-            <div class="flow-step">
+            <div class="flow-step todo" data-step="ai">
               <span class="flow-dot"></span>
               <p class="flow-title">AI analysis</p>
-              <p class="meta">Awaiting image upload</p>
+              <p class="meta" data-sub="ai">Awaiting image upload</p>
             </div>
-            <div class="flow-step">
+            <div class="flow-step todo" data-step="doctor">
               <span class="flow-dot"></span>
               <p class="flow-title">Doctor review</p>
-              <p class="meta">Scheduling</p>
+              <p class="meta" data-sub="doctor">Scheduling</p>
             </div>
-            <div class="flow-step">
+            <div class="flow-step todo" data-step="followup">
               <span class="flow-dot"></span>
               <p class="flow-title">Follow-up</p>
-              <p class="meta">Track symptoms and meds</p>
+              <p class="meta" data-sub="followup">Track symptoms and meds</p>
             </div>
           </div>
         </article>
 
         <article class="card reminder-card">
           <div class="card-head">
-            <p class="value">Next screening reminder</p>
-            <a class="primary-btn" href="appointment.html">Book now</a>
+            <p class="value">Next appointment reminder</p>
+            <a class="primary-btn" href="appointment.html#upcoming" id="dashBtnBookNow">Book now</a>
           </div>
           <div class="reminder-body">
-            <p class="lede small">Suggested: 2025-08-12 (Tue morning)</p>
-            <p class="meta">Based on last low-dose CT, please recheck within 3 months.</p>
+            <p class="lede small" id="dashApptLine1">Loading appointment...</p>
+            <p class="meta">Fetching upcoming appointment details.</p>
             <div class="reminder-tags">
-              <span class="chip success">No abnormal symptoms in past 30 days</span>
-              <span class="chip calm">Choose a nearby tertiary hospital</span>
+              <span class="chip ghost" id="dashApptBadge">—</span>
+              <span class="chip calm">Synced with appointments</span>
             </div>
             <div class="next-slot">
               <div>
                 <p class="label">Earliest slot</p>
-                <p class="value">Jul 22 &middot; 09:30-10:00</p>
-                <p class="meta">Shanghai Pulmonary Hospital</p>
+                <p class="value" id="dashApptTime">—</p>
+                <p class="meta" id="dashApptMeta">—</p>
               </div>
-              <button class="pill plain">Reschedule</button>
+              <button class="pill plain" id="dashBtnReschedule">Reschedule</button>
             </div>
           </div>
         </article>
@@ -247,11 +375,12 @@
           <div class="card-head">
             <div>
               <p class="value">Medication reminders</p>
-              <p class="meta">Today 2 / 3 done</p>
+              <p class="meta" id="medSummary">Today 2 / 3 done</p>
             </div>
-            <span class="pill ghost small">Daily list</span>
+            <span class="pill ghost small" id="medDailyBtn">Daily list</span>
+            <button class="pill plain small" type="button" id="medManageBtn">Manage meds</button>
           </div>
-          <ul class="med-list">
+          <ul class="med-list" id="medList">
             <li class="med-item done">
               <span class="med-check" aria-hidden="true">&#10003;</span>
               <div>
@@ -282,57 +411,58 @@
 
         <article class="card advice-card">
           <div class="card-head">
-            <p class="value">AI Personalized Health Tips</p>
-            <span class="pill plain">Based on recent habits</span>
+            <p class="value">Daily self-check</p>
+            <span class="pill plain">Today</span>
           </div>
-          <ul class="advice-list">
-            <li>
-              <div class="advice-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 2v20m6-10H6"/>
-                </svg>
-              </div>
-              <div>
-                <p class="flow-title">Smoking cessation tracking</p>
-                <p class="meta">Smoke-free 36 days; cravings may peak for ~1 more week. Use sugar-free gum as a substitute.</p>
-              </div>
-            </li>
-            <li>
-              <div class="advice-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9 3h6l1 7H8l1-7Z"/><path d="M5 21h14l-2-11H7L5 21Z"/>
-                </svg>
-              </div>
-              <div>
-                <p class="flow-title">Activity suggestion</p>
-                <p class="meta">Fast walk 30 mins, 3x per week; keep heart rate under 120 bpm.</p>
-              </div>
-            </li>
-            <li>
-              <div class="advice-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M4 12a8 8 0 1 1 16 0c0 2-1 3-2 4l-6 6-6-6c-1-1-2-2-2-4Z"/>
-                  <path d="M9.5 10.5a2.5 2.5 0 1 1 5 0c0 2-2.5 2-2.5 4"/>
-                </svg>
-              </div>
-              <div>
-                <p class="flow-title">Sleep & mood</p>
-                <p class="meta">Sleep before 23:30; if coughing >3 times at night, log it in follow-up.</p>
-              </div>
-            </li>
-            <li>
-              <div class="advice-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M4 9a8 8 0 0 1 16 0v8a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V9Z"/>
-                  <path d="M9 10h6M9 13h6"/>
-                </svg>
-              </div>
-              <div>
-                <p class="flow-title">Home environment</p>
-                <p class="meta">Air out twice daily for 10 minutes; avoid kitchen fumes buildup.</p>
-              </div>
-            </li>
-          </ul>
+          <form class="wb-form" id="wbForm">
+            <div class="wb-grid">
+              <label class="wb-field">
+                <span class="label">Overall feeling (1-5)</span>
+                <select id="wbFeeling">
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3" selected>3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                </select>
+              </label>
+              <label class="wb-field">
+                <span class="label">Breathing comfort (1-5)</span>
+                <select id="wbBreath">
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3" selected>3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                </select>
+              </label>
+              <label class="wb-field">
+                <span class="label">Cough</span>
+                <select id="wbCough">
+                  <option value="none" selected>None</option>
+                  <option value="mild">Mild</option>
+                  <option value="moderate">Moderate</option>
+                  <option value="severe">Severe</option>
+                </select>
+              </label>
+              <label class="wb-field">
+                <span class="label">Sleep quality</span>
+                <select id="wbSleep">
+                  <option value="poor">Poor</option>
+                  <option value="ok" selected>OK</option>
+                  <option value="good">Good</option>
+                </select>
+              </label>
+            </div>
+            <label class="wb-field">
+              <span class="label">Notes</span>
+              <textarea id="wbNotes" maxlength="200" rows="3" placeholder="Optional notes"></textarea>
+            </label>
+            <div class="wb-actions">
+              <button class="pill" type="button" id="wbSaveBtn">Save today</button>
+            </div>
+            <p class="meta" id="wbStatus"></p>
+          </form>
         </article>
       </section>
 
@@ -344,14 +474,14 @@
           </div>
           <div class="knowledge-grid">
             <div class="knowledge-tile">
-              <p class="flow-title">What is a lung nodule?</p>
-              <p class="meta">A focal shadow &le; 1 cm. Most are benign inflammatory or fibrous nodules; growth rate and density inform risk.</p>
-              <button class="pill plain">View details</button>
+              <p class="flow-title" id="kCard1Title">What is a lung nodule?</p>
+              <p class="meta" id="kCard1Summary">A focal shadow &le; 1 cm. Most are benign inflammatory or fibrous nodules; growth rate and density inform risk.</p>
+              <button class="pill plain" id="kCard1Btn">View details</button>
             </div>
             <div class="knowledge-tile">
-              <p class="flow-title">Low-dose CT basics</p>
-              <p class="meta">About 1/5 the radiation of standard CT; helps find tiny lesions early. Annual scan suggested for checkup populations.</p>
-              <button class="pill plain">Review follow-up frequency</button>
+              <p class="flow-title" id="kCard2Title">Low-dose CT basics</p>
+              <p class="meta" id="kCard2Summary">About 1/5 the radiation of standard CT; helps find tiny lesions early. Annual scan suggested for checkup populations.</p>
+              <button class="pill plain" id="kCard2Btn">Learn more</button>
             </div>
           </div>
         </article>
@@ -505,6 +635,53 @@
       </aside>
     </main>
   </div>
+  <div class="med-manage-modal" id="medManageModal" hidden>
+    <div class="med-manage-card" role="dialog" aria-modal="true" aria-labelledby="medManageTitle">
+      <div class="med-manage-head">
+        <p class="value" id="medManageTitle">Manage medications</p>
+        <button class="pill plain small" type="button" id="medManageClose">Close</button>
+      </div>
+      <div class="med-manage-list" id="medManageList"></div>
+      <div class="med-manage-form">
+        <p class="value">Add medication</p>
+        <p class="med-manage-note">Fields: name, dose, times per day, notes, active.</p>
+        <form id="medManageForm">
+          <div class="med-manage-grid">
+            <div>
+              <label for="medNameInput">Name</label>
+              <input type="text" id="medNameInput" required>
+            </div>
+            <div>
+              <label for="medDoseInput">Dose</label>
+              <input type="text" id="medDoseInput">
+            </div>
+            <div>
+              <label for="medTimesInput">Times per day</label>
+              <input type="number" id="medTimesInput" min="1" required>
+            </div>
+            <div>
+              <label for="medNotesInput">Notes</label>
+              <input type="text" id="medNotesInput">
+            </div>
+            <div>
+              <label for="medActiveInput">Active</label>
+              <input type="checkbox" id="medActiveInput" checked>
+            </div>
+          </div>
+          <button class="pill" type="submit">Save</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="med-manage-modal" id="knowledgeModal" hidden>
+    <div class="med-manage-card" role="dialog" aria-modal="true" aria-labelledby="kmTitle">
+      <div class="med-manage-head">
+        <p class="value" id="kmTitle">Knowledge</p>
+        <button class="pill plain small" type="button" id="knowledgeClose">Close</button>
+      </div>
+      <div class="meta" id="kmBody"></div>
+    </div>
+  </div>
   <script>
     (function () {
       const profile = (() => {
@@ -539,13 +716,61 @@
   </script>
   <script type="module">
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import {
+      addDoc,
+      collection,
+      deleteDoc,
+      doc,
+      getDoc,
+      getDocs,
+      limit,
+      onSnapshot,
+      orderBy,
+      query,
+      serverTimestamp,
+      setDoc,
+      updateDoc,
+      where
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { auth, db } from "./firebase-config.js";
 
     const ring = document.querySelector(".health-score .ring");
     const scoreNumber = ring?.querySelector(".score-number");
     const scoreLabel = ring?.querySelector(".score-label");
     const riskClasses = ["risk-low", "risk-medium", "risk-high"];
+    const SF_ORDER = ["questionnaire", "appointment", "ct", "ai", "doctor", "followup"];
+    const NEXT_STEP_MAP = {
+      questionnaire: {
+        main: "Update questionnaire",
+        sub: "About 5 minutes",
+        route: "question.html"
+      },
+      appointment: {
+        main: "Book appointment",
+        sub: "About 2 minutes",
+        route: "appointment.html"
+      },
+      ct: {
+        main: "Prepare CT scan",
+        sub: "About 10 minutes",
+        route: "screening.html"
+      },
+      ai: {
+        main: "Upload CT for AI analysis",
+        sub: "About 3 minutes",
+        route: "screening.html"
+      },
+      doctor: {
+        main: "Wait for doctor review",
+        sub: "Usually within 24 hours",
+        route: "report.html"
+      },
+      followup: {
+        main: "Complete follow-up",
+        sub: "About 2 minutes",
+        route: "screening.html"
+      }
+    };
 
     const normalizeRiskLevel = (value) => {
       const normalized = String(value ?? "low").toLowerCase().trim();
@@ -566,15 +791,940 @@
     };
 
     onAuthStateChanged(auth, async (user) => {
-      if (!user) return;
       try {
+        if (!user) {
+          setRiskRing("low");
+          return;
+        }
         const snap = await getDoc(doc(db, "users", user.uid));
-        const level = snap.exists() ? snap.data()?.riskLevel : "low";
+        const data = snap.exists() ? snap.data() : null;
+        const level = data?.riskLevel ?? "low";
         setRiskRing(level);
       } catch (error) {
         console.error("[dashboard] Failed to load risk level:", error);
         setRiskRing("low");
       }
+    });
+
+    function sfDefaultStatus(){
+      const steps={};
+      SF_ORDER.forEach(k=>steps[k]={state:"todo",note:"—"});
+      return {current:null,steps};
+    }
+
+    function sfNormalize(raw){
+      const base = sfDefaultStatus();
+      if(!raw || typeof raw!=="object") return base;
+      const out = { current: raw.current ?? null, steps: {...base.steps} };
+      const rs = (raw.steps && typeof raw.steps==="object") ? raw.steps : {};
+      SF_ORDER.forEach(k=>{
+        if(rs[k]){
+          out.steps[k] = {
+            state: rs[k].state ?? out.steps[k].state,
+            date: rs[k].date,
+            note: rs[k].note ?? out.steps[k].note
+          };
+        }
+      });
+      return out;
+    }
+
+    function sfDoneCount(s){
+      return SF_ORDER.reduce((n,k)=>n + (s.steps[k]?.state==="done" ? 1 : 0), 0);
+    }
+
+    function sfSubText(step){
+      if(step?.date) return `Done · ${step.date}`;
+      if(step?.note) return step.note;
+      return "—";
+    }
+
+    function sfSetLine(doneCount){
+      const track = document.getElementById("sfTrack");
+      if(!track) return;
+      const pct = Math.max(0, Math.min(6, doneCount)) / 6 * 100;
+      track.style.setProperty("--sf-progress", pct + "%");
+      track.style.setProperty("--flow-progress", pct + "%");
+    }
+
+    function toMillis(value){
+      if(!value) return 0;
+      if(typeof value === "number") return value;
+      if(typeof value === "string"){
+        const parsed = Date.parse(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+      if(typeof value.toMillis === "function") return value.toMillis();
+      if(typeof value.toDate === "function") return value.toDate().getTime();
+      if(typeof value.seconds === "number") return value.seconds * 1000;
+      return 0;
+    }
+
+    function formatDateTime(value){
+      const ms = toMillis(value);
+      if(!ms) return "—";
+      const date = new Date(ms);
+      return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString();
+    }
+
+    async function fetchUpcomingAppointment(uid){
+      if(!uid) return null;
+      const q = query(
+        collection(db, "appointments"),
+        where("patientId", "==", uid),
+        where("status", "==", "scheduled"),
+        where("scheduledAt", ">=", new Date()),
+        orderBy("scheduledAt", "asc"),
+        limit(20)
+      );
+      const snap = await getDocs(q);
+      if(snap.empty) return null;
+      const docSnap = snap.docs[0];
+      return { id: docSnap.id, ...docSnap.data() };
+    }
+
+    async function renderNextAppointment(uid){
+      const line1El = document.getElementById("dashApptLine1");
+      const timeEl = document.getElementById("dashApptTime");
+      const metaEl = document.getElementById("dashApptMeta");
+      const badgeEl = document.getElementById("dashApptBadge");
+      const bookBtn = document.getElementById("dashBtnBookNow");
+      const rescheduleBtn = document.getElementById("dashBtnReschedule");
+      const hintEl = line1El?.nextElementSibling?.classList?.contains("meta")
+        ? line1El.nextElementSibling
+        : null;
+
+      if(bookBtn) bookBtn.setAttribute("href", "appointment.html#upcoming");
+      if(rescheduleBtn){
+        rescheduleBtn.onclick = (e)=>{
+          e.preventDefault();
+          location.href = "appointment.html#upcoming";
+        };
+      }
+
+      const setEmptyState = ()=>{
+        if(line1El) line1El.textContent = "No upcoming appointment";
+        if(hintEl) hintEl.textContent = "Book now to schedule your visit.";
+        if(timeEl) timeEl.textContent = "—";
+        if(metaEl) metaEl.textContent = "—";
+        if(badgeEl){
+          badgeEl.textContent = "—";
+          badgeEl.className = "chip ghost";
+        }
+        if(rescheduleBtn) rescheduleBtn.textContent = "Book now";
+      };
+
+      if(!uid){
+        setEmptyState();
+        return;
+      }
+
+      console.log("[APPT] uid=", uid);
+
+      try{
+        const upcoming = await fetchUpcomingAppointment(uid);
+        console.log("[APPT] upcoming=", upcoming);
+        if(!upcoming){
+          setEmptyState();
+          return;
+        }
+
+        const timeText = formatDateTime(upcoming.scheduledAt);
+        const doctorName = upcoming.doctorName || "Doctor";
+        const hospitalName = upcoming.hospitalName || "Hospital";
+        const metaText = [doctorName, hospitalName].filter((v)=>String(v || "").trim()).join(" · ") || "—";
+        const statusText = String(upcoming.status || "scheduled");
+
+        if(line1El) line1El.textContent = "Next appointment";
+        if(hintEl) hintEl.textContent = "Scheduled appointment with your doctor.";
+        if(timeEl) timeEl.textContent = timeText;
+        if(metaEl) metaEl.textContent = metaText;
+        if(badgeEl){
+          badgeEl.textContent = statusText;
+          badgeEl.className = `chip ${statusText.toLowerCase() === "scheduled" ? "success" : "ghost"}`;
+        }
+        if(rescheduleBtn) rescheduleBtn.textContent = "Reschedule";
+      }catch(error){
+        console.error("[APPT] load error", error);
+        setEmptyState();
+      }
+    }
+
+    let medState = { meds: [], log: null, dayKey: "", uid: "" };
+    let medManageState = { editingId: null };
+    let wbState = { uid: "", dayKey: "", ref: null, exists: false, createdAt: null };
+    let medUnsub = null;
+
+    function formatTodayKey(){
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function listenMedications(uid, onUpdate){
+      const q = query(
+        collection(db, `users/${uid}/medications`),
+        where("active", "==", true)
+      );
+      return onSnapshot(
+        q,
+        (snap)=>{
+          const meds = snap.docs.map((docSnap)=>({ id: docSnap.id, ...docSnap.data() }));
+          onUpdate(meds);
+        },
+        (error)=>{
+          console.error("[MED] listen error", error);
+          onUpdate([]);
+        }
+      );
+    }
+
+    async function loadTodayLog(uid, dayKey){
+      const ref = doc(db, `users/${uid}/medicationLogs/${dayKey}`);
+      const snap = await getDoc(ref);
+      return snap.exists() ? snap.data() : null;
+    }
+
+    async function markTaken(uid, medId, dayKey, nextCount){
+      const ref = doc(db, `users/${uid}/medicationLogs/${dayKey}`);
+      await setDoc(
+        ref,
+        {
+          date: dayKey,
+          updatedAt: serverTimestamp(),
+          updatedBy: uid,
+          [`takenCount.${medId}`]: nextCount
+        },
+        { merge: true }
+      );
+    }
+
+    function openMedManageModal(){
+      const modal = document.getElementById("medManageModal");
+      if(!modal) return;
+      modal.hidden = false;
+      renderMedManageModal();
+    }
+
+    function closeMedManageModal(){
+      const modal = document.getElementById("medManageModal");
+      if(!modal) return;
+      modal.hidden = true;
+      medManageState.editingId = null;
+    }
+
+    function bindMedManageUI(){
+      const manageBtn = document.getElementById("medManageBtn");
+      const closeBtn = document.getElementById("medManageClose");
+      const modal = document.getElementById("medManageModal");
+      const form = document.getElementById("medManageForm");
+
+      if(manageBtn && !manageBtn.dataset.bound){
+        manageBtn.dataset.bound = "1";
+        manageBtn.addEventListener("click", (e)=>{
+          e.preventDefault();
+          if(!medState.uid) return;
+          openMedManageModal();
+        });
+      }
+
+      if(closeBtn && !closeBtn.dataset.bound){
+        closeBtn.dataset.bound = "1";
+        closeBtn.addEventListener("click", (e)=>{
+          e.preventDefault();
+          closeMedManageModal();
+        });
+      }
+
+      if(modal && !modal.dataset.bound){
+        modal.dataset.bound = "1";
+        modal.addEventListener("click", (e)=>{
+          if(e.target === modal) closeMedManageModal();
+        });
+      }
+
+      if(form && !form.dataset.bound){
+        form.dataset.bound = "1";
+        form.addEventListener("submit", async (e)=>{
+          e.preventDefault();
+          if(!medState.uid) return;
+          const nameInput = document.getElementById("medNameInput");
+          const doseInput = document.getElementById("medDoseInput");
+          const timesInput = document.getElementById("medTimesInput");
+          const notesInput = document.getElementById("medNotesInput");
+          const activeInput = document.getElementById("medActiveInput");
+          if(!nameInput || !timesInput) return;
+          const name = String(nameInput.value || "").trim();
+          const dose = String(doseInput?.value || "").trim();
+          const notes = String(notesInput?.value || "").trim();
+          const timesPerDayRaw = Number(timesInput.value || 0);
+          const timesPerDay = Number.isFinite(timesPerDayRaw) && timesPerDayRaw > 0 ? timesPerDayRaw : 1;
+          const active = Boolean(activeInput?.checked);
+          if(!name) return;
+          try{
+            await addDoc(collection(db, `users/${medState.uid}/medications`), {
+              name,
+              dose,
+              notes,
+              timesPerDay,
+              active,
+              createdAt: serverTimestamp(),
+              createdBy: medState.uid,
+              updatedAt: serverTimestamp(),
+              updatedBy: medState.uid
+            });
+            form.reset();
+            if(activeInput) activeInput.checked = true;
+          }catch(error){
+            console.error("[MED] add error", error);
+          }
+        });
+      }
+    }
+
+    function renderMedManageModal(){
+      const modal = document.getElementById("medManageModal");
+      const listEl = document.getElementById("medManageList");
+      if(!modal || !listEl) return;
+      if(modal.hidden) return;
+
+      const meds = Array.isArray(medState.meds) ? [...medState.meds] : [];
+      const uid = medState.uid;
+
+      if(medManageState.editingId && !meds.find((med)=>med.id === medManageState.editingId)){
+        medManageState.editingId = null;
+      }
+
+      meds.sort((a, b)=>{
+        const aActive = a?.active ? 1 : 0;
+        const bActive = b?.active ? 1 : 0;
+        if(aActive !== bActive) return bActive - aActive;
+        const aName = String(a?.name || "").toLowerCase();
+        const bName = String(b?.name || "").toLowerCase();
+        return aName.localeCompare(bName);
+      });
+
+      listEl.innerHTML = "";
+
+      if(!meds.length){
+        const empty = document.createElement("div");
+        empty.className = "med-manage-row";
+        const info = document.createElement("div");
+        info.className = "med-manage-info";
+        info.textContent = "No medications set yet.";
+        empty.appendChild(info);
+        listEl.appendChild(empty);
+        return;
+      }
+
+      meds.forEach((med)=>{
+        const row = document.createElement("div");
+        row.className = "med-manage-row";
+
+        const info = document.createElement("div");
+        info.className = "med-manage-info";
+
+        const isEditing = medManageState.editingId === med.id;
+        if(isEditing){
+          const nameInput = document.createElement("input");
+          nameInput.type = "text";
+          nameInput.value = med.name || "";
+          nameInput.placeholder = "Name";
+
+          const doseInput = document.createElement("input");
+          doseInput.type = "text";
+          doseInput.value = med.dose || "";
+          doseInput.placeholder = "Dose";
+
+          const timesInput = document.createElement("input");
+          timesInput.type = "number";
+          timesInput.min = "1";
+          timesInput.value = String(med.timesPerDay || 1);
+
+          const notesInput = document.createElement("input");
+          notesInput.type = "text";
+          notesInput.value = med.notes || "";
+          notesInput.placeholder = "Notes";
+
+          const activeWrap = document.createElement("label");
+          activeWrap.className = "med-manage-note";
+          const activeInput = document.createElement("input");
+          activeInput.type = "checkbox";
+          activeInput.checked = Boolean(med.active);
+          activeWrap.append(activeInput, document.createTextNode(" Active"));
+
+          info.append(nameInput, doseInput, timesInput, notesInput, activeWrap);
+
+          const actions = document.createElement("div");
+          actions.className = "med-manage-actions";
+          const saveBtn = document.createElement("button");
+          saveBtn.className = "pill";
+          saveBtn.type = "button";
+          saveBtn.textContent = "Save";
+          saveBtn.addEventListener("click", async ()=>{
+            if(!uid) return;
+            const name = String(nameInput.value || "").trim();
+            if(!name) return;
+            const dose = String(doseInput.value || "").trim();
+            const notes = String(notesInput.value || "").trim();
+            const timesRaw = Number(timesInput.value || 0);
+            const timesPerDay = Number.isFinite(timesRaw) && timesRaw > 0 ? timesRaw : 1;
+            const active = Boolean(activeInput.checked);
+            try{
+              await updateDoc(doc(db, `users/${uid}/medications/${med.id}`), {
+                name,
+                dose,
+                notes,
+                timesPerDay,
+                active,
+                updatedAt: serverTimestamp(),
+                updatedBy: uid
+              });
+              medManageState.editingId = null;
+              renderMedManageModal();
+            }catch(error){
+              console.error("[MED] update error", error);
+            }
+          });
+
+          const cancelBtn = document.createElement("button");
+          cancelBtn.className = "pill plain";
+          cancelBtn.type = "button";
+          cancelBtn.textContent = "Cancel";
+          cancelBtn.addEventListener("click", ()=>{
+            medManageState.editingId = null;
+            renderMedManageModal();
+          });
+
+          actions.append(saveBtn, cancelBtn);
+          row.append(info, actions);
+          listEl.appendChild(row);
+          return;
+        }
+
+        const name = String(med.name || "Medication").trim();
+        const dose = String(med.dose || "-").trim();
+        const times = Number(med.timesPerDay || 0);
+        const notes = String(med.notes || "-").trim();
+        const activeText = med.active ? "active" : "inactive";
+
+        const line = document.createElement("div");
+        line.textContent = `${name} | ${dose} | ${times} / day | ${notes} | ${activeText}`;
+        info.appendChild(line);
+
+        const actions = document.createElement("div");
+        actions.className = "med-manage-actions";
+
+        const editBtn = document.createElement("button");
+        editBtn.className = "pill plain";
+        editBtn.type = "button";
+        editBtn.textContent = "Edit";
+        editBtn.addEventListener("click", ()=>{
+          medManageState.editingId = med.id;
+          renderMedManageModal();
+        });
+
+        const toggleBtn = document.createElement("button");
+        toggleBtn.className = "pill ghost";
+        toggleBtn.type = "button";
+        toggleBtn.textContent = med.active ? "Disable" : "Enable";
+        toggleBtn.addEventListener("click", async ()=>{
+          if(!uid) return;
+          try{
+            await updateDoc(doc(db, `users/${uid}/medications/${med.id}`), {
+              active: !med.active,
+              updatedAt: serverTimestamp(),
+              updatedBy: uid
+            });
+          }catch(error){
+            console.error("[MED] toggle error", error);
+          }
+        });
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "pill danger";
+        deleteBtn.type = "button";
+        deleteBtn.textContent = "Delete";
+        deleteBtn.addEventListener("click", async ()=>{
+          if(!uid) return;
+          const confirmed = window.confirm("Delete this medication?");
+          if(!confirmed) return;
+          const ref = doc(db, `users/${uid}/medications/${med.id}`);
+          try{
+            await updateDoc(ref, {
+              updatedAt: serverTimestamp(),
+              updatedBy: uid
+            });
+          }catch (error){
+            console.warn("[MED] pre-delete update failed", error);
+          }
+          try{
+            await deleteDoc(ref);
+          }catch(error){
+            console.error("[MED] delete error", error);
+          }
+        });
+
+        actions.append(editBtn, toggleBtn, deleteBtn);
+        row.append(info, actions);
+        listEl.appendChild(row);
+      });
+    }
+
+    const WB_DEFAULTS = {
+      feelingScore: 3,
+      breathScore: 3,
+      coughLevel: "none",
+      sleepQuality: "ok",
+      notes: ""
+    };
+
+    function clampScore(value, fallback){
+      const num = Number(value);
+      if(Number.isFinite(num) && num >= 1 && num <= 5) return num;
+      return fallback;
+    }
+
+    function normalizeChoice(value, options, fallback){
+      const raw = String(value || "").toLowerCase();
+      return options.includes(raw) ? raw : fallback;
+    }
+
+    function setWbStatus(message){
+      const statusEl = document.getElementById("wbStatus");
+      if(statusEl) statusEl.textContent = message || "";
+    }
+
+    function applyWellbeingValues(data){
+      const feelingEl = document.getElementById("wbFeeling");
+      const breathEl = document.getElementById("wbBreath");
+      const coughEl = document.getElementById("wbCough");
+      const sleepEl = document.getElementById("wbSleep");
+      const notesEl = document.getElementById("wbNotes");
+      if(!feelingEl || !breathEl || !coughEl || !sleepEl || !notesEl) return;
+
+      const feelingScore = clampScore(data?.feelingScore, WB_DEFAULTS.feelingScore);
+      const breathScore = clampScore(data?.breathScore, WB_DEFAULTS.breathScore);
+      const coughLevel = normalizeChoice(data?.coughLevel, ["none", "mild", "moderate", "severe"], WB_DEFAULTS.coughLevel);
+      const sleepQuality = normalizeChoice(data?.sleepQuality, ["poor", "ok", "good"], WB_DEFAULTS.sleepQuality);
+      const notes = String(data?.notes ?? WB_DEFAULTS.notes ?? "");
+
+      feelingEl.value = String(feelingScore);
+      breathEl.value = String(breathScore);
+      coughEl.value = coughLevel;
+      sleepEl.value = sleepQuality;
+      notesEl.value = notes.length > 200 ? notes.slice(0, 200) : notes;
+    }
+
+    function bindWellbeingSave(){
+      const saveBtn = document.getElementById("wbSaveBtn");
+      if(!saveBtn || saveBtn.dataset.bound) return;
+      saveBtn.dataset.bound = "1";
+
+      saveBtn.addEventListener("click", async (e)=>{
+        e.preventDefault();
+        if(!wbState.uid || !wbState.ref) return;
+
+        const feelingEl = document.getElementById("wbFeeling");
+        const breathEl = document.getElementById("wbBreath");
+        const coughEl = document.getElementById("wbCough");
+        const sleepEl = document.getElementById("wbSleep");
+        const notesEl = document.getElementById("wbNotes");
+        if(!feelingEl || !breathEl || !coughEl || !sleepEl || !notesEl) return;
+
+        const feelingScore = clampScore(feelingEl.value, WB_DEFAULTS.feelingScore);
+        const breathScore = clampScore(breathEl.value, WB_DEFAULTS.breathScore);
+        const coughLevel = normalizeChoice(coughEl.value, ["none", "mild", "moderate", "severe"], WB_DEFAULTS.coughLevel);
+        const sleepQuality = normalizeChoice(sleepEl.value, ["poor", "ok", "good"], WB_DEFAULTS.sleepQuality);
+        let notes = String(notesEl.value || "");
+        if(notes.length > 200){
+          notes = notes.slice(0, 200);
+          notesEl.value = notes;
+        }
+
+        setWbStatus("Saving...");
+
+        const payload = {
+          date: wbState.dayKey,
+          feelingScore,
+          breathScore,
+          coughLevel,
+          sleepQuality,
+          notes,
+          updatedAt: serverTimestamp(),
+          updatedBy: wbState.uid
+        };
+
+        if(wbState.exists){
+          if(wbState.createdAt) payload.createdAt = wbState.createdAt;
+        }else{
+          payload.createdAt = serverTimestamp();
+        }
+
+        try{
+          await setDoc(wbState.ref, payload, { merge: true });
+          wbState.exists = true;
+          const now = new Date();
+          const hh = String(now.getHours()).padStart(2, "0");
+          const mm = String(now.getMinutes()).padStart(2, "0");
+          setWbStatus(`Saved \u2713 ${hh}:${mm}`);
+        }catch(error){
+          console.error("[WB] save error", error);
+          setWbStatus("Save failed");
+        }
+      });
+    }
+
+    async function loadTodayWellbeing(user){
+      if(!user) return;
+      const uid = user.uid;
+      const dayKey = formatTodayKey();
+      const ref = doc(db, `users/${uid}/wellbeingLogs/${dayKey}`);
+      wbState = { uid, dayKey, ref, exists: false, createdAt: null };
+      applyWellbeingValues(WB_DEFAULTS);
+      setWbStatus("");
+      bindWellbeingSave();
+
+      try{
+        const snap = await getDoc(ref);
+        console.log("[WB] uid=", uid, "dayKey=", dayKey, "exists=", snap.exists());
+        if(snap.exists()){
+          const data = snap.data() || {};
+          wbState.exists = true;
+          wbState.createdAt = data.createdAt || null;
+          applyWellbeingValues({
+            feelingScore: data.feelingScore,
+            breathScore: data.breathScore,
+            coughLevel: data.coughLevel,
+            sleepQuality: data.sleepQuality,
+            notes: data.notes
+          });
+        }else{
+          applyWellbeingValues(WB_DEFAULTS);
+        }
+      }catch(error){
+        console.error("[WB] load error", error);
+        setWbStatus("Load failed");
+      }
+    }
+
+    function openKnowledgeModal(title, body){
+      const modal = document.getElementById("knowledgeModal");
+      const titleEl = document.getElementById("kmTitle");
+      const bodyEl = document.getElementById("kmBody");
+      if(!modal || !titleEl || !bodyEl) return;
+      titleEl.textContent = title || "Knowledge";
+      bodyEl.textContent = body || "";
+      modal.hidden = false;
+    }
+
+    function closeKnowledgeModal(){
+      const modal = document.getElementById("knowledgeModal");
+      if(modal) modal.hidden = true;
+    }
+
+    function bindKnowledgeModal(){
+      const closeBtn = document.getElementById("knowledgeClose");
+      const modal = document.getElementById("knowledgeModal");
+      if(closeBtn && !closeBtn.dataset.bound){
+        closeBtn.dataset.bound = "1";
+        closeBtn.addEventListener("click", (e)=>{
+          e.preventDefault();
+          closeKnowledgeModal();
+        });
+      }
+      if(modal && !modal.dataset.bound){
+        modal.dataset.bound = "1";
+        modal.addEventListener("click", (e)=>{
+          if(e.target === modal) closeKnowledgeModal();
+        });
+      }
+    }
+
+    const STATIC_KNOWLEDGE_CARDS = [
+      {
+        title: "What is a lung nodule?",
+        summary: "A focal shadow \u2264 1 cm. Most are benign inflammatory or fibrous nodules; growth rate and density inform risk.",
+        content: "A lung nodule is a small spot in the lung seen on imaging. Many are benign, but size, shape, and changes over time matter. If a nodule is found, follow-up may include repeat low-dose CT at recommended intervals."
+      },
+      {
+        title: "Low-dose CT basics",
+        summary: "About 1/5 the radiation of standard CT; helps find tiny lesions early. Annual scan suggested for checkup populations.",
+        content: "Low-dose CT (LDCT) uses lower radiation than standard CT while still detecting small lung nodules. It is commonly used for screening in higher-risk groups. Follow-up frequency depends on your risk level and findings."
+      }
+    ];
+
+    function bindStaticKnowledgeCards(){
+      const first = STATIC_KNOWLEDGE_CARDS[0];
+      const second = STATIC_KNOWLEDGE_CARDS[1];
+      const b1s = document.querySelectorAll("#kCard1Btn");
+      const b2s = document.querySelectorAll("#kCard2Btn");
+
+      b1s.forEach((btn)=>{
+        btn.onclick = () => openKnowledgeModal(first.title, first.content);
+      });
+      b2s.forEach((btn)=>{
+        btn.onclick = () => openKnowledgeModal(second.title, second.content);
+      });
+    }
+
+    function renderMedications(uid){
+      const summaryEl = document.getElementById("medSummary");
+      const listEl = document.getElementById("medList");
+      if(!summaryEl || !listEl) return;
+
+      const meds = Array.isArray(medState.meds) ? medState.meds : [];
+      const logData = medState.log || {};
+      const takenMap = (logData?.takenCount && typeof logData.takenCount === "object")
+        ? logData.takenCount
+        : {};
+
+      let totalNeeded = 0;
+      let totalTaken = 0;
+
+      meds.forEach((med)=>{
+        const perDay = Math.max(0, Number(med.timesPerDay) || 0);
+        const taken = Math.max(0, Number(takenMap[med.id] || 0));
+        totalNeeded += perDay;
+        totalTaken += Math.min(taken, perDay);
+      });
+
+      summaryEl.textContent = `Today ${totalTaken} / ${totalNeeded} done`;
+      listEl.innerHTML = "";
+
+      if(!meds.length){
+        const emptyItem = document.createElement("li");
+        emptyItem.className = "med-item pending";
+        const emptyIcon = document.createElement("span");
+        emptyIcon.className = "med-check";
+        emptyIcon.setAttribute("aria-hidden", "true");
+        emptyIcon.innerHTML = "&#9675;";
+        const emptyBody = document.createElement("div");
+        const emptyTitle = document.createElement("p");
+        emptyTitle.className = "flow-title";
+        emptyTitle.textContent = "No medications set yet.";
+        emptyBody.appendChild(emptyTitle);
+        emptyItem.append(emptyIcon, emptyBody);
+        listEl.appendChild(emptyItem);
+        return;
+      }
+
+      meds.forEach((med)=>{
+        const perDay = Math.max(0, Number(med.timesPerDay) || 0);
+        const taken = Math.max(0, Number(takenMap[med.id] || 0));
+        const isDone = taken >= perDay;
+
+        const item = document.createElement("li");
+        item.className = `med-item ${isDone ? "done" : "pending"}`;
+
+        const icon = document.createElement("span");
+        icon.className = "med-check";
+        icon.setAttribute("aria-hidden", "true");
+        icon.innerHTML = isDone ? "&#10003;" : "&#9675;";
+
+        const body = document.createElement("div");
+        const title = document.createElement("p");
+        title.className = "flow-title";
+        const name = String(med.name || "Medication").trim();
+        const dose = String(med.dose || "").trim();
+        title.textContent = dose ? `${name} ${dose}` : name;
+
+        const meta = document.createElement("p");
+        meta.className = "meta";
+        const notes = String(med.notes || "").trim();
+        meta.textContent = `Times/day: ${perDay}${notes ? ` · ${notes}` : ""}`;
+
+        body.append(title, meta);
+        item.append(icon, body);
+
+        if(isDone){
+          const pill = document.createElement("span");
+          pill.className = "pill muted";
+          pill.textContent = "Taken";
+          item.appendChild(pill);
+        }else{
+          const btn = document.createElement("button");
+          btn.className = "pill plain";
+          btn.textContent = "Mark taken";
+          btn.addEventListener("click", async (e)=>{
+            e.preventDefault();
+            if(!uid || !medState.dayKey) return;
+            if(perDay <= 0) return;
+            const currentTaken = Math.max(0, Number((medState.log?.takenCount || {})[med.id] || 0));
+            const nextCount = Math.min(currentTaken + 1, perDay);
+            btn.disabled = true;
+            try{
+              await markTaken(uid, med.id, medState.dayKey, nextCount);
+              medState.log = {
+                ...(medState.log || {}),
+                date: medState.dayKey,
+                takenCount: {
+                  ...(medState.log?.takenCount || {}),
+                  [med.id]: nextCount
+                }
+              };
+              renderMedications(uid);
+            }catch(error){
+              console.error("[MED] mark taken error", error);
+              renderMedications(uid);
+            }
+          });
+          item.appendChild(btn);
+        }
+
+        listEl.appendChild(item);
+      });
+    }
+
+    function initMedications(user){
+      if(!user) return;
+      const uid = user.uid;
+      const dayKey = formatTodayKey();
+      medState = { meds: [], log: null, dayKey, uid };
+      medManageState.editingId = null;
+      window.__medState = medState;
+
+      console.log("[MED] uid=", uid);
+
+      bindMedManageUI();
+
+      if(medUnsub){
+        medUnsub();
+        medUnsub = null;
+      }
+
+      medUnsub = listenMedications(uid, (meds)=>{
+        medState.meds = meds;
+        window.__medState = medState;
+        console.log("[MED] meds=", meds);
+        renderMedications(uid);
+        renderMedManageModal();
+      });
+
+      loadTodayLog(uid, dayKey)
+        .then((logData)=>{
+          medState.log = logData;
+          window.__medState = medState;
+          console.log("[MED] log=", logData);
+          renderMedications(uid);
+        })
+        .catch((error)=>{
+          console.error("[MED] log load error", error);
+          medState.log = null;
+          window.__medState = medState;
+          renderMedications(uid);
+        });
+    }
+
+    function renderNextStep(rawStatus){
+      const card = document.getElementById("nextStepCard");
+      const main = document.getElementById("nextStepMain");
+      const sub = document.getElementById("nextStepSub");
+      if(!card || !main || !sub) return;
+
+      let copy = {
+        main: "Start questionnaire",
+        sub: "About 5 minutes",
+        route: "question.html"
+      };
+
+      if(rawStatus && typeof rawStatus === "object"){
+        const status = sfNormalize(rawStatus);
+        const currentKey = SF_ORDER.find((key)=>status.steps[key]?.state==="current");
+        const nextKey = currentKey ?? SF_ORDER.find((key)=>status.steps[key]?.state!=="done") ?? "questionnaire";
+        copy = NEXT_STEP_MAP[nextKey] || NEXT_STEP_MAP.questionnaire;
+      }
+
+      main.textContent = copy.main;
+      sub.textContent = copy.sub;
+      card.style.cursor = "pointer";
+      card.onclick = () => {
+        location.href = copy.route;
+      };
+    }
+
+    function renderLastQuestionnaire(userData){
+      const dateEl = document.getElementById("lastQuestionnaireDate");
+      const subEl = document.getElementById("lastQuestionnaireSub");
+      if(!dateEl || !subEl) return;
+
+      const q = userData?.status?.steps?.questionnaire;
+      let dateText = "—";
+      let subText = "No questionnaire record yet";
+
+      if(q?.state === "done" && q?.date){
+        dateText = q.date;
+        subText = `Questionnaire: Done · ${q.date}`;
+      }
+
+      dateEl.textContent = dateText;
+      subEl.textContent = subText;
+    }
+
+    function sfRender(rawStatus){
+      const status = sfNormalize(rawStatus);
+      const doneCount = sfDoneCount(status);
+
+      const badge = document.getElementById("sfProgressBadge");
+      if(badge) badge.textContent = `Progress ${doneCount} / 6`;
+
+      sfSetLine(doneCount);
+
+      document.querySelectorAll(".flow-step[data-step]").forEach(el=>{
+        const key = el.getAttribute("data-step");
+        const st = status.steps[key] || {state:"todo"};
+        el.classList.remove("done","current","todo");
+        el.classList.add(st.state==="done" ? "done" : st.state==="current" ? "current" : "todo");
+
+        const sub = el.querySelector(`[data-sub="${key}"]`);
+        if(sub) sub.textContent = sfSubText(st);
+      });
+
+      renderNextStep(rawStatus);
+    }
+
+    async function sfLoad(){
+      console.log("[SF] init");
+      const user = auth.currentUser;
+      console.log("[SF] uid=", user?.uid);
+      if(!user){
+        sfRender(null);
+        renderLastQuestionnaire(null);
+        return;
+      }
+
+      try{
+        const ref = doc(db,"users",user.uid);
+        const snap = await getDoc(ref);
+        console.log("[SF] doc exists=", snap.exists());
+        if(!snap.exists()){
+          sfRender(null);
+          renderLastQuestionnaire(null);
+          return;
+        }
+        const data = snap.data();
+        console.log("[SF] status=", data.status);
+        sfRender(data.status ?? null);
+        renderLastQuestionnaire(data);
+      }catch(e){
+        console.error("[SF] load error", e);
+        sfRender(null);
+        renderLastQuestionnaire(null);
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", ()=>{
+      // 使用 auth.onAuthStateChanged 确保 uid 已就绪
+      auth.onAuthStateChanged((user)=>{
+        sfLoad();
+        renderNextAppointment(user?.uid);
+        initMedications(user);
+        loadTodayWellbeing(user);
+      });
+      bindKnowledgeModal();
+      bindStaticKnowledgeCards();
     });
   </script>
 </body>

@@ -169,7 +169,7 @@ Test steps:
 
           <div class="appointment-grid">
             <div class="appointment-left">
-              <div class="list-group">
+              <div class="list-group" id="upcoming">
                 <div class="list-head">
                   <div>
                     <p class="eyebrow">Upcoming</p>
@@ -854,6 +854,12 @@ Test steps:
 
     function renderHistoryList(items = []) {
       renderList(ui.historyList, items);
+    }
+
+    async function fetchUpcomingAppointment(patientId) {
+      if (!patientId) return null;
+      const upcoming = await getUpcomingAppointments(patientId);
+      return Array.isArray(upcoming) && upcoming.length ? upcoming[0] : null;
     }
 
     function updateRecordSelection(selectedId) {
