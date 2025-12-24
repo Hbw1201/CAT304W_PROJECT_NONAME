@@ -62,6 +62,18 @@
             </a>
           </li>
           <li>
+            <a class="nav-item" href="ct.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m3 7 9-4 9 4-9 4-9-4Z"/>
+                  <path d="m3 12 9 4 9-4"/>
+                  <path d="m3 17 9 4 9-4"/>
+                </svg>
+              </span>
+              CT Imaging
+            </a>
+          </li>
+          <li>
             <a class="nav-item" href="report.html">
               <span class="nav-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -140,52 +152,11 @@
           <div class="card-head">
             <div class="card-title-row">
               <p class="card-title">Today's appointments</p>
-              <span class="pill">5 patients</span>
+              <span class="pill" id="docApptCount">0 patients</span>
             </div>
             <p class="card-text">Quick glance at times, visit types, and context.</p>
           </div>
-          <div class="agenda-list">
-            <div class="agenda-item">
-              <div class="agenda-time">09:00</div>
-              <div class="agenda-body">
-                <p class="agenda-title">Alex Chen</p>
-                <p class="agenda-sub">Follow-up on hypertension plan.</p>
-              </div>
-              <span class="pill blue">In person</span>
-            </div>
-            <div class="agenda-item">
-              <div class="agenda-time">10:30</div>
-              <div class="agenda-body">
-                <p class="agenda-title">Priya Das</p>
-                <p class="agenda-sub">Lab review + medication adjustment.</p>
-              </div>
-              <span class="pill green">Virtual</span>
-            </div>
-            <div class="agenda-item">
-              <div class="agenda-time">13:00</div>
-              <div class="agenda-body">
-                <p class="agenda-title">Mateo Rivera</p>
-                <p class="agenda-sub">Post-screening consult.</p>
-              </div>
-              <span class="pill blue">In person</span>
-            </div>
-            <div class="agenda-item">
-              <div class="agenda-time">15:00</div>
-              <div class="agenda-body">
-                <p class="agenda-title">Aisha Malik</p>
-                <p class="agenda-sub">Diabetes education session.</p>
-              </div>
-              <span class="pill green">Virtual</span>
-            </div>
-            <div class="agenda-item">
-              <div class="agenda-time">16:30</div>
-              <div class="agenda-body">
-                <p class="agenda-title">Daniel Kim</p>
-                <p class="agenda-sub">Clearance for sports participation.</p>
-              </div>
-              <span class="pill blue">In person</span>
-            </div>
-          </div>
+          <div class="agenda-list" id="docApptList"></div>
         </article>
 
         <article class="card prep-card">
@@ -224,5 +195,298 @@
     </main>
   </div>
   <script type="module" src="./script.js"></script>
+  <script type="module">
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import {
+      collection,
+      doc,
+      getDoc,
+      getDocs,
+      orderBy,
+      query,
+      where
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { auth, db } from "../firebase-config.js";
+
+    const listEl = document.getElementById("docApptList");
+    const countEl = document.getElementById("docApptCount");
+
+    function pad2(value) {
+      return String(value).padStart(2, "0");
+    }
+
+    function formatDateKey(date) {
+      return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+    }
+
+    function formatTime(date) {
+      return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+    }
+
+    function parseTime(value) {
+      const match = String(value || "").match(/(\d{1,2}):(\d{2})/);
+      if (!match) return "";
+      return `${pad2(match[1])}:${match[2]}`;
+    }
+
+    function normalizeDateKey(value) {
+      if (!value) return "";
+      if (value instanceof Date) return formatDateKey(value);
+      const raw = String(value);
+      const match = raw.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (match) {
+        return `${match[1]}-${pad2(match[2])}-${pad2(match[3])}`;
+      }
+      const parsed = new Date(raw.replace(/\//g, "-"));
+      if (!Number.isNaN(parsed.getTime())) {
+        return formatDateKey(parsed);
+      }
+      return "";
+    }
+
+    function getDateKeyFromDoc(data) {
+      if (data?.dateKey) return normalizeDateKey(data.dateKey);
+      if (data?.startAt?.toDate) return formatDateKey(data.startAt.toDate());
+      if (data?.scheduledAt?.toDate) return formatDateKey(data.scheduledAt.toDate());
+      if (data?.scheduledDate) {
+        const scheduledDate = data.scheduledDate?.toDate ? data.scheduledDate.toDate() : data.scheduledDate;
+        return normalizeDateKey(scheduledDate);
+      }
+      return "";
+    }
+
+    function getTimeLabel(data) {
+      if (data?.startAt?.toDate) return formatTime(data.startAt.toDate());
+      if (data?.scheduledAt?.toDate) return formatTime(data.scheduledAt.toDate());
+      if (data?.timeRange) return parseTime(data.timeRange);
+      if (data?.startAt) return parseTime(data.startAt);
+      if (data?.scheduledTime) return parseTime(data.scheduledTime);
+      return "--:--";
+    }
+
+    function getPatientName(data) {
+      return String(
+        data?.patientName ||
+        data?.patientFullName ||
+        data?.patient ||
+        data?.patientEmail ||
+        data?.email ||
+        ""
+      ).trim();
+    }
+
+    function getVisitType(data) {
+      const raw = String(data?.visitType || data?.visitMode || data?.type || "").toLowerCase();
+      if (raw.includes("virtual")) return "Virtual";
+      return "In person";
+    }
+
+    function getSubtitle(data) {
+      const hospital = String(data?.hospitalName || data?.hospital || data?.location || "").trim();
+      if (hospital) return `Hospital: ${hospital}`;
+      return "Visit";
+    }
+
+    function timeToMinutes(value) {
+      const match = String(value || "").match(/(\d{2}):(\d{2})/);
+      if (!match) return 9999;
+      return Number(match[1]) * 60 + Number(match[2]);
+    }
+
+    function updateCount(count) {
+      if (!countEl) return;
+      const label = `${count} patient${count === 1 ? "" : "s"}`;
+      countEl.textContent = label;
+    }
+
+    function renderEmptyState() {
+      if (!listEl) return;
+      listEl.innerHTML = "";
+      const item = document.createElement("div");
+      item.className = "agenda-item";
+
+      const time = document.createElement("div");
+      time.className = "agenda-time";
+      time.textContent = "--:--";
+
+      const body = document.createElement("div");
+      body.className = "agenda-body";
+      const title = document.createElement("p");
+      title.className = "agenda-title";
+      title.textContent = "No appointments today";
+      const sub = document.createElement("p");
+      sub.className = "agenda-sub";
+      sub.textContent = "Check back later.";
+      body.append(title, sub);
+
+      const pill = document.createElement("span");
+      pill.className = "pill";
+      pill.textContent = "None";
+
+      item.append(time, body, pill);
+      listEl.appendChild(item);
+    }
+
+    function renderAppointments(items) {
+      if (!listEl) return;
+      listEl.innerHTML = "";
+      updateCount(items.length);
+
+      if (!items.length) {
+        renderEmptyState();
+        return;
+      }
+
+      const frag = document.createDocumentFragment();
+      items.forEach((appt) => {
+        const item = document.createElement("div");
+        item.className = "agenda-item";
+
+        const time = document.createElement("div");
+        time.className = "agenda-time";
+        time.textContent = appt.timeLabel || "--:--";
+
+        const body = document.createElement("div");
+        body.className = "agenda-body";
+        const title = document.createElement("p");
+        title.className = "agenda-title";
+        title.textContent = appt.patientName || "Patient";
+        const sub = document.createElement("p");
+        sub.className = "agenda-sub";
+        sub.textContent = appt.subtitle || "Visit";
+        body.append(title, sub);
+
+        const pill = document.createElement("span");
+        pill.className = appt.type === "Virtual" ? "pill green" : "pill blue";
+        pill.textContent = appt.type || "In person";
+
+        item.append(time, body, pill);
+        frag.appendChild(item);
+      });
+      listEl.appendChild(frag);
+    }
+
+    async function resolveDoctorName(uid) {
+      try {
+        const cached = JSON.parse(localStorage.getItem("userProfile") || "null");
+        const cachedName = String(cached?.fullName || cached?.name || "").trim();
+        if (cachedName) return cachedName;
+      } catch (error) {
+        console.warn("[appt] cached profile parse failed", error);
+      }
+
+      const authName = String(auth?.currentUser?.displayName || "").trim();
+      if (authName) return authName;
+
+      try {
+        const snap = await getDoc(doc(db, "users", uid));
+        if (snap.exists()) {
+          const data = snap.data() || {};
+          return String(data.fullName || data.name || "").trim();
+        }
+      } catch (error) {
+        console.warn("[appt] doctor name lookup failed", error);
+      }
+
+      return "";
+    }
+
+    async function fetchAppointments(field, value) {
+      let snap = null;
+      try {
+        const q = query(
+          collection(db, "appointments"),
+          where(field, "==", value),
+          orderBy("updatedAt", "desc")
+        );
+        snap = await getDocs(q);
+      } catch (error) {
+        console.warn("[appt] query failed, retrying without orderBy", error);
+        try {
+          const q = query(
+            collection(db, "appointments"),
+            where(field, "==", value)
+          );
+          snap = await getDocs(q);
+        } catch (innerError) {
+          console.error("[appt] query failed", innerError);
+          return [];
+        }
+      }
+
+      const items = [];
+      snap.forEach((docSnap) => {
+        const data = docSnap.data() || {};
+        items.push({ id: docSnap.id, data });
+      });
+      return items;
+    }
+
+    function toViewModel(entries, dateKey) {
+      const items = [];
+      entries.forEach(({ id, data }) => {
+        const status = String(data.status || "scheduled").toLowerCase();
+        if (status === "cancelled") return;
+
+        const docDateKey = getDateKeyFromDoc(data);
+        if (docDateKey && docDateKey !== dateKey) return;
+        if (!docDateKey) {
+          const startDate = data?.startAt?.toDate ? data.startAt.toDate() : null;
+          const scheduledDate = data?.scheduledAt?.toDate ? data.scheduledAt.toDate() : null;
+          const pickedDate = startDate || scheduledDate;
+          if (!pickedDate || formatDateKey(pickedDate) !== dateKey) return;
+        }
+
+        const patientName = getPatientName(data) || "Patient";
+        const timeLabel = getTimeLabel(data);
+        const subtitle = getSubtitle(data);
+        const type = getVisitType(data);
+        const sortKey = timeToMinutes(timeLabel);
+
+        items.push({
+          id,
+          patientName,
+          timeLabel,
+          subtitle,
+          type,
+          status,
+          sortKey
+        });
+      });
+
+      items.sort((a, b) => a.sortKey - b.sortKey);
+      return items;
+    }
+
+    async function loadDoctorAppointmentsForDay(uid, dateKey) {
+      if (!uid) return [];
+
+      const entries = await fetchAppointments("doctorId", uid);
+      let items = toViewModel(entries, dateKey);
+
+      if (!entries.length) {
+        const doctorName = await resolveDoctorName(uid);
+        if (doctorName) {
+          const nameEntries = await fetchAppointments("doctorName", doctorName);
+          items = toViewModel(nameEntries, dateKey);
+        }
+      }
+
+      return items;
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!listEl || !countEl) return;
+      if (!user) {
+        updateCount(0);
+        renderEmptyState();
+        return;
+      }
+
+      const dateKey = formatDateKey(new Date());
+      const items = await loadDoctorAppointmentsForDay(user.uid, dateKey);
+      renderAppointments(items);
+    });
+  </script>
 </body>
 </html>

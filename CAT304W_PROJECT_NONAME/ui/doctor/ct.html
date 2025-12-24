@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doctor | CT Imaging</title>
+  <script>
+    const role = localStorage.getItem("userRole");
+    if (role && role !== "doctor") {
+      window.location.href = "../patient/dashboard.html";
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../dashboard.css">
+  <link rel="stylesheet" href="doctor-light.css">
+  <link rel="stylesheet" href="../shared-layout.css">
+  <style>
+    :root {
+      --ct-gap: 16px;
+      --ct-sticky-top: 24px;
+      --ct-left-col-max: calc(100vh - (var(--ct-sticky-top) * 2));
+      --ct-studies-max: 260px;
+    }
+
+    .ct-hero {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .ct-grid {
+      display: grid;
+      grid-template-columns: minmax(340px, 380px) minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .ct-left-stack {
+      display: flex;
+      flex-direction: column;
+      gap: var(--ct-gap);
+      max-height: var(--ct-left-col-max);
+      position: sticky;
+      top: var(--ct-sticky-top);
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .ct-list-card,
+    .ct-viewer-card,
+    .ct-info-card {
+      padding: 16px;
+    }
+
+    .ct-viewer-card {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .ct-card {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .ct-card-head {
+      flex: 0 0 auto;
+    }
+
+    .ct-card-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-right: 6px;
+    }
+
+    .ct-studies-card {
+      max-height: var(--ct-studies-max);
+    }
+
+    .ct-details-card {
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    .ct-list-card .card-head {
+      align-items: flex-start;
+    }
+
+    .ct-search {
+      border: 1px solid var(--doctor-border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: var(--doctor-surface-2);
+      color: var(--doctor-text);
+      font-size: 13px;
+      min-width: 0;
+    }
+
+    .ct-search:focus {
+      outline: none;
+      border-color: rgba(27, 132, 231, 0.5);
+      box-shadow: 0 0 0 3px rgba(27, 132, 231, 0.18);
+      background: #ffffff;
+    }
+
+    .ct-study-list {
+      display: grid;
+      gap: 10px;
+      overflow: visible;
+    }
+
+    .ct-study-item {
+      border: 1px solid var(--doctor-border);
+      border-radius: 14px;
+      background: var(--doctor-surface-2);
+      padding: 12px 14px;
+      display: grid;
+      gap: 6px;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+      font: inherit;
+    }
+
+    .ct-study-item:hover {
+      border-color: rgba(27, 132, 231, 0.4);
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+      transform: translateY(-1px);
+    }
+
+    .ct-study-item.active {
+      border-color: rgba(31, 157, 104, 0.5);
+      background: #ffffff;
+      box-shadow: 0 16px 32px rgba(31, 157, 104, 0.12);
+    }
+
+    .ct-study-title {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--doctor-strong);
+    }
+
+    .ct-study-meta {
+      margin: 0;
+      font-size: 12px;
+      color: var(--doctor-muted);
+    }
+
+    .ct-study-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--doctor-border);
+      background: var(--doctor-surface-3);
+      color: var(--doctor-strong);
+      width: fit-content;
+    }
+
+    .ct-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .toolbar-left,
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--doctor-accent), var(--doctor-accent-2));
+      border-color: rgba(27, 132, 231, 0.35);
+      color: #f8fbff;
+      box-shadow: 0 12px 24px rgba(27, 132, 231, 0.18);
+    }
+
+    .btn-ghost {
+      background: var(--doctor-surface-2);
+      border-color: var(--doctor-border);
+      color: var(--doctor-strong);
+    }
+
+    .ct-viewer {
+      position: relative;
+      background: #000000;
+      border-radius: 18px;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+    }
+
+    .ct-viewer canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .ct-viewport {
+      position: relative;
+      height: clamp(540px, 68vh, 760px);
+      min-height: 540px;
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .ct-viewport canvas,
+    .ct-viewport .cornerstone-canvas,
+    .ct-viewport .cornerstone-viewport,
+    .ct-viewport .dicom-viewport {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+
+    .viewer-status {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 16px;
+      color: #cbd5f5;
+      background: rgba(0, 0, 0, 0.35);
+      font-size: 13px;
+      letter-spacing: 0.01em;
+    }
+
+    .viewer-status.hidden {
+      display: none;
+    }
+
+    .frame-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--doctor-border);
+      background: var(--doctor-surface-2);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--doctor-strong);
+    }
+
+    .ct-info-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+    }
+
+    .info-label {
+      color: var(--doctor-muted);
+      font-weight: 600;
+    }
+
+    .info-value {
+      color: var(--doctor-strong);
+      font-weight: 700;
+      text-align: right;
+    }
+
+    .analysis-panel {
+      margin-top: 8px;
+      padding-top: 12px;
+      border-top: 1px solid var(--doctor-border);
+      display: grid;
+      gap: 10px;
+    }
+
+    .analysis-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .analysis-meta {
+      font-size: 12px;
+      color: var(--doctor-muted);
+    }
+
+    .analysis-result {
+      background: var(--doctor-surface-2);
+      border: 1px solid var(--doctor-border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      min-height: 140px;
+      font-size: 12px;
+      color: var(--doctor-strong);
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: "Manrope", system-ui, -apple-system, sans-serif;
+    }
+
+    .analysis-result.error {
+      color: #b4231a;
+      border-color: rgba(229, 72, 77, 0.4);
+      background: rgba(229, 72, 77, 0.08);
+    }
+
+    .ct-details-body {
+      display: grid;
+      gap: 10px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--doctor-border);
+      background: var(--doctor-surface-2);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .status-pill.pending {
+      border-color: rgba(27, 132, 231, 0.4);
+      background: rgba(27, 132, 231, 0.12);
+      color: #0f3d73;
+    }
+
+    .status-pill.done {
+      border-color: rgba(31, 157, 104, 0.45);
+      background: rgba(31, 157, 104, 0.12);
+      color: #0f3d2a;
+    }
+
+    .status-pill.error {
+      border-color: rgba(229, 72, 77, 0.45);
+      background: rgba(229, 72, 77, 0.12);
+      color: #7a1410;
+    }
+
+    @media (max-width: 1200px) {
+      .ct-grid {
+        grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+      }
+    }
+
+    @media (max-width: 820px) {
+      .ct-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .ct-viewer {
+        min-height: 360px;
+        height: 50vh;
+      }
+    }
+
+    @media (max-width: 960px) {
+      .ct-viewport {
+        height: clamp(360px, 55vh, 520px);
+        min-height: 360px;
+      }
+    }
+
+    @media (max-width: 960px) {
+      .ct-left-stack {
+        position: static;
+        max-height: none;
+        overflow: visible;
+      }
+
+      .ct-studies-card,
+      .ct-details-card {
+        max-height: none;
+      }
+
+      .ct-card-scroll {
+        max-height: 320px;
+      }
+    }
+  </style>
+</head>
+<body class="dash-body doctor-theme">
+  <div class="page-layout">
+    <aside class="sidebar">
+      <div class="brand-row">
+        <div class="brand-mark" id="brand-avatar">D</div>
+        <span class="brand-name" id="brand-name">Doctor</span>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title">Doctor Menu</div>
+        <ul class="nav-list">
+          <li>
+            <a class="nav-item" href="dashboard.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 11.5 12 4l9 7.5v7a1.5 1.5 0 0 1-1.5 1.5H4.5A1.5 1.5 0 0 1 3 18.5v-7Z"/>
+                  <path d="M9 21V12h6v9"/>
+                </svg>
+              </span>
+              Dashboard
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="question.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16v12H5.5L4 18V4Z" />
+                  <path d="M8 9h8M8 12h5" />
+                </svg>
+              </span>
+              Patient Chats
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="appointments.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="4" y="4" width="16" height="16" rx="4" />
+                  <path d="M8 7v4h4M10 11v6" />
+                </svg>
+              </span>
+              Appointments
+            </a>
+          </li>
+          <li>
+            <a class="nav-item active" href="ct.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m3 7 9-4 9 4-9 4-9-4Z"/>
+                  <path d="m3 12 9 4 9-4"/>
+                  <path d="m3 17 9 4 9-4"/>
+                </svg>
+              </span>
+              CT Imaging
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="report.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16v16H4z" />
+                  <path d="M8 8h8M8 12h5M8 16h3" />
+                </svg>
+              </span>
+              Reports
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="profile.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="7" r="4"/>
+                  <path d="M5 21a7 7 0 0 1 14 0"/>
+                </svg>
+              </span>
+              Profile
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="../login.html" id="logout-link">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                  <polyline points="10 17 15 12 10 7"/>
+                  <line x1="15" y1="12" x2="3" y2="12"/>
+                </svg>
+              </span>
+              Logout
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="nav-group settings">
+        <div class="nav-title">Doctor Info</div>
+        <ul class="nav-list">
+          <li>
+            <div class="nav-item">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="7" r="4"/>
+                  <path d="M5 21a7 7 0 0 1 14 0"/>
+                </svg>
+              </span>
+              <span id="doctor-name-display">Doctor</span>
+            </div>
+          </li>
+          <li>
+            <div class="nav-item">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2c-3.86 0-7 2.86-7 6.4 0 4.62 6.12 12.5 6.39 12.83a1 1 0 0 0 1.56 0C12.62 20.9 19 13.2 19 8.4 19 4.86 15.86 2 12 2Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z"/>
+                </svg>
+              </span>
+              <span id="doctor-hospital-display">Unknown hospital</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <main class="main-content main-panel">
+      <section class="card hero ct-hero">
+        <div>
+          <p class="value">CT imaging</p>
+          <p class="lede">Review study stacks, scroll slices, and trigger AI analysis on demand.</p>
+        </div>
+        <span class="pill" id="ctStudyCount">0 studies</span>
+      </section>
+
+      <section class="ct-grid">
+        <div class="ct-left-stack">
+          <section class="card ct-card ct-studies-card ct-list-card" id="ctStudiesCard">
+            <div class="card-head ct-card-head">
+              <div>
+                <p class="card-title">CT Studies</p>
+                <p class="card-text" id="studyListStatus">Loading studies...</p>
+              </div>
+              <input class="ct-search" id="studySearch" type="search" placeholder="Search patientId">
+            </div>
+            <div class="ct-card-scroll" id="ctStudiesScroll">
+              <div class="ct-study-list" id="studyList"></div>
+            </div>
+          </section>
+
+          <section class="card ct-card ct-details-card ct-info-card" id="studyDetailsCard">
+            <div class="card-head ct-card-head">
+              <div>
+                <p class="card-title">Study details</p>
+                <p class="card-text">Selected study metadata and analysis output.</p>
+              </div>
+              <span class="pill" id="studyStatusBadge">No study</span>
+            </div>
+            <div class="ct-card-scroll" id="ctDetailsScroll">
+              <div class="ct-details-body" id="studyDetailsBody">
+                <div class="ct-info-grid">
+                  <div class="info-row">
+                    <span class="info-label">Study ID</span>
+                    <span class="info-value" id="infoStudyId">-</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Patient ID</span>
+                    <span class="info-value" id="infoPatientId">-</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Created at</span>
+                    <span class="info-value" id="infoCreatedAt">-</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Status</span>
+                    <span class="info-value" id="infoStatus">-</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Storage prefix</span>
+                    <span class="info-value" id="infoStoragePrefix">-</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Analysis updated</span>
+                    <span class="info-value" id="infoAnalysisUpdated">-</span>
+                  </div>
+                </div>
+                <div class="analysis-panel">
+                  <div class="analysis-head">
+                    <p class="card-title">AI analysis</p>
+                    <span class="status-pill" id="analysisStatusBadge">Not run</span>
+                  </div>
+                  <div class="analysis-meta" id="analysisMeta">Awaiting analysis.</div>
+                  <pre class="analysis-result" id="analysisResult">No analysis result yet.</pre>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <article class="card ct-viewer-card">
+          <div class="ct-toolbar">
+            <div class="toolbar-left">
+              <button class="btn btn-ghost" type="button" id="btnPrev">Prev</button>
+              <button class="btn btn-ghost" type="button" id="btnNext">Next</button>
+              <button class="btn btn-ghost" type="button" id="btnZoomIn">Zoom +</button>
+              <button class="btn btn-ghost" type="button" id="btnZoomOut">Zoom -</button>
+            </div>
+            <div class="toolbar-right">
+              <span class="frame-indicator" id="frameIndicator">0 / 0</span>
+              <button class="btn btn-primary" type="button" id="btnRunAI">Run AI analysis</button>
+            </div>
+          </div>
+          <div class="ct-viewer ct-viewport" id="dicomViewer">
+            <div class="viewer-status" id="viewerStatus">Select a study to load DICOM images.</div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script defer src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
+  <script defer src="https://unpkg.com/dicom-parser@1.8.6/dist/dicomParser.min.js"></script>
+  <script defer src="https://unpkg.com/cornerstone-core@2.6.1/dist/cornerstone.min.js"></script>
+  <script defer src="https://unpkg.com/cornerstone-wado-image-loader@4.13.2/dist/cornerstoneWADOImageLoader.bundle.min.js"></script>
+  <script type="module" src="./script.js"></script>
+  <script type="module" src="./ct.js"></script>
+</body>
+</html>

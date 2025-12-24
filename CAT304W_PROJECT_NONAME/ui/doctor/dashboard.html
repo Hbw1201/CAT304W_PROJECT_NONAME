@@ -16,6 +16,635 @@
   <link rel="stylesheet" href="../dashboard.css">
   <link rel="stylesheet" href="doctor-light.css">
   <link rel="stylesheet" href="../shared-layout.css">
+  <style>
+    .doctor-theme .main-panel {
+      display: block;
+    }
+
+    .dash-main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    .hero-card {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 22px 24px;
+      border-radius: 26px;
+      background: linear-gradient(135deg, rgba(31, 157, 104, 0.12), rgba(27, 132, 231, 0.18));
+      border: 1px solid rgba(27, 132, 231, 0.22);
+      box-shadow: var(--doctor-shadow);
+      overflow: hidden;
+    }
+
+    .hero-card .hero-content {
+      display: grid;
+      gap: 8px;
+      max-width: 560px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-card .hero-title {
+      margin: 0;
+      font-family: "Baloo 2", "Manrope", sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--doctor-pill-green);
+    }
+
+    .hero-card .hero-subtitle {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--doctor-strong);
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-pattern {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.6), transparent 40%),
+        radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.4), transparent 45%),
+        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.2) 0 12px, transparent 12px 24px);
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    .grid-2,
+    .grid-1 {
+      display: grid;
+      gap: 22px;
+      min-width: 0;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid-1 {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .dash-main .card {
+      padding: 20px;
+      border-radius: 20px;
+      border: 1px solid var(--doctor-border);
+      background: var(--doctor-surface);
+      box-shadow: var(--doctor-shadow);
+    }
+
+    .card-title {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--doctor-strong);
+    }
+
+    .card-subtitle {
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: var(--doctor-muted);
+    }
+
+    .card-title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .card-head.stack {
+      align-items: flex-start;
+    }
+
+    .mini-stat-grid {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+
+    .mini-stat {
+      border: 1px solid var(--doctor-border);
+      background: var(--doctor-surface-2);
+      border-radius: 16px;
+      padding: 12px 14px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .mini-stat .stat-label {
+      margin: 0;
+      font-size: 12px;
+      color: var(--doctor-muted);
+    }
+
+    .mini-stat .stat-value {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--doctor-strong);
+    }
+
+    .dash-list {
+      list-style: none;
+      padding: 0;
+      margin: 14px 0 0;
+      display: grid;
+      gap: 10px;
+    }
+
+    .dash-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--doctor-border);
+      background: var(--doctor-surface-2);
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .dash-row:hover {
+      background: #ffffff;
+      border-color: rgba(27, 132, 231, 0.35);
+    }
+
+    .row-main {
+      min-width: 0;
+    }
+
+    .row-title {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--doctor-strong);
+    }
+
+    .row-meta {
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: var(--doctor-muted);
+    }
+
+    .row-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--doctor-border);
+      font-size: 12px;
+      color: var(--doctor-strong);
+      background: #ffffff;
+      white-space: nowrap;
+    }
+
+    .status-badge.done {
+      background: rgba(31, 157, 104, 0.12);
+      border-color: rgba(31, 157, 104, 0.35);
+    }
+
+    .status-badge.flagged {
+      background: rgba(229, 72, 77, 0.12);
+      border-color: rgba(229, 72, 77, 0.35);
+      color: #b4231a;
+    }
+
+    .status-badge.pending {
+      background: rgba(27, 132, 231, 0.12);
+      border-color: rgba(27, 132, 231, 0.35);
+    }
+
+    .time-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--doctor-border);
+      background: var(--doctor-surface-3);
+      font-size: 12px;
+      font-weight: 600;
+      margin-right: 6px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--doctor-accent), var(--doctor-accent-2));
+      border-color: rgba(27, 132, 231, 0.35);
+      color: #f8fbff;
+      box-shadow: 0 12px 24px rgba(27, 132, 231, 0.18);
+    }
+
+    .btn-ghost {
+      background: var(--doctor-surface-2);
+      border-color: var(--doctor-border);
+      color: var(--doctor-strong);
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .doctor-metrics {
+      margin: 14px 0 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .doctor-metrics h3 {
+      margin: 0 0 6px;
+      font-size: 20px;
+      color: var(--doctor-strong);
+    }
+
+    .dm-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .dm-item {
+      background: #f7fbff;
+      border: 1px solid #e6f0ff;
+      border-radius: 16px;
+      padding: 14px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .dm-label {
+      font-size: 12px;
+      color: #7b8ba5;
+    }
+
+    .dm-value {
+      margin-top: 6px;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--doctor-strong);
+    }
+
+    .dm-sub {
+      margin-top: 4px;
+    }
+
+    .cal-card {
+      grid-column: 1 / -1;
+      display: grid;
+      gap: 16px;
+    }
+
+    .cal-card h3 {
+      margin: 0 0 6px;
+      font-size: 20px;
+      color: var(--doctor-strong);
+    }
+
+    .cal-card .card-head {
+      flex-wrap: wrap;
+    }
+
+    .muted {
+      color: var(--doctor-muted);
+    }
+
+    .muted.small {
+      font-size: 12px;
+    }
+
+    .cal-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+
+    .input {
+      border: 1px solid var(--doctor-border);
+      border-radius: 12px;
+      padding: 8px 10px;
+      background: var(--doctor-surface-2);
+      color: var(--doctor-text);
+      font-size: 13px;
+    }
+
+    .input.date {
+      min-width: 160px;
+    }
+
+    .input:focus {
+      outline: none;
+      border-color: rgba(27, 132, 231, 0.5);
+      box-shadow: 0 0 0 3px rgba(27, 132, 231, 0.18);
+      background: #ffffff;
+    }
+
+    .input::placeholder {
+      color: var(--doctor-muted);
+    }
+
+    .cal-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.9fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .cal-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .cal-summary .mini {
+      border: 1px solid var(--doctor-border);
+      border-radius: 14px;
+      background: var(--doctor-surface-2);
+      padding: 10px 12px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .cal-summary .mini-label {
+      font-size: 12px;
+      color: var(--doctor-muted);
+    }
+
+    .cal-summary .mini-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--doctor-strong);
+    }
+
+    .cal-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .cal-row {
+      display: grid;
+      grid-template-columns: 110px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--doctor-border);
+      background: var(--doctor-surface-2);
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .cal-row:hover {
+      background: #ffffff;
+      border-color: rgba(27, 132, 231, 0.35);
+    }
+
+    .cal-time {
+      font-weight: 700;
+      color: var(--doctor-strong);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .cal-info {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .cal-title {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--doctor-strong);
+    }
+
+    .cal-sub {
+      margin: 0;
+      font-size: 12px;
+    }
+
+    .cal-rightbtns {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .cal-tip {
+      border: 1px dashed var(--doctor-border);
+      border-radius: 16px;
+      padding: 14px;
+      background: var(--doctor-surface-2);
+      display: grid;
+      gap: 8px;
+    }
+
+    .tip-title {
+      font-weight: 700;
+      color: var(--doctor-strong);
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 1200;
+    }
+
+    .modal[aria-hidden="false"] {
+      display: flex;
+    }
+
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    .modal-panel {
+      position: relative;
+      width: min(520px, 92vw);
+      background: var(--doctor-surface);
+      border: 1px solid var(--doctor-border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: var(--doctor-shadow);
+      display: grid;
+      gap: 12px;
+      z-index: 1;
+    }
+
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .modal-head h4 {
+      margin: 0;
+      font-size: 18px;
+      color: var(--doctor-strong);
+    }
+
+    .modal-body {
+      display: grid;
+      gap: 12px;
+    }
+
+    .modal-body .field {
+      display: grid;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--doctor-muted);
+    }
+
+    .modal-body .field span {
+      font-weight: 600;
+      color: var(--doctor-text);
+    }
+
+    .modal-body .row2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .modal-foot {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    @media (max-width: 1100px) {
+      .dm-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 1024px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-card {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .cal-body {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .dash-main {
+        padding: 16px;
+        gap: 18px;
+      }
+
+      .dash-main .card {
+        padding: 16px;
+        border-radius: 18px;
+      }
+
+      .hero-card {
+        padding: 18px;
+        border-radius: 22px;
+      }
+
+      .hero-card .hero-subtitle {
+        font-size: 16px;
+      }
+
+      .row-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .row-actions .btn {
+        width: 100%;
+      }
+
+      .cal-actions {
+        width: 100%;
+        justify-content: flex-start;
+        margin-left: 0;
+      }
+
+      .cal-row {
+        grid-template-columns: 1fr;
+        align-items: flex-start;
+      }
+
+      .cal-rightbtns {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .modal-panel {
+        padding: 16px;
+      }
+
+      .modal-body .row2 {
+        grid-template-columns: 1fr;
+      }
+
+      .dm-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body class="dash-body doctor-theme">
   <div class="page-layout">
@@ -59,6 +688,18 @@
                 </svg>
               </span>
               Appointments
+            </a>
+          </li>
+          <li>
+            <a class="nav-item" href="ct.html">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m3 7 9-4 9 4-9 4-9-4Z"/>
+                  <path d="m3 12 9 4 9-4"/>
+                  <path d="m3 17 9 4 9-4"/>
+                </svg>
+              </span>
+              CT Imaging
             </a>
           </li>
           <li>
@@ -127,122 +768,1058 @@
     </aside>
 
     <main class="main-content main-panel">
-      <section class="card hero overview-card">
-        <div>
-          <p class="value">Doctor Workspace</p>
-          <p class="lede">Track patient messages, appointments, and reports in one place.</p>
-        </div>
-        <div class="hero-pattern" aria-hidden="true"></div>
-      </section>
+      <div class="dash-main">
+        <section class="hero-card">
+          <div class="hero-content">
+            <p class="hero-title">DOCTOR WORKSPACE</p>
+            <p class="hero-subtitle">Track patient messages, appointments, LDCT uploads, and reports in one place.</p>
+          </div>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="appointments.html">New appointment</a>
+            <a class="btn btn-ghost" href="appointments.html">Upload LDCT</a>
+          </div>
+          <div class="hero-pattern" aria-hidden="true"></div>
+        </section>
 
-      <section class="card patients-card">
-        <div class="card-head patients-card-head">
-          <div class="card-title-row">
-            <p class="card-title">Assigned Patients</p>
-            <span class="pill">Live</span>
+        <section class="card doctor-metrics" id="doctorMetricsCard">
+          <div class="card-head">
+            <div>
+              <h3>Doctor metrics</h3>
+              <p class="muted">Today overview based on appointments, reports and LDCT pipeline.</p>
+            </div>
+            <span class="pill" id="docMetricsLive">Live</span>
           </div>
-          <input id="patientSearch" class="patients-search" type="search" placeholder="Search name or email">
-        </div>
-        <div id="patientsState" class="patients-state">Loading...</div>
-        <div class="table-wrap">
-          <table id="patientsTable" class="patients-table" hidden>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Age</th>
-                <th>Gender</th>
-                <th>Status</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </section>
 
-      <section class="card flow-card">
-        <div class="card-head">
-          <div class="card-title-row">
-            <p class="card-title">Today's priorities</p>
-            <span class="pill">7 items</span>
-          </div>
-        </div>
-        <div class="flow-steps">
-          <div class="flow-step">
-            <div>
-              <p class="flow-title">Review new patient questions</p>
-              <p class="flow-text">Respond to unread messages in the chat queue.</p>
+          <div class="dm-grid">
+            <div class="dm-item">
+              <div class="dm-label">Today's appointments</div>
+              <div class="dm-value" id="dmAppt">0</div>
+              <div class="dm-sub muted small">Auto-synced</div>
             </div>
-            <span class="pill">Due now</span>
-          </div>
-          <div class="flow-step">
-            <div>
-              <p class="flow-title">Sign off on pending reports</p>
-              <p class="flow-text">Confirm three reports awaiting clinician approval.</p>
+            <div class="dm-item">
+              <div class="dm-label">LDCT pending upload</div>
+              <div class="dm-value" id="dmCtUpload">0</div>
+              <div class="dm-sub muted small">Patients waiting for upload</div>
             </div>
-            <span class="pill green">In progress</span>
-          </div>
-          <div class="flow-step">
-            <div>
-              <p class="flow-title">Prep for afternoon visits</p>
-              <p class="flow-text">5 patients scheduled; review vitals and last notes.</p>
+            <div class="dm-item">
+              <div class="dm-label">AI analysis queue</div>
+              <div class="dm-value" id="dmAiQueue">0</div>
+              <div class="dm-sub muted small">Uploaded, waiting AI</div>
             </div>
-            <span class="pill blue">Scheduled</span>
+            <div class="dm-item">
+              <div class="dm-label">Reports pending review</div>
+              <div class="dm-value" id="dmReports">0</div>
+              <div class="dm-sub muted small">Need sign-off</div>
+            </div>
+            <div class="dm-item">
+              <div class="dm-label">Unread messages</div>
+              <div class="dm-value" id="dmUnread">0</div>
+              <div class="dm-sub muted small">Chat queue</div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section class="card advice-card">
-        <div class="card-head">
-          <div class="card-title-row">
-            <p class="card-title">At a glance</p>
-            <span class="pill">Live</span>
+        <section class="grid-2">
+          <section class="card cal-card" id="doctorCalendarCard">
+            <div class="card-head">
+              <div>
+                <h3>Today calendar</h3>
+                <p class="muted">Your personal schedule + auto-synced appointments for the selected day.</p>
+              </div>
+              <div class="cal-actions">
+                <input type="date" id="calDate" class="input date" />
+                <button class="btn btn-ghost" id="btnAddEvent" type="button">Add event</button>
+                <span class="pill" id="calLivePill">Live</span>
+              </div>
+            </div>
+
+            <div class="cal-body">
+              <div class="cal-left">
+                <div class="cal-summary">
+                  <div class="mini">
+                    <div class="mini-label">Total events</div>
+                    <div class="mini-value" id="calTotal">0</div>
+                  </div>
+                  <div class="mini">
+                    <div class="mini-label">Appointments</div>
+                    <div class="mini-value" id="calApptCount">0</div>
+                  </div>
+                  <div class="mini">
+                    <div class="mini-label">Personal</div>
+                    <div class="mini-value" id="calPersonalCount">0</div>
+                  </div>
+                </div>
+
+                <div class="cal-list" id="calList">
+                  <!-- rows injected -->
+                </div>
+                <div class="muted small" id="calEmpty" style="display:none;">No events for this day.</div>
+              </div>
+
+              <div class="cal-right">
+                <div class="cal-tip">
+                  <div class="tip-title">Tips</div>
+                  <div class="tip-text muted">
+                    Appointments are synced automatically. Use "Add event" for personal tasks (e.g., ward rounds, meetings).
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="grid-2">
+          <div class="card" id="cardLdctQueue">
+            <div class="card-head stack">
+              <div>
+                <p class="card-title">LDCT Upload Queue</p>
+                <p class="card-subtitle">Patients who need LDCT uploads by doctor.</p>
+              </div>
+              <span class="pill small">Live</span>
+            </div>
+            <ul class="dash-list">
+              <li class="dash-row">
+                <div class="row-main">
+                  <p class="row-title">Ava Collins</p>
+                  <p class="row-meta">High risk follow-up</p>
+                </div>
+                <div class="row-actions">
+                  <a class="btn btn-primary" href="appointments.html">Upload</a>
+                </div>
+              </li>
+              <li class="dash-row">
+                <div class="row-main">
+                  <p class="row-title">Marcus Lee</p>
+                  <p class="row-meta">New screening intake</p>
+                </div>
+                <div class="row-actions">
+                  <a class="btn btn-primary" href="appointments.html">Upload</a>
+                </div>
+              </li>
+              <li class="dash-row">
+                <div class="row-main">
+                  <p class="row-title">Priya Nair</p>
+                  <p class="row-meta">Annual follow-up scan</p>
+                </div>
+                <div class="row-actions">
+                  <a class="btn btn-primary" href="appointments.html">Upload</a>
+                </div>
+              </li>
+            </ul>
           </div>
-        </div>
-        <div class="advice-grid">
-          <div class="advice-item">
-            <div class="advice-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 6v6l4 2" />
-              </svg>
+
+          <div class="card" id="cardImagingReview">
+            <div class="card-head stack">
+              <div>
+                <p class="card-title">Imaging Review Queue</p>
+                <p class="card-subtitle">AI results waiting for clinician review.</p>
+              </div>
+              <span class="pill small">Live</span>
             </div>
-            <div>
-              <p class="advice-title">Average response time</p>
-              <p class="advice-text">12 min</p>
-            </div>
+            <ul class="dash-list">
+              <li class="dash-row">
+                <div class="row-main">
+                  <p class="row-title">Lydia Chen</p>
+                  <p class="row-meta">AI summary ready for review</p>
+                </div>
+                <div class="row-actions">
+                  <span class="status-badge done">AI done</span>
+                  <a class="btn btn-ghost" href="report.html">Review</a>
+                </div>
+              </li>
+              <li class="dash-row">
+                <div class="row-main">
+                  <p class="row-title">Hannah Ortiz</p>
+                  <p class="row-meta">Nodule flagged for review</p>
+                </div>
+                <div class="row-actions">
+                  <span class="status-badge flagged">flagged</span>
+                  <a class="btn btn-ghost" href="report.html">Review</a>
+                </div>
+              </li>
+              <li class="dash-row">
+                <div class="row-main">
+                  <p class="row-title">Omar Patel</p>
+                  <p class="row-meta">AI processing pending</p>
+                </div>
+                <div class="row-actions">
+                  <span class="status-badge pending">pending</span>
+                  <a class="btn btn-ghost" href="report.html">Review</a>
+                </div>
+              </li>
+            </ul>
           </div>
-          <div class="advice-item">
-            <div class="advice-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="16" rx="2" />
-                <path d="M3 10h18" />
-              </svg>
+        </section>
+
+        <section class="grid-2">
+          <div class="card" id="cardTodaySchedule">
+            <div class="card-head stack">
+              <div>
+                <p class="card-title">Today's schedule</p>
+                <p class="card-subtitle">Upcoming visits and LDCT tasks.</p>
+              </div>
             </div>
-            <div>
-              <p class="advice-title">Reports awaiting review</p>
-              <p class="advice-text">3 drafts need sign-off</p>
-            </div>
+            <ul class="dash-list">
+              <li class="dash-row">
+                <div class="row-main">
+                  <p class="row-title"><span class="time-badge">09:30</span> Lydia Chen</p>
+                  <p class="row-meta">Clinic 2, LDCT follow-up</p>
+                </div>
+                <div class="row-actions">
+                  <a class="btn btn-ghost" href="appointments.html">Open</a>
+                </div>
+              </li>
+              <li class="dash-row">
+                <div class="row-main">
+                  <p class="row-title"><span class="time-badge">14:15</span> Marcus Lee</p>
+                  <p class="row-meta">Room 5, imaging review consult</p>
+                </div>
+                <div class="row-actions">
+                  <a class="btn btn-ghost" href="appointments.html">Open</a>
+                </div>
+              </li>
+            </ul>
           </div>
-          <div class="advice-item">
-            <div class="advice-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10" />
-                <path d="M7 21h10" />
-                <path d="M7 21a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4" />
-                <circle cx="12" cy="10" r="3" />
-              </svg>
+
+          <div class="card" id="cardUnreadChats">
+            <div class="card-head stack">
+              <div>
+                <p class="card-title">Unread chats</p>
+                <p class="card-subtitle">Messages requiring reply.</p>
+              </div>
             </div>
-            <div>
-              <p class="advice-title">Patients on watch</p>
-              <p class="advice-text">2 high-risk flags today</p>
-            </div>
+            <ul class="dash-list">
+              <li class="dash-row">
+                <div class="row-main">
+                  <p class="row-title">Evelyn Carter</p>
+                  <p class="row-meta">Can we reschedule the scan? - 2m ago</p>
+                </div>
+                <div class="row-actions">
+                  <a class="btn btn-ghost" href="question.html">Reply</a>
+                </div>
+              </li>
+              <li class="dash-row">
+                <div class="row-main">
+                  <p class="row-title">Jonas Reed</p>
+                  <p class="row-meta">Uploaded files are missing labels - 18m ago</p>
+                </div>
+                <div class="row-actions">
+                  <a class="btn btn-ghost" href="question.html">Reply</a>
+                </div>
+              </li>
+            </ul>
           </div>
-        </div>
-      </section>
+        </section>
+
+        <section class="grid-1">
+          <div class="card" id="cardReports">
+            <div class="card-head stack">
+              <div>
+                <p class="card-title">Reports to sign off</p>
+                <p class="card-subtitle">Drafts awaiting clinician approval.</p>
+              </div>
+            </div>
+            <ul class="dash-list">
+              <li class="dash-row">
+                <div class="row-main">
+                  <p class="row-title">CT follow-up summary</p>
+                  <p class="row-meta">Mia Simmons - Today 10:05</p>
+                </div>
+                <div class="row-actions">
+                  <a class="btn btn-primary" href="report.html">Review</a>
+                </div>
+              </li>
+              <li class="dash-row">
+                <div class="row-main">
+                  <p class="row-title">AI screening report</p>
+                  <p class="row-meta">Diego Alvarez - Today 08:40</p>
+                </div>
+                <div class="row-actions">
+                  <a class="btn btn-primary" href="report.html">Review</a>
+                </div>
+              </li>
+              <li class="dash-row">
+                <div class="row-main">
+                  <p class="row-title">Annual LDCT assessment</p>
+                  <p class="row-meta">Sarah Park - Yesterday 16:20</p>
+                </div>
+                <div class="row-actions">
+                  <a class="btn btn-primary" href="report.html">Review</a>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </section>
+      </div>
     </main>
   </div>
+  <div class="modal" id="eventModal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h4>Add personal event</h4>
+        <button class="icon-btn" id="modalClose" type="button">x</button>
+      </div>
+      <div class="modal-body">
+        <label class="field">
+          <span>Title</span>
+          <input class="input" id="evTitle" placeholder="e.g., Ward round" />
+        </label>
+
+        <div class="row2">
+          <label class="field">
+            <span>Start</span>
+            <input type="time" class="input" id="evStart" value="09:00" />
+          </label>
+          <label class="field">
+            <span>End</span>
+            <input type="time" class="input" id="evEnd" value="09:30" />
+          </label>
+        </div>
+
+        <label class="field">
+          <span>Location (optional)</span>
+          <input class="input" id="evLocation" placeholder="e.g., NoName Hospital" />
+        </label>
+
+        <label class="field">
+          <span>Notes (optional)</span>
+          <textarea class="input" id="evNotes" rows="3" placeholder="Short notes..."></textarea>
+        </label>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" id="btnCancelEvent" type="button">Cancel</button>
+        <button class="btn btn-primary" id="btnSaveEvent" type="button">Save</button>
+      </div>
+    </div>
+  </div>
   <script type="module" src="./script.js"></script>
+  <script type="module">
+    import { auth, db } from "../firebase-config.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import {
+      addDoc,
+      collection,
+      deleteDoc,
+      doc,
+      getDoc,
+      onSnapshot,
+      query,
+      serverTimestamp,
+      where
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const calendarState = {
+      uid: null,
+      doctorName: "",
+      selectedDateKey: "",
+      personalEvents: [],
+      appointmentEvents: [],
+      appointmentNameEvents: [],
+      useNameFallback: false,
+      personalReady: false,
+      apptReady: false,
+      apptNameReady: false,
+      unsubPersonal: null,
+      unsubApptId: null,
+      unsubApptName: null
+    };
+
+    function pad2(value) {
+      return String(value).padStart(2, "0");
+    }
+
+    function formatDateKey(date) {
+      return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+    }
+
+    function timeToMinutes(value) {
+      if (!value) return Number.NaN;
+      const match = String(value).match(/^(\d{2}):(\d{2})$/);
+      if (!match) return Number.NaN;
+      return Number(match[1]) * 60 + Number(match[2]);
+    }
+
+    function addMinutes(value, minutes) {
+      const base = timeToMinutes(value);
+      if (!Number.isFinite(base)) return "";
+      const total = (base + minutes + 24 * 60) % (24 * 60);
+      return `${pad2(Math.floor(total / 60))}:${pad2(total % 60)}`;
+    }
+
+    function extractTime(value) {
+      if (!value) return "";
+      if (value instanceof Date) {
+        return `${pad2(value.getHours())}:${pad2(value.getMinutes())}`;
+      }
+      const match = String(value).match(/(\d{1,2}):(\d{2})/);
+      if (!match) return "";
+      return `${pad2(match[1])}:${match[2]}`;
+    }
+
+    function extractDateKey(value) {
+      if (!value) return "";
+      if (value instanceof Date) return formatDateKey(value);
+      const raw = String(value);
+      const match = raw.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (match) {
+        return `${match[1]}-${pad2(match[2])}-${pad2(match[3])}`;
+      }
+      const parsed = new Date(raw.replace(/\//g, "-"));
+      if (!Number.isNaN(parsed.getTime())) {
+        return formatDateKey(parsed);
+      }
+      return "";
+    }
+
+    function formatTimeRange(start, end) {
+      if (start && end) return `${start}-${end}`;
+      if (start) return start;
+      return "TBD";
+    }
+
+    function getSortKey(start) {
+      const minutes = timeToMinutes(start);
+      if (!Number.isFinite(minutes)) return "99:99";
+      return start;
+    }
+
+    function getCachedProfile() {
+      try {
+        return JSON.parse(localStorage.getItem("userProfile") || "null");
+      } catch (error) {
+        console.warn("[calendar] Failed to parse cached profile", error);
+        return null;
+      }
+    }
+
+    async function resolveDoctorName(uid) {
+      const cached = getCachedProfile();
+      const cachedName = (cached?.fullName || cached?.name || "").trim();
+      if (cachedName) return cachedName;
+      const authName = (auth?.currentUser?.displayName || "").trim();
+      if (authName) return authName;
+      try {
+        const snap = await getDoc(doc(db, "users", uid));
+        if (snap.exists()) {
+          const data = snap.data() || {};
+          return String(data.fullName || data.name || "").trim();
+        }
+      } catch (error) {
+        console.warn("[calendar] Failed to load doctor name", error);
+      }
+      return "";
+    }
+
+    function setCounts(total, apptCount, personalCount) {
+      const totalEl = document.getElementById("calTotal");
+      const apptEl = document.getElementById("calApptCount");
+      const personalEl = document.getElementById("calPersonalCount");
+      if (totalEl) totalEl.textContent = String(total);
+      if (apptEl) apptEl.textContent = String(apptCount);
+      if (personalEl) personalEl.textContent = String(personalCount);
+    }
+
+    function setEmptyMessage(message) {
+      const emptyEl = document.getElementById("calEmpty");
+      const listEl = document.getElementById("calList");
+      if (listEl) listEl.innerHTML = "";
+      if (emptyEl) {
+        emptyEl.textContent = message || "No events for this day.";
+        emptyEl.style.display = "block";
+      }
+      setCounts(0, 0, 0);
+    }
+
+    function mapPersonalEvents(snapshot) {
+      return snapshot.docs.map((docSnap) => {
+        const data = docSnap.data() || {};
+        const title = String(data.title || "Personal event").trim();
+        const start = extractTime(data.start);
+        const end = extractTime(data.end);
+        const location = String(data.location || "").trim();
+        const notes = String(data.notes || "").trim();
+        const meta = location || notes;
+        return {
+          id: docSnap.id,
+          type: "personal",
+          title,
+          start,
+          end,
+          meta,
+          sortKey: getSortKey(start)
+        };
+      });
+    }
+
+    function getAppointmentPatient(data) {
+      return String(
+        data.patientName ||
+        data.patientFullName ||
+        data.patient ||
+        data.patientEmail ||
+        data.email ||
+        ""
+      ).trim();
+    }
+
+    function mapAppointmentEvents(snapshot, dateKey) {
+      const results = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data() || {};
+        let start = "";
+        let end = "";
+        const status = String(data.status || "").toLowerCase();
+        let eventDateKey = data.dateKey ? extractDateKey(data.dateKey) : "";
+
+        if (data.scheduledAt?.toDate) {
+          const dt = data.scheduledAt.toDate();
+          eventDateKey = formatDateKey(dt);
+          start = extractTime(dt);
+        }
+
+        if (!eventDateKey && data.scheduledDate) {
+          const scheduledDate = data.scheduledDate?.toDate ? data.scheduledDate.toDate() : data.scheduledDate;
+          eventDateKey = extractDateKey(scheduledDate);
+        }
+
+        if (!start && data.scheduledTime) {
+          start = extractTime(data.scheduledTime);
+          if (!eventDateKey) {
+            eventDateKey = extractDateKey(data.scheduledTime);
+          }
+        }
+
+        if (!eventDateKey && data.date) {
+          eventDateKey = extractDateKey(data.date);
+        }
+
+        if (!start && data.start) {
+          start = extractTime(data.start);
+        }
+
+        if (eventDateKey !== dateKey) return;
+
+        end = extractTime(
+          data.end ||
+          data.endTime ||
+          data.scheduledEnd ||
+          data.scheduledEndTime ||
+          data.scheduledTo
+        );
+        if (!end && start) {
+          end = addMinutes(start, 30);
+        }
+
+        const patientName = getAppointmentPatient(data);
+        const location = String(data.hospitalName || data.location || data.hospital || "").trim();
+        const metaParts = [];
+        if (location) metaParts.push(location);
+        if (patientName) metaParts.push(patientName);
+
+        results.push({
+          id: docSnap.id,
+          type: "appointment",
+          title: patientName ? `Appointment: ${patientName}` : "Appointment",
+          start,
+          end,
+          meta: metaParts.join(" - "),
+          status,
+          sortKey: getSortKey(start)
+        });
+      });
+      return results;
+    }
+
+    function getActiveAppointments() {
+      return calendarState.useNameFallback ? calendarState.appointmentNameEvents : calendarState.appointmentEvents;
+    }
+
+    function renderCalendar() {
+      const listEl = document.getElementById("calList");
+      const emptyEl = document.getElementById("calEmpty");
+      if (!listEl || !emptyEl) return;
+
+      if (!calendarState.personalReady || !calendarState.apptReady) {
+        setEmptyMessage("Loading...");
+        return;
+      }
+      if (calendarState.useNameFallback && !calendarState.apptNameReady) {
+        setEmptyMessage("Loading...");
+        return;
+      }
+
+      const personal = calendarState.personalEvents;
+      const appointments = getActiveAppointments();
+      const events = [...personal, ...appointments].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
+      window.__calendarAppts = appointments;
+      updateMetricsFromCalendar();
+
+      setCounts(events.length, appointments.length, personal.length);
+
+      listEl.innerHTML = "";
+      if (!events.length) {
+        emptyEl.textContent = "No events for this day.";
+        emptyEl.style.display = "block";
+        return;
+      }
+      emptyEl.style.display = "none";
+
+      events.forEach((event) => {
+        const row = document.createElement("div");
+        row.className = "cal-row";
+
+        const timeEl = document.createElement("div");
+        timeEl.className = "cal-time";
+        timeEl.textContent = formatTimeRange(event.start, event.end);
+
+        const infoEl = document.createElement("div");
+        infoEl.className = "cal-info";
+        const titleEl = document.createElement("div");
+        titleEl.className = "cal-title";
+        titleEl.textContent = event.title;
+        infoEl.appendChild(titleEl);
+
+        if (event.meta) {
+          const subEl = document.createElement("div");
+          subEl.className = "cal-sub muted";
+          subEl.textContent = event.meta;
+          infoEl.appendChild(subEl);
+        }
+
+        const actions = document.createElement("div");
+        actions.className = "cal-rightbtns";
+
+        if (event.type === "personal") {
+          const delBtn = document.createElement("button");
+          delBtn.className = "btn btn-ghost";
+          delBtn.type = "button";
+          delBtn.textContent = "Delete";
+          delBtn.addEventListener("click", async () => {
+            if (!calendarState.uid) return;
+            const confirmed = window.confirm("Delete this event?");
+            if (!confirmed) return;
+            try {
+              await deleteDoc(doc(db, "users", calendarState.uid, "calendarEvents", event.id));
+            } catch (error) {
+              console.error("[calendar] Delete failed", error);
+              alert("Failed to delete event.");
+            }
+          });
+          actions.appendChild(delBtn);
+        } else {
+          const openBtn = document.createElement("a");
+          openBtn.className = "btn btn-ghost";
+          openBtn.href = "appointments.html";
+          openBtn.textContent = "Open";
+          actions.appendChild(openBtn);
+        }
+
+        row.append(timeEl, infoEl, actions);
+        listEl.appendChild(row);
+      });
+    }
+
+    function clearSubscriptions() {
+      if (calendarState.unsubPersonal) calendarState.unsubPersonal();
+      if (calendarState.unsubApptId) calendarState.unsubApptId();
+      if (calendarState.unsubApptName) calendarState.unsubApptName();
+      calendarState.unsubPersonal = null;
+      calendarState.unsubApptId = null;
+      calendarState.unsubApptName = null;
+    }
+
+    function subscribeCalendar() {
+      if (!calendarState.uid || !calendarState.selectedDateKey) return;
+      clearSubscriptions();
+
+      calendarState.personalEvents = [];
+      calendarState.appointmentEvents = [];
+      calendarState.appointmentNameEvents = [];
+      calendarState.useNameFallback = false;
+      calendarState.personalReady = false;
+      calendarState.apptReady = false;
+      calendarState.apptNameReady = false;
+
+      setEmptyMessage("Loading...");
+
+      const personalQuery = query(
+        collection(db, "users", calendarState.uid, "calendarEvents"),
+        where("dateKey", "==", calendarState.selectedDateKey)
+      );
+      calendarState.unsubPersonal = onSnapshot(
+        personalQuery,
+        (snapshot) => {
+          calendarState.personalEvents = mapPersonalEvents(snapshot);
+          calendarState.personalReady = true;
+          renderCalendar();
+        },
+        (error) => {
+          console.error("[calendar] Personal events error", error);
+          calendarState.personalReady = true;
+          renderCalendar();
+        }
+      );
+
+      const apptQuery = query(
+        collection(db, "appointments"),
+        where("doctorId", "==", calendarState.uid)
+      );
+      calendarState.unsubApptId = onSnapshot(
+        apptQuery,
+        (snapshot) => {
+          calendarState.appointmentEvents = mapAppointmentEvents(snapshot, calendarState.selectedDateKey);
+          calendarState.apptReady = true;
+
+          if (snapshot.empty && calendarState.doctorName) {
+            calendarState.useNameFallback = true;
+            if (!calendarState.unsubApptName) {
+              const nameQuery = query(
+                collection(db, "appointments"),
+                where("doctorName", "==", calendarState.doctorName)
+              );
+              calendarState.unsubApptName = onSnapshot(
+                nameQuery,
+                (nameSnap) => {
+                  calendarState.appointmentNameEvents = mapAppointmentEvents(
+                    nameSnap,
+                    calendarState.selectedDateKey
+                  );
+                  calendarState.apptNameReady = true;
+                  renderCalendar();
+                },
+                (error) => {
+                  console.error("[calendar] Appointment name query error", error);
+                  calendarState.apptNameReady = true;
+                  renderCalendar();
+                }
+              );
+            }
+          } else {
+            calendarState.useNameFallback = false;
+            calendarState.appointmentNameEvents = [];
+            calendarState.apptNameReady = true;
+            if (calendarState.unsubApptName) {
+              calendarState.unsubApptName();
+              calendarState.unsubApptName = null;
+            }
+          }
+
+          renderCalendar();
+        },
+        (error) => {
+          console.error("[calendar] Appointment query error", error);
+          calendarState.apptReady = true;
+          renderCalendar();
+        }
+      );
+    }
+
+    function openModal() {
+      const modal = document.getElementById("eventModal");
+      if (modal) modal.setAttribute("aria-hidden", "false");
+    }
+
+    function closeModal() {
+      const modal = document.getElementById("eventModal");
+      if (modal) modal.setAttribute("aria-hidden", "true");
+    }
+
+    function resetModalFields() {
+      const titleEl = document.getElementById("evTitle");
+      const startEl = document.getElementById("evStart");
+      const endEl = document.getElementById("evEnd");
+      const locationEl = document.getElementById("evLocation");
+      const notesEl = document.getElementById("evNotes");
+      if (titleEl) titleEl.value = "";
+      if (startEl) startEl.value = "09:00";
+      if (endEl) endEl.value = "09:30";
+      if (locationEl) locationEl.value = "";
+      if (notesEl) notesEl.value = "";
+    }
+
+    async function saveEvent() {
+      if (!calendarState.uid || !calendarState.selectedDateKey) return;
+      const titleEl = document.getElementById("evTitle");
+      const startEl = document.getElementById("evStart");
+      const endEl = document.getElementById("evEnd");
+      const locationEl = document.getElementById("evLocation");
+      const notesEl = document.getElementById("evNotes");
+      const saveBtn = document.getElementById("btnSaveEvent");
+
+      const title = String(titleEl?.value || "").trim();
+      const start = String(startEl?.value || "").trim();
+      const end = String(endEl?.value || "").trim();
+      const location = String(locationEl?.value || "").trim();
+      const notes = String(notesEl?.value || "").trim();
+
+      if (!title) {
+        alert("Title is required.");
+        return;
+      }
+      const startMinutes = timeToMinutes(start);
+      const endMinutes = timeToMinutes(end);
+      if (!Number.isFinite(startMinutes) || !Number.isFinite(endMinutes)) {
+        alert("Please enter a valid start and end time.");
+        return;
+      }
+      if (endMinutes <= startMinutes) {
+        alert("End time must be after start time.");
+        return;
+      }
+
+      if (saveBtn) saveBtn.disabled = true;
+      try {
+        await addDoc(collection(db, "users", calendarState.uid, "calendarEvents"), {
+          title,
+          dateKey: calendarState.selectedDateKey,
+          start,
+          end,
+          location,
+          notes,
+          type: "personal",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        closeModal();
+        resetModalFields();
+      } catch (error) {
+        console.error("[calendar] Save failed", error);
+        alert("Failed to save event.");
+      } finally {
+        if (saveBtn) saveBtn.disabled = false;
+      }
+    }
+
+    function bindModal() {
+      const addBtn = document.getElementById("btnAddEvent");
+      const cancelBtn = document.getElementById("btnCancelEvent");
+      const closeBtn = document.getElementById("modalClose");
+      const modal = document.getElementById("eventModal");
+      const backdrop = modal?.querySelector("[data-close='1']");
+      const saveBtn = document.getElementById("btnSaveEvent");
+
+      if (addBtn) {
+        addBtn.addEventListener("click", () => {
+          resetModalFields();
+          openModal();
+        });
+      }
+      if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
+      if (closeBtn) closeBtn.addEventListener("click", closeModal);
+      if (backdrop) backdrop.addEventListener("click", closeModal);
+      if (saveBtn) saveBtn.addEventListener("click", saveEvent);
+    }
+
+    function bindDatePicker() {
+      const dateInput = document.getElementById("calDate");
+      if (!dateInput) return;
+      const todayKey = formatDateKey(new Date());
+      dateInput.value = todayKey;
+      calendarState.selectedDateKey = todayKey;
+
+      dateInput.addEventListener("change", () => {
+        const next = dateInput.value || todayKey;
+        dateInput.value = next;
+        calendarState.selectedDateKey = next;
+        window.__calendarAppts = [];
+        updateMetricsFromCalendar();
+        subscribeCalendar();
+      });
+    }
+
+    const doctorMetricsState = {
+      uid: "",
+      todayKey: "",
+      apptCount: 0,
+      ctUploadCount: 0,
+      aiQueueCount: 0,
+      reportsCount: 0,
+      unreadCount: 0,
+      unsubAppt: null,
+      unsubPatients: null,
+      unsubReports: null,
+      unsubChats: null
+    };
+
+    function setText(id, value) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (value === null || value === undefined || Number.isNaN(value)) {
+        el.textContent = "0";
+        return;
+      }
+      el.textContent = String(value);
+    }
+
+    function renderDoctorMetrics() {
+      setText("dmAppt", doctorMetricsState.apptCount);
+      setText("dmCtUpload", doctorMetricsState.ctUploadCount);
+      setText("dmAiQueue", doctorMetricsState.aiQueueCount);
+      setText("dmReports", doctorMetricsState.reportsCount);
+      setText("dmUnread", doctorMetricsState.unreadCount);
+    }
+
+    function resetDoctorMetrics() {
+      if (doctorMetricsState.unsubAppt) doctorMetricsState.unsubAppt();
+      if (doctorMetricsState.unsubPatients) doctorMetricsState.unsubPatients();
+      if (doctorMetricsState.unsubReports) doctorMetricsState.unsubReports();
+      if (doctorMetricsState.unsubChats) doctorMetricsState.unsubChats();
+      doctorMetricsState.unsubAppt = null;
+      doctorMetricsState.unsubPatients = null;
+      doctorMetricsState.unsubReports = null;
+      doctorMetricsState.unsubChats = null;
+      doctorMetricsState.uid = "";
+      doctorMetricsState.todayKey = "";
+      doctorMetricsState.apptCount = 0;
+      doctorMetricsState.ctUploadCount = 0;
+      doctorMetricsState.aiQueueCount = 0;
+      doctorMetricsState.reportsCount = 0;
+      doctorMetricsState.unreadCount = 0;
+      renderDoctorMetrics();
+    }
+
+    window.__calendarAppts = [];
+
+    function updateMetricsFromCalendar() {
+      const appts = Array.isArray(window.__calendarAppts) ? window.__calendarAppts : [];
+      const apptCount = appts.filter((appt) => (appt.status || "scheduled") !== "cancelled").length;
+      doctorMetricsState.apptCount = apptCount;
+      const el = document.getElementById("dmAppt");
+      if (el) el.textContent = String(apptCount);
+    }
+
+    function initDoctorMetrics(user) {
+      const card = document.getElementById("doctorMetricsCard");
+      if (!card) return;
+
+      if (!user) {
+        resetDoctorMetrics();
+        return;
+      }
+
+      resetDoctorMetrics();
+      doctorMetricsState.uid = user.uid;
+      doctorMetricsState.todayKey = formatDateKey(new Date());
+
+      updateMetricsFromCalendar();
+
+      try {
+        const patientQuery = query(
+          collection(db, "users"),
+          where("role", "==", "patient"),
+          where("doctorId", "==", user.uid)
+        );
+        doctorMetricsState.unsubPatients = onSnapshot(
+          patientQuery,
+          (snap) => {
+            let ctUpload = 0;
+            let aiQueue = 0;
+            snap.forEach((docSnap) => {
+              const data = docSnap.data() || {};
+              const steps = data.status?.steps || {};
+              const ctState = String(steps?.ct?.state || "").toLowerCase();
+              const aiState = String(steps?.ai?.state || "").toLowerCase();
+
+              if (!ctState || ctState === "todo") {
+                ctUpload += 1;
+              }
+              if ((ctState === "done" || ctState === "current") && aiState === "todo") {
+                aiQueue += 1;
+              }
+            });
+            doctorMetricsState.ctUploadCount = ctUpload;
+            doctorMetricsState.aiQueueCount = aiQueue;
+            renderDoctorMetrics();
+          },
+          (error) => {
+            console.error("[doctor-metrics] patient status error", error);
+            doctorMetricsState.ctUploadCount = 0;
+            doctorMetricsState.aiQueueCount = 0;
+            renderDoctorMetrics();
+          }
+        );
+      } catch (error) {
+        console.error("[doctor-metrics] patient query failed", error);
+        doctorMetricsState.ctUploadCount = 0;
+        doctorMetricsState.aiQueueCount = 0;
+        renderDoctorMetrics();
+      }
+
+      try {
+        const reportsQuery = query(
+          collection(db, "reports"),
+          where("doctorId", "==", user.uid),
+          where("status", "==", "pending_review")
+        );
+        doctorMetricsState.unsubReports = onSnapshot(
+          reportsQuery,
+          (snap) => {
+            doctorMetricsState.reportsCount = snap.size || 0;
+            renderDoctorMetrics();
+          },
+          (error) => {
+            console.error("[doctor-metrics] reports error", error);
+            doctorMetricsState.reportsCount = 0;
+            renderDoctorMetrics();
+          }
+        );
+      } catch (error) {
+        console.error("[doctor-metrics] reports query failed", error);
+        doctorMetricsState.reportsCount = 0;
+        renderDoctorMetrics();
+      }
+
+      try {
+        const chatsQuery = query(
+          collection(db, "chats"),
+          where("doctorId", "==", user.uid)
+        );
+        doctorMetricsState.unsubChats = onSnapshot(
+          chatsQuery,
+          (snap) => {
+            let totalUnread = 0;
+            snap.forEach((docSnap) => {
+              const data = docSnap.data() || {};
+              const value = Number(data.unreadForDoctor);
+              if (Number.isFinite(value)) totalUnread += value;
+            });
+            doctorMetricsState.unreadCount = totalUnread;
+            renderDoctorMetrics();
+          },
+          (error) => {
+            console.warn("[doctor-metrics] chats error", error);
+            doctorMetricsState.unreadCount = 0;
+            renderDoctorMetrics();
+          }
+        );
+      } catch (error) {
+        console.warn("[doctor-metrics] chats query failed", error);
+        doctorMetricsState.unreadCount = 0;
+        renderDoctorMetrics();
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      bindDatePicker();
+      bindModal();
+
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+          setEmptyMessage("Not logged in.");
+          initDoctorMetrics(null);
+          return;
+        }
+        calendarState.uid = user.uid;
+        calendarState.doctorName = await resolveDoctorName(user.uid);
+        if (!calendarState.selectedDateKey) {
+          calendarState.selectedDateKey = formatDateKey(new Date());
+        }
+        subscribeCalendar();
+        initDoctorMetrics(user);
+      });
+    });
+  </script>
 </body>
 </html>
