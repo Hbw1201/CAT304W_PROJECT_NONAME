@@ -1,9 +1,18 @@
 import { auth, db } from "../firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
+  addDoc,
+  collection,
   doc,
   getDoc,
+  getDocs,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
   setDoc,
+  where,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   getCurrentUserProfile,
@@ -20,6 +29,8 @@ const doctorState = {
     sendBtn: null,
     patientNameEl: null,
     metaEl: null,
+    currentChatId: null,
+    unsubscribe: null,
   },
 };
 
@@ -182,17 +193,118 @@ function appendDoctorMessage(senderType, text, time) {
 function resetChatMessages() {
   if (!doctorState.chat.messages) return;
   doctorState.chat.messages.innerHTML = "";
-  if (doctorState.selectedPatient) {
-    const intro = doctorState.selectedPatient.fullName || doctorState.selectedPatient.name || "Patient";
-    appendDoctorMessage(
-      "patient",
-      `${intro} joined the chat.`,
-      getCurrentTime()
-    );
+}
+
+function formatMessageTime(value) {
+  if (!value) return getCurrentTime();
+  if (typeof value.toDate === "function") {
+    return value
+      .toDate()
+      .toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  }
+  if (value instanceof Date) {
+    return value.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  }
+  return getCurrentTime();
+}
+
+function detachDoctorChatListener() {
+  if (doctorState.chat.unsubscribe) {
+    doctorState.chat.unsubscribe();
+    doctorState.chat.unsubscribe = null;
+  }
+}
+
+function subscribeDoctorMessages(chatId) {
+  if (!db || !chatId) return;
+  detachDoctorChatListener();
+  const q = query(
+    collection(db, "chats", chatId, "messages"),
+    orderBy("createdAt")
+  );
+  console.log("[LISTEN] doctor listening messages for", chatId);
+  doctorState.chat.unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+      console.log("[LISTEN] doctor snapshot size =", snapshot.size);
+      resetChatMessages();
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data() || {};
+        const role = String(data.senderRole || "").toLowerCase();
+        const senderType = role === "doctor" ? "doctor" : "patient";
+        const text = data.text || "";
+        const time = formatMessageTime(data.createdAt);
+        appendDoctorMessage(senderType, text, time);
+      });
+    },
+    (error) => {
+      console.error("[LISTEN] doctor snapshot error", error);
+    }
+  );
+}
+
+async function ensureDoctorChatId(patientId) {
+  if (!db || !auth?.currentUser || !patientId) return "";
+  const doctorId = auth.currentUser.uid;
+  const q = query(
+    collection(db, "chats"),
+    where("doctorId", "==", doctorId),
+    where("patientId", "==", patientId),
+    where("status", "==", "active"),
+    limit(1)
+  );
+  const snapshot = await getDocs(q);
+  if (!snapshot.empty) {
+    return snapshot.docs[0].id;
+  }
+
+  const payload = {
+    doctorId,
+    patientId,
+    status: "active",
+    lastMessage: "",
+    lastMessageAt: serverTimestamp(),
+    lastSenderRole: null,
+    unreadCountDoctor: 0,
+    unreadCountPatient: 0,
+    lastReadAtDoctor: null,
+    lastReadAtPatient: null,
+    linkedReportId: null,
+    linkedAppointmentId: null,
+    riskLevelSnapshot: null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+
+  const ref = await addDoc(collection(db, "chats"), payload);
+  return ref.id;
+}
+
+async function setActiveChatForPatient(patient) {
+  doctorState.selectedPatient = patient;
+  updateSelectedPatientUI(patient);
+  resetChatMessages();
+  detachDoctorChatListener();
+  doctorState.chat.currentChatId = null;
+
+  if (!patient) return;
+  const patientId = patient.id || patient.patientId || patient.uid;
+  if (!patientId) return;
+
+  try {
+    const chatId = await ensureDoctorChatId(patientId);
+    doctorState.chat.currentChatId = chatId;
+    console.log("doctor chatId =", chatId);
+    if (chatId) {
+      subscribeDoctorMessages(chatId);
+    }
+  } catch (error) {
+    console.error("Failed to initialize doctor chat:", error);
   }
 }
 
 function sendDoctorMessage() {
+  console.log("[SEND] doctor send clicked");
   if (!doctorState.chat.input || !doctorState.selectedPatient) {
     alert("Select a patient to send messages.");
     return;
@@ -200,13 +312,26 @@ function sendDoctorMessage() {
   const text = doctorState.chat.input.value.trim();
   if (!text) return;
 
-  appendDoctorMessage("doctor", text, getCurrentTime());
-  doctorState.chat.input.value = "";
+  const chatId = doctorState.chat.currentChatId;
+  if (!chatId || !auth?.currentUser || !db) {
+    console.warn("[SEND] missing chat or auth state");
+    return;
+  }
 
-  const replyDelay = 800 + Math.random() * 800;
-  setTimeout(() => {
-    appendDoctorMessage("patient", "(Mock patient) Thank you for the explanation.", getCurrentTime());
-  }, replyDelay);
+  console.log("[SEND] writing message to firestore", chatId);
+  addDoc(collection(db, "chats", chatId, "messages"), {
+    senderId: auth.currentUser.uid,
+    senderRole: "doctor",
+    type: "text",
+    text,
+    createdAt: serverTimestamp(),
+  })
+    .then(() => {
+      doctorState.chat.input.value = "";
+    })
+    .catch((error) => {
+      console.error("Failed to send doctor message:", error);
+    });
 }
 
 function initDoctorChat() {
@@ -256,9 +381,7 @@ function renderPatientList(patients) {
     li.appendChild(title);
     li.appendChild(meta);
     li.addEventListener("click", () => {
-      doctorState.selectedPatient = patient;
-      updateSelectedPatientUI(patient);
-      resetChatMessages();
+      setActiveChatForPatient(patient);
     });
     listEl.appendChild(li);
   });
@@ -294,11 +417,9 @@ async function loadDoctorPatients(user) {
   renderPatientList(patients);
 
   if (patients.length) {
-    doctorState.selectedPatient = patients[0];
-    updateSelectedPatientUI(patients[0]);
-    resetChatMessages();
+    await setActiveChatForPatient(patients[0]);
   } else {
-    updateSelectedPatientUI(null);
+    setActiveChatForPatient(null);
   }
 }
 

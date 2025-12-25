@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function chatDoc(chatId) {
+      return get(/databases/$(database)/documents/chats/$(chatId));
+    }
+
+    function isChatMember(chatId) {
+      return isSignedIn()
+        && (request.auth.uid == chatDoc(chatId).data.doctorId
+          || request.auth.uid == chatDoc(chatId).data.patientId);
+    }
+
+    function isDoctor(chatId) {
+      return isChatMember(chatId)
+        && request.auth.uid == chatDoc(chatId).data.doctorId;
+    }
+
+    function isPatient(chatId) {
+      return isChatMember(chatId)
+        && request.auth.uid == chatDoc(chatId).data.patientId;
+    }
+
+    function onlyChangesKeys(allowedKeys) {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly(allowedKeys);
+    }
+
+    match /chats/{chatId} {
+      allow read: if isChatMember(chatId);
+      allow create: if false;
+      allow delete: if false;
+      allow update: if (isDoctor(chatId) && onlyChangesKeys(['lastReadAtDoctor']))
+        || (isPatient(chatId) && onlyChangesKeys(['lastReadAtPatient']));
+    }
+
+    match /chats/{chatId}/messages/{msgId} {
+      allow read: if isChatMember(chatId);
+      allow create: if isSignedIn()
+        && request.resource.data.senderId == request.auth.uid
+        && (request.auth.uid == chatDoc(chatId).data.doctorId
+          || request.auth.uid == chatDoc(chatId).data.patientId);
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}

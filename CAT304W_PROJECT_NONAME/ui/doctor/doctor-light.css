@@ -621,6 +621,9 @@ body.doctor-theme {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .doctor-theme .patient-list-item {
@@ -749,8 +752,9 @@ body.doctor-theme {
 .doctor-theme .question-chat-messages {
   flex: 1;
   min-height: 400px;
-  max-height: none;
+  max-height: calc(100vh - 360px);
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -758,6 +762,27 @@ body.doctor-theme {
   border-radius: 16px;
   border: 1px solid var(--doctor-border);
   background: var(--doctor-surface-2);
+}
+
+.doctor-theme .patient-list::-webkit-scrollbar,
+.doctor-theme .question-chat-messages::-webkit-scrollbar {
+  width: 8px;
+}
+
+.doctor-theme .patient-list::-webkit-scrollbar-thumb,
+.doctor-theme .question-chat-messages::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.18);
+  border-radius: 999px;
+}
+
+.doctor-theme .patient-list::-webkit-scrollbar-thumb:hover,
+.doctor-theme .question-chat-messages::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.28);
+}
+
+.doctor-theme .patient-list::-webkit-scrollbar-track,
+.doctor-theme .question-chat-messages::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .doctor-theme .question-chat-messages .chat-message {

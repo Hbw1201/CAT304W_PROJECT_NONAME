@@ -188,5 +188,65 @@
     })();
   </script>
   <script type="module" src="../script.js"></script>
+  <script type="module">
+    (function () {
+      const prefix = "[assignDoctor]";
+      const callableName = "assignDoctorToPatient";
+
+      function shouldRetryWithRegion(error) {
+        const message = String(error?.message || error || "");
+        return message.includes("Failed to connect to all addresses") || message.includes("UNAVAILABLE");
+      }
+
+      async function callAssignDoctor() {
+        console.log(`${prefix} calling function`, callableName);
+        const fn = firebase.functions().httpsCallable(callableName);
+        const result = await fn();
+        return result?.data || result || {};
+      }
+
+      async function callAssignDoctorInRegion() {
+        console.log(`${prefix} calling function with region asia-east2`, callableName);
+        const fn = firebase.app().functions("asia-east2").httpsCallable(callableName);
+        const result = await fn();
+        return result?.data || result || {};
+      }
+
+      firebase.auth().onAuthStateChanged(async (user) => {
+        if (!user) {
+          console.log(`${prefix} no authenticated user`);
+          return;
+        }
+        try {
+          const payload = await callAssignDoctor();
+          const doctorId = String(payload?.doctorId || "").trim();
+          const conversationId = String(payload?.conversationId || "").trim();
+          if (doctorId) localStorage.setItem("doctorId", doctorId);
+          if (conversationId) {
+            window.currentConversationId = conversationId;
+            localStorage.setItem("conversationId", conversationId);
+          }
+          console.log(`${prefix} assigned`, { doctorId, conversationId });
+        } catch (error) {
+          console.error(`${prefix} default region failed`, error);
+          if (shouldRetryWithRegion(error)) {
+            try {
+              const payload = await callAssignDoctorInRegion();
+              const doctorId = String(payload?.doctorId || "").trim();
+              const conversationId = String(payload?.conversationId || "").trim();
+              if (doctorId) localStorage.setItem("doctorId", doctorId);
+              if (conversationId) {
+                window.currentConversationId = conversationId;
+                localStorage.setItem("conversationId", conversationId);
+              }
+              console.log(`${prefix} assigned (asia-east2)`, { doctorId, conversationId });
+            } catch (retryError) {
+              console.error(`${prefix} asia-east2 failed`, retryError);
+            }
+          }
+        }
+      });
+    })();
+  </script>
 </body>
 </html>

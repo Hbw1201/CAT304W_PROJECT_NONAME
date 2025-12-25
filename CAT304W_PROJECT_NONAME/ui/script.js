@@ -1,6 +1,15 @@
 import { auth, db, storage } from "./firebase-config.js";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { addDoc, collection, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+if (typeof firebase !== "undefined") {
+  const needsFunctions = /register-self\.html|question\.html|dashboard\.html/i.test(location.pathname);
+  if (needsFunctions && typeof firebase.functions !== "function") {
+    console.error("Firebase Functions SDK not loaded");
+  }
+} else {
+  console.error("Firebase Functions SDK not loaded");
+}
 
 const icons = {
   mission: '<svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 10.1 12 4l7 6.1a2 2 0 0 1 .7 1.54V18a1 1 0 0 1-1 1h-4v-3.35a2.65 2.65 0 0 0-5.3 0V19H5a1 1 0 0 1-1-1v-6.36A2 2 0 0 1 5 10.1Z"/><path d="M9 17.5a3 3 0 0 0 6 0V16H9v1.5Z"/></svg>',
@@ -124,6 +133,7 @@ async function handleRegister({
   relationship,
   termsChecked,
 }) {
+  console.log("[signupAssignDoctor] register handler entered");
   if (!auth || !db) {
     alert("Firebase 未配置，请先填写 firebase-config.js");
     return;
@@ -169,6 +179,7 @@ async function handleRegister({
 
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    console.log("[signupAssignDoctor] auth created uid:", userCredential.user.uid);
     const uid = userCredential.user?.uid;
 
     if (!uid) {
@@ -194,8 +205,50 @@ async function handleRegister({
       });
     }
 
-    alert("注册成功");
-    window.location.href = "login.html";
+    // --- after users/{uid} written successfully ---
+    function showToast(text) {
+      const el = document.createElement("div");
+      el.textContent = text;
+      el.style.cssText =
+        "position:fixed;top:16px;right:16px;z-index:99999;padding:10px 14px;border-radius:10px;background:#111;color:#fff;font:14px/1.4 system-ui;max-width:70vw";
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 6000);
+    }
+
+    console.log("[signup] waiting for auth state to be ready...");
+    showToast("Registered. Finalizing account setup...");
+
+    const unsubscribe = firebase.auth().onAuthStateChanged(async (user) => {
+      if (!user) return;          // 还没 ready，继续等
+      unsubscribe();              // 只执行一次
+
+      try {
+        await user.getIdToken(true);
+
+        const fn = firebase
+          .app()
+          .functions("asia-east2")
+          .httpsCallable("assignDoctorToPatient");
+
+        const res = await fn();
+        const data = res?.data || {};
+
+        console.log("[signup] doctor assigned:", data);
+
+        if (data.doctorId) localStorage.setItem("doctorId", data.doctorId);
+        if (data.conversationId) {
+          localStorage.setItem("conversationId", data.conversationId);
+          window.currentConversationId = data.conversationId;
+        }
+
+        showToast("Doctor assigned. Redirecting to Sign In...");
+        setTimeout(() => (window.location.href = "login.html"), 1200);
+      } catch (e) {
+        console.error("[signup] assignDoctorToPatient FAILED");
+        console.error(e);
+        showToast("Assign doctor failed. Check console.");
+      }
+    });
   } catch (error) {
     console.error("Registration failed:", error);
     alert(error?.message || "注册失败，请稍后重试");
@@ -363,7 +416,7 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// Question 页面：前端假数据聊天逻辑
+// Question page: Firestore realtime chat
 window.addEventListener("DOMContentLoaded", () => {
   const isQuestionPage = location.pathname.toLowerCase().includes("question.html");
   if (!isQuestionPage) return;
@@ -372,22 +425,32 @@ window.addEventListener("DOMContentLoaded", () => {
   const chatInput = document.getElementById("chat-input");
   const chatSendBtn = document.getElementById("chat-send");
 
-  // 如果结构缺失则直接返回，避免在其它页面报错
   if (!chatMessages || !chatInput || !chatSendBtn) return;
 
-  // 初始化假数据消息
-  const mockMessages = [
-    { sender: "doctor", text: "Hi, I am the on-duty doctor. If you have questions about your screening results or reports, ask me here.", time: getCurrentTime() },
-    { sender: "user", text: "Doctor, I want to understand what my screening risk level means.", time: getCurrentTime() },
-  ];
+  const chatState = {
+    currentChatId: null,
+    unsubscribe: null,
+    doctorId: null,
+  };
 
-  // 时间格式化：返回当前的小时:分钟
   function getCurrentTime() {
     const now = new Date();
     return now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
   }
 
-  // 追加一条消息到聊天窗口
+  function formatMessageTime(value) {
+    if (!value) return getCurrentTime();
+    if (typeof value.toDate === "function") {
+      return value
+        .toDate()
+        .toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    }
+    if (value instanceof Date) {
+      return value.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    }
+    return getCurrentTime();
+  }
+
   function appendMessage(sender, text, time) {
     const wrapper = document.createElement("div");
     wrapper.className = `chat-message ${sender}`;
@@ -414,149 +477,156 @@ window.addEventListener("DOMContentLoaded", () => {
     wrapper.appendChild(textEl);
     chatMessages.appendChild(wrapper);
 
-    // 滚动到底部，保证最新消息可见
     chatMessages.scrollTop = chatMessages.scrollHeight;
   }
 
-  // 渲染初始的模拟对话
-  mockMessages.forEach((msg) => {
-    appendMessage(msg.sender, msg.text, msg.time);
-  });
+  function detachListener() {
+    if (chatState.unsubscribe) {
+      chatState.unsubscribe();
+      chatState.unsubscribe = null;
+    }
+  }
 
-  // 发送消息封装
+  function subscribeToMessages(chatId) {
+    if (!db || !chatId) return;
+    detachListener();
+    const q = query(
+      collection(db, "chats", chatId, "messages"),
+      orderBy("createdAt")
+    );
+    console.log("[LISTEN] patient listening messages for", chatId);
+    chatState.unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        console.log("[LISTEN] patient snapshot size =", snapshot.size);
+        chatMessages.innerHTML = "";
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data() || {};
+          const role = String(data.senderRole || "").toLowerCase();
+          const sender = role === "patient" ? "user" : "doctor";
+          const text = data.text || "";
+          const time = formatMessageTime(data.createdAt);
+          appendMessage(sender, text, time);
+        });
+      },
+      (error) => {
+        console.error("[LISTEN] patient snapshot error", error);
+      }
+    );
+  }
+
+  async function resolveAssignedDoctorId(userId) {
+    const cached = localStorage.getItem("doctorId") || "";
+    if (cached) return cached;
+    if (!db || !userId) return "";
+
+    try {
+      const snap = await getDoc(doc(db, "users", userId));
+      if (!snap.exists()) return "";
+      const data = snap.data() || {};
+      const doctorId = data.assignedDoctorId || data.doctorId || "";
+      if (doctorId) localStorage.setItem("doctorId", doctorId);
+      return doctorId;
+    } catch (error) {
+      console.error("Failed to resolve assigned doctor:", error);
+      return "";
+    }
+  }
+
+  async function ensurePatientChatId(patientId, doctorId) {
+    if (!db || !patientId || !doctorId) return "";
+    const q = query(
+      collection(db, "chats"),
+      where("patientId", "==", patientId),
+      where("doctorId", "==", doctorId),
+      where("status", "==", "active"),
+      limit(1)
+    );
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+      return snapshot.docs[0].id;
+    }
+
+    const payload = {
+      doctorId,
+      patientId,
+      status: "active",
+      lastMessage: "",
+      lastMessageAt: serverTimestamp(),
+      lastSenderRole: null,
+      unreadCountDoctor: 0,
+      unreadCountPatient: 0,
+      lastReadAtDoctor: null,
+      lastReadAtPatient: null,
+      linkedReportId: null,
+      linkedAppointmentId: null,
+      riskLevelSnapshot: null,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    const ref = await addDoc(collection(db, "chats"), payload);
+    return ref.id;
+  }
+
+  async function initChatForUser(user) {
+    if (!user || !db) return;
+    const doctorId = await resolveAssignedDoctorId(user.uid);
+    if (!doctorId) {
+      console.warn("[chat] no assigned doctor id");
+      return;
+    }
+
+    chatState.doctorId = doctorId;
+    const chatId = await ensurePatientChatId(user.uid, doctorId);
+    chatState.currentChatId = chatId;
+    console.log("patient chatId =", chatId);
+    if (chatId) {
+      subscribeToMessages(chatId);
+    }
+  }
+
   function sendUserMessage() {
+    console.log("[SEND] patient send clicked");
     const text = chatInput.value.trim();
     if (!text) return;
 
-    appendMessage("user", text, getCurrentTime());
-    chatInput.value = "";
+    const chatId = chatState.currentChatId;
+    if (!chatId || !auth?.currentUser || !db) {
+      console.warn("[SEND] missing chat or auth state");
+      return;
+    }
 
-    // 模拟医生 1~2 秒后回复
-    const replyDelay = 800 + Math.random() * 800;
-    setTimeout(() => {
-      appendMessage("doctor", "(Auto-reply) I have received your question and will get back to you shortly.", getCurrentTime());
-    }, replyDelay);
+    console.log("[SEND] writing message to firestore", chatId);
+    addDoc(collection(db, "chats", chatId, "messages"), {
+      senderId: auth.currentUser.uid,
+      senderRole: "patient",
+      type: "text",
+      text,
+      createdAt: serverTimestamp(),
+    })
+      .then(() => {
+        chatInput.value = "";
+      })
+      .catch((error) => {
+        console.error("Failed to send patient message:", error);
+      });
   }
 
-  chatSendBtn.addEventListener("click", sendUserMessage);
+  onAuthStateChanged(auth, (user) => {
+    if (!user) return;
+    initChatForUser(user);
+  });
 
-  // Enter 发送，Shift+Enter 换行
+  chatSendBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    sendUserMessage();
+  });
+
   chatInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       sendUserMessage();
     }
   });
-});
-
-// 医生端聊天模块：医生视角回复患者，后续可接入 Firestore 消息流
-window.addEventListener("DOMContentLoaded", () => {
-  if (!window.location.pathname.toLowerCase().includes("doctor/question.html")) return;
-
-  const messages = document.getElementById("doctor-chat-messages");
-  const input = document.getElementById("doctor-chat-input");
-  const sendBtn = document.getElementById("doctor-chat-send");
-  const doctorNameEl = document.getElementById("doctor-name-display");
-  const doctorHospitalEl = document.getElementById("doctor-hospital-display");
-  const brandName = document.getElementById("brand-name");
-  const brandAvatar = document.getElementById("brand-avatar");
-
-  // 如果结构缺失则不执行，避免在其它页面报错
-  if (!messages || !input || !sendBtn) return;
-
-  // 获取当前时间字符串
-  function getCurrentTime() {
-    const now = new Date();
-    return now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-  }
-
-  // 追加一条消息到医生端聊天窗口
-  function appendDoctorMessage(senderType, text, time) {
-    const bubble = document.createElement("div");
-    bubble.className = `chat-message ${senderType}`;
-
-    const meta = document.createElement("div");
-    meta.className = "chat-message-meta";
-
-    const senderEl = document.createElement("span");
-    senderEl.className = "chat-message-sender";
-    senderEl.textContent = senderType === "doctor" ? "Me (doctor)" : "Patient";
-
-    const timeEl = document.createElement("span");
-    timeEl.className = "chat-message-time";
-    timeEl.textContent = time || getCurrentTime();
-
-    meta.appendChild(senderEl);
-    meta.appendChild(timeEl);
-
-    const textEl = document.createElement("p");
-    textEl.className = "chat-message-text";
-    textEl.textContent = text;
-
-    bubble.appendChild(meta);
-    bubble.appendChild(textEl);
-    messages.appendChild(bubble);
-
-    // 保持列表滚动在底部
-    messages.scrollTop = messages.scrollHeight;
-  }
-
-  // 初始化假数据：患者提问 + 医生回复
-  const doctorMockMessages = [
-    { sender: "patient", text: "Doctor, could you explain my latest screening result?", time: getCurrentTime() },
-    { sender: "doctor", text: "Sure. Your risk level suggests we should schedule a follow-up visit this week.", time: getCurrentTime() },
-  ];
-
-  doctorMockMessages.forEach((msg) => {
-    appendDoctorMessage(msg.sender, msg.text, msg.time);
-  });
-
-  // 发送医生消息封装
-  function sendDoctorMessage() {
-    const text = input.value.trim();
-    if (!text) return;
-
-    appendDoctorMessage("doctor", text, getCurrentTime());
-    input.value = "";
-
-    // 模拟患者 1~2 秒后回复；后续接入 Firestore 时改为监听实时消息
-    const replyDelay = 800 + Math.random() * 800;
-    setTimeout(() => {
-      appendDoctorMessage("patient", "(Mock patient) Thank you for the explanation.", getCurrentTime());
-    }, replyDelay);
-  }
-
-  sendBtn.addEventListener("click", sendDoctorMessage);
-
-  // Enter 发送，Shift+Enter 换行
-  input.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      sendDoctorMessage();
-    }
-  });
-
-  // 读取医生信息以展示侧边栏与品牌，失败则保持默认文案
-  async function loadDoctorProfile() {
-    if (!auth?.currentUser) return;
-    try {
-      const profileSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
-      if (profileSnap.exists()) {
-        const data = profileSnap.data();
-        if (data?.role === "doctor") {
-          const displayName = (data.name || "Doctor").trim();
-          const hospital = (data.hospital_name || "Unknown hospital").trim();
-          if (doctorNameEl) doctorNameEl.textContent = displayName;
-          if (brandName) brandName.textContent = displayName;
-          if (brandAvatar) brandAvatar.textContent = displayName.charAt(0).toUpperCase() || "D";
-          if (doctorHospitalEl) doctorHospitalEl.textContent = hospital;
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load doctor profile:", err);
-    }
-  }
-
-  // 未来接 Firebase 时，可在此处扩展：登录后拉取医生资料、监听患者消息 onSnapshot 等
-  loadDoctorProfile();
 });
