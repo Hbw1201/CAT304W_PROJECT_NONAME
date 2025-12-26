@@ -8,7 +8,7 @@ Osler AI（MAQ-SCREEN）是一个远程医疗风格的 AI 助手前端，涵盖�
 - HTML5 + CSS (`style.css`, `login.css`, `dashboard.css`) for layout and visuals.
 - Vanilla JavaScript modules (`script.js`) plus Firebase CDN SDKs for auth, Firestore, and storage.
 - Optional MySQL schema (`mysql_schema.sql`) for backend reference.
-- Static assets live in `ui/` (HTML/CSS/JS plus `resource/`); npm metadata (`package.json`, `package-lock.json`) tracks dependencies.
+- Static assets live in `frontend/` (HTML/CSS/JS plus `resource/`); Node metadata lives in `node/`.
 
 ## Screens & Files / 页面与文件
 - `index.html`: Landing page with tabbed hero and privacy/legal modals; “Start” routes to `login.html`.
@@ -20,17 +20,18 @@ Osler AI（MAQ-SCREEN）是一个远程医疗风格的 AI 助手前端，涵盖�
 ## Quick Start / 快速开始
 1. Install deps (optional but keeps npm metadata consistent) / 可选：安装依赖  
    ```bash
+   cd node
    npm install
    ```
 2. Update Firebase config in `firebase-config.js` with your project keys (Console -> Project settings -> Web app).  
    将 `firebase-config.js` 中的配置替换为自己的 Firebase 项目参数。
-3. Serve the UI from `ui/` (or run the Node proxy) / 在 `ui/` 目录中启动静态服务（或使用 Node 代理）  
+3. Serve the UI from `frontend/` (or run the Node proxy) / 在 `frontend/` 目录中启动静态服务（或使用 Node 代理）  
    ```bash
-   npx serve ui
+   npx serve frontend
    # or / 或
-   cd ui && python -m http.server 5173
+   cd frontend && python -m http.server 5173
    # or start the Express API + static host / 或运行 Express API + 前端
-   npm start
+   cd node && npm start
    ```
 4. Visit `http://localhost:3000` (or your chosen port) and use the landing "Start" button to begin.  
    在浏览器打开本地域名，点击首页 "Start" 进入流程。
@@ -42,7 +43,7 @@ The patient screening workflow now connects to the dedicated screening backend (
 
 1. **Screen backend**
    ```bash
-   cd screen/feiaiagent
+   cd backend/screen/feiaiagent
    set SCREEN_PORT=5100  # use `export` on macOS/Linux
    python app.py
    ```
@@ -52,7 +53,7 @@ The patient screening workflow now connects to the dedicated screening backend (
    ```bash
    set PORT=8000
    set SCREEN_BACKEND_URL=http://127.0.0.1:5100
-   python main.py
+   python backend/main.py
    ```
 
 3. Browse `http://127.0.0.1:8000/patient/screening.html` for the patient experience (doctor UI is unaffected).
