@@ -19,11 +19,18 @@ import base64
 import json
 import shutil
 import tempfile
+import uuid
+from contextlib import contextmanager
 from datetime import timedelta
 from functools import wraps
 from pathlib import Path
 from typing import Any, Dict, Optional, Callable
 from urllib.parse import urlparse
+
+try:
+    import fcntl  # Linux only
+except Exception:
+    fcntl = None
 
 from flask import Flask, abort, jsonify, request, send_from_directory, Response, g
 from flask_cors import CORS
@@ -82,7 +89,8 @@ ROOT_UI_ALLOWLIST = {
 PATIENT_ROOT_FALLBACKS = {"login.css", "script.js"}
 
 CT_BUCKET_NAME = "feiai-7c59e.firebasestorage.app"
-CT_MODEL_PATH = CT_DIR / "best_resnet_nodule_precise.pt"
+CT_MODEL = None
+CT_MODEL_PATH = os.environ.get("CT_MODEL_PATH", "").strip()
 
 if str(CT_DIR) not in sys.path:
     sys.path.insert(0, str(CT_DIR))
@@ -97,13 +105,30 @@ if torch.cuda.is_available():
         logger.warning("[CT] cuda device name unavailable: %s", exc)
 
 CT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-CT_MODEL = None
 _CT_FIRESTORE_CLIENT: Optional[Any] = None
-try:
-    CT_MODEL = load_model(str(CT_MODEL_PATH), CT_DEVICE)
-    logger.info("[CT] model loaded device=%s", next(CT_MODEL.parameters()).device)
-except Exception as exc:  # noqa: BLE001
-    logger.exception("[CT] failed to load model at startup: %s", exc)
+
+
+def _load_ct_model():
+    global CT_MODEL
+    path = CT_MODEL_PATH
+    if not path:
+        logger.warning("[CT] CT_MODEL_PATH not set; CT model will be unavailable.")
+        return None
+    if not os.path.exists(path):
+        logger.error("[CT] CT model file not found: %s", path)
+        return None
+    try:
+        logger.info("[CT] loading CT model from %s", CT_MODEL_PATH)
+        from ct.infer_dicom_series import load_model
+        model = load_model(weights_path=CT_MODEL_PATH)
+        model.eval()
+        return model
+    except Exception:
+        logger.exception("[CT] Failed to load CT model")
+        return None
+
+
+CT_MODEL = _load_ct_model()
 
 
 def _ensure_ct_admin_app() -> firebase_admin.App:
@@ -156,9 +181,37 @@ def _download_all_dicoms(storage_prefix: str, out_dir: Path) -> int:
             continue
         filename = os.path.basename(name) or f"slice_{count:04d}.dcm"
         dest = out_dir / filename
-        blob.download_to_filename(str(dest))
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            blob.download_to_filename(str(dest))
+        except FileNotFoundError:
+            # In rare cases, concurrent cleanup or race may remove the file right before utime().
+            # Recreate parent dir and retry once.
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            blob.download_to_filename(str(dest))
         count += 1
     return count
+
+
+@contextmanager
+def _study_lock(study_id: str):
+    """
+    Prevent concurrent /api/ct/analyze for the same studyId on the same host.
+    Uses a file lock under /tmp. Works on Linux.
+    """
+    lock_path = Path("/tmp") / f"aegis_ct_{study_id}.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    fp = open(lock_path, "w")
+    try:
+        if fcntl:
+            fcntl.flock(fp.fileno(), fcntl.LOCK_EX)
+        yield
+    finally:
+        try:
+            if fcntl:
+                fcntl.flock(fp.fileno(), fcntl.LOCK_UN)
+        finally:
+            fp.close()
 
 
 def _extract_bearer_token() -> Optional[str]:
@@ -169,6 +222,26 @@ def _extract_bearer_token() -> Optional[str]:
     if len(parts) != 2 or parts[0].lower() != "bearer":
         return None
     return parts[1].strip() or None
+
+
+AUTH_BYPASS_ALLOWLIST = {
+    "/api/screen/health",
+    "/api/screen/voice/status",
+    "/api/metagpt/agents_status",
+}
+
+
+def _is_auth_bypass_path(path: str) -> bool:
+    return path in AUTH_BYPASS_ALLOWLIST
+
+
+def _set_anonymous_identity() -> None:
+    g.firebase_uid = ""
+    g.firebase_email = ""
+    g.firebase_role = "anonymous"
+    g.firebase_token = ""
+    g.firebase_aud = ""
+    g.firebase_iss = ""
 
 
 def _decode_jwt_part(part: str) -> Dict[str, Any]:
@@ -211,6 +284,12 @@ def require_firebase_auth(allowed_roles: Optional[set[str]] = None) -> Callable:
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
+            request_path = request.path
+            if _is_auth_bypass_path(request_path):
+                _set_anonymous_identity()
+                logger.info("[auth] bypass allowlist for %s %s", request.method, request_path)
+                return func(*args, **kwargs)
+
             token = _extract_bearer_token()
             if not token:
                 return jsonify({"error": "Missing Authorization Bearer token"}), 401
@@ -741,6 +820,7 @@ def system_init() -> Flask:
 
     @app.route("/api/ct/analyze", methods=["GET", "POST", "OPTIONS"])
     def ct_analyze() -> Any:
+        global CT_MODEL
         logger.info("[CT] /api/ct/analyze %s hit (main.py)", request.method)
         if request.method == "OPTIONS":
             resp = jsonify({"ok": True})
@@ -769,182 +849,182 @@ def system_init() -> Flask:
                 return add_cors(resp), 400
             study_id = study_id.strip()
 
-            patient_id = payload.get("patientId")
-            if patient_id is not None and not isinstance(patient_id, str):
-                patient_id = str(patient_id)
-            storage_prefix = payload.get("storagePrefix")
-            if storage_prefix is not None and not isinstance(storage_prefix, str):
-                storage_prefix = str(storage_prefix)
+            with _study_lock(study_id):
+                patient_id = payload.get("patientId")
+                if patient_id is not None and not isinstance(patient_id, str):
+                    patient_id = str(patient_id)
+                storage_prefix = payload.get("storagePrefix")
+                if storage_prefix is not None and not isinstance(storage_prefix, str):
+                    storage_prefix = str(storage_prefix)
 
-            if CT_MODEL is None:
-                resp = jsonify({"ok": False, "error": "CT model not loaded at startup"})
-                return add_cors(resp), 500
+                if CT_MODEL is None:
+                    resp = jsonify({"ok": False, "error": "CT model not loaded at startup"})
+                    return add_cors(resp), 500
 
-            db = _get_ct_firestore()
+                db = _get_ct_firestore()
 
-            doc_ref = db.collection("ctStudies").document(str(study_id))
-            logger.info("[CT] firestore doc path=ctStudies/%s", study_id)
-            doc_snap = doc_ref.get()
-            study_data = doc_snap.to_dict() or {}
-            if not storage_prefix:
-                storage_prefix = study_data.get("storagePrefix")
-            if not patient_id:
-                patient_id = study_data.get("patientId")
+                doc_ref = db.collection("ctStudies").document(str(study_id))
+                logger.info("[CT] firestore doc path=ctStudies/%s", study_id)
+                doc_snap = doc_ref.get()
+                study_data = doc_snap.to_dict() or {}
+                if not storage_prefix:
+                    storage_prefix = study_data.get("storagePrefix")
+                if not patient_id:
+                    patient_id = study_data.get("patientId")
 
-            if not storage_prefix:
-                error_payload = {
-                    "analysisStatus": "error",
+                if not storage_prefix:
+                    error_payload = {
+                        "analysisStatus": "error",
+                        "analysisUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
+                        "analysisCompletedAt": admin_firestore.SERVER_TIMESTAMP,
+                        "analysisError": {
+                            "message": "storagePrefix is required",
+                            "stack": "",
+                        },
+                        "updatedAt": admin_firestore.SERVER_TIMESTAMP,
+                    }
+                    doc_ref.set(error_payload, merge=True)
+                    resp = jsonify({"ok": False, "error": "storagePrefix is required"})
+                    return add_cors(resp), 400
+
+                running_update = {
+                    "analysisStatus": "running",
+                    "analysisStartedAt": admin_firestore.SERVER_TIMESTAMP,
+                    "analysisCompletedAt": admin_firestore.DELETE_FIELD,
                     "analysisUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
-                    "analysisCompletedAt": admin_firestore.SERVER_TIMESTAMP,
-                    "analysisError": {
-                        "message": "storagePrefix is required",
-                        "stack": "",
-                    },
+                    "analysisError": None,
                     "updatedAt": admin_firestore.SERVER_TIMESTAMP,
                 }
-                doc_ref.set(error_payload, merge=True)
-                resp = jsonify({"ok": False, "error": "storagePrefix is required"})
-                return add_cors(resp), 400
+                if patient_id:
+                    running_update["patientId"] = patient_id
+                if storage_prefix:
+                    running_update["storagePrefix"] = storage_prefix
+                doc_ref.set(running_update, merge=True)
 
-            running_update = {
-                "analysisStatus": "running",
-                "analysisStartedAt": admin_firestore.SERVER_TIMESTAMP,
-                "analysisCompletedAt": admin_firestore.DELETE_FIELD,
-                "analysisUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
-                "analysisError": None,
-                "updatedAt": admin_firestore.SERVER_TIMESTAMP,
-            }
-            if patient_id:
-                running_update["patientId"] = patient_id
-            if storage_prefix:
-                running_update["storagePrefix"] = storage_prefix
-            doc_ref.set(running_update, merge=True)
+                req_id = uuid.uuid4().hex[:8]
+                tmp_dir = Path("/tmp") / "aegis_ct" / f"{study_id}_{req_id}"
+                tmp_dir.mkdir(parents=True, exist_ok=True)
 
-            tmp_dir = Path(tempfile.gettempdir()) / "aegis_ct" / str(study_id)
-            if tmp_dir.exists():
-                shutil.rmtree(tmp_dir)
-            tmp_dir.mkdir(parents=True, exist_ok=True)
+                file_count = _download_all_dicoms(storage_prefix, tmp_dir)
+                if file_count == 0:
+                    raise RuntimeError("No DICOM files downloaded from storage.")
 
-            file_count = _download_all_dicoms(storage_prefix, tmp_dir)
-            if file_count == 0:
-                raise RuntimeError("No DICOM files downloaded from storage.")
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                model_device = next(CT_MODEL.parameters()).device
+                logger.info("[CT] inference start device=%s model=%s pid=%s", device, model_device, os.getpid())
+                if torch.cuda.is_available():
+                    CT_MODEL.to("cuda")
+                    logger.info("[CT] model moved to cuda device=%s", next(CT_MODEL.parameters()).device)
+                    try:
+                        _ = torch.ones(1, device="cuda") * 2
+                        logger.info("[CT] cuda smoke ok")
+                    except Exception as exc:  # noqa: BLE001
+                        logger.exception("[CT] cuda smoke failed: %s", exc)
+                else:
+                    logger.info("[CT] cuda not available; using cpu")
 
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            model_device = next(CT_MODEL.parameters()).device
-            logger.info("[CT] inference start device=%s model=%s pid=%s", device, model_device, os.getpid())
-            if torch.cuda.is_available():
-                CT_MODEL.to("cuda")
-                logger.info("[CT] model moved to cuda device=%s", next(CT_MODEL.parameters()).device)
-                try:
-                    _ = torch.ones(1, device="cuda") * 2
-                    logger.info("[CT] cuda smoke ok")
-                except Exception as exc:  # noqa: BLE001
-                    logger.exception("[CT] cuda smoke failed: %s", exc)
-            else:
-                logger.info("[CT] cuda not available; using cpu")
-
-            start_ts = time.perf_counter()
-            inference = infer_dicom_dir(
-                str(tmp_dir),
-                device=device,
-                model=CT_MODEL,
-                weights_path=str(CT_MODEL_PATH),
-            )
-            elapsed_ms = int((time.perf_counter() - start_ts) * 1000)
-            logger.info("[CT] inference end elapsedMs=%s", elapsed_ms)
-
-            risk_level = "unknown"
-            if isinstance(inference, dict):
-                risk_level = inference.get("label") or inference.get("riskLevel") or "unknown"
-            aggregate = inference.get("aggregate", {}) if isinstance(inference, dict) else {}
-            max_prob = aggregate.get("max_prob_malignant")
-            mean_prob = aggregate.get("mean_prob_malignant")
-            num_slices = aggregate.get("num_slices_scored")
-            summary_parts = []
-            if num_slices is not None:
-                summary_parts.append(f"{num_slices} slices scored")
-            if isinstance(max_prob, (int, float)):
-                summary_parts.append(f"max prob {max_prob:.3f}")
-            if isinstance(mean_prob, (int, float)):
-                summary_parts.append(f"mean prob {mean_prob:.3f}")
-            summary = " | ".join(summary_parts) if summary_parts else "CT inference completed."
-
-            nodules = []
-            if isinstance(inference, dict) and isinstance(inference.get("nodules"), list):
-                nodules = inference.get("nodules") or []
-            elif isinstance(inference, dict) and isinstance(inference.get("slice_scores"), list):
-                nodules = [
-                    {
-                        "location": item.get("file") or item.get("index"),
-                        "confidence": item.get("prob_malignant"),
-                        "index": item.get("index"),
-                    }
-                    for item in inference.get("slice_scores")
-                    if isinstance(item, dict)
-                ]
-
-            model_device_str = str(model_device)
-            analysis_result = {
-                "summary": summary,
-                "riskLevel": risk_level,
-                "nodules": nodules,
-                "noduleCount": len(nodules),
-                "elapsedMs": elapsed_ms,
-                "modelDevice": model_device_str,
-            }
-
-            analysis = {
-                "status": "done",
-                "updatedAt": admin_firestore.SERVER_TIMESTAMP,
-                "model": CT_MODEL_PATH.name,
-                "result": inference,
-                "fileCount": file_count,
-                "device": device,
-                "elapsedMs": elapsed_ms,
-            }
-            doc_ref.set(
-                {
-                    "analysis": analysis,
-                    "analysisStatus": "done",
-                    "analysisUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
-                    "analysisCompletedAt": admin_firestore.SERVER_TIMESTAMP,
-                    "analysisResult": analysis_result,
-                    "analysisError": None,
-                    "status": "analyzed",
-                    "updatedAt": admin_firestore.SERVER_TIMESTAMP,
-                    "fileCount": file_count,
-                },
-                merge=True,
-            )
-            try:
-                readback = doc_ref.get()
-                data = {}
-                has_result = False
-                if readback.exists:
-                    data = readback.to_dict() or {}
-                    has_result = "analysisResult" in data and data.get("analysisResult") not in (None, "")
-                logger.info(
-                    "[CT] firestore readback exists=%s keys=%s analysisResult=%s",
-                    readback.exists,
-                    sorted(list(data.keys())),
-                    has_result,
+                start_ts = time.perf_counter()
+                inference = infer_dicom_dir(
+                    str(tmp_dir),
+                    device=device,
+                    model=CT_MODEL,
+                    weights_path=str(CT_MODEL_PATH),
                 )
-            except Exception:  # noqa: BLE001
-                logger.exception("[CT] firestore readback failed")
+                elapsed_ms = int((time.perf_counter() - start_ts) * 1000)
+                logger.info("[CT] inference end elapsedMs=%s", elapsed_ms)
 
-            result = {
-                "ok": True,
-                "studyId": study_id,
-                "patientId": patient_id,
-                "storagePrefix": storage_prefix,
-                "analysisResult": analysis_result,
-                "analysis": inference,
-                "result": inference,
-                "device": device,
-                "elapsedMs": elapsed_ms,
-            }
-            logger.info("[CT] analyze ok elapsed=%.2fs", time.time() - t0)
-            return add_cors(jsonify(result)), 200
+                risk_level = "unknown"
+                if isinstance(inference, dict):
+                    risk_level = inference.get("label") or inference.get("riskLevel") or "unknown"
+                aggregate = inference.get("aggregate", {}) if isinstance(inference, dict) else {}
+                max_prob = aggregate.get("max_prob_malignant")
+                mean_prob = aggregate.get("mean_prob_malignant")
+                num_slices = aggregate.get("num_slices_scored")
+                summary_parts = []
+                if num_slices is not None:
+                    summary_parts.append(f"{num_slices} slices scored")
+                if isinstance(max_prob, (int, float)):
+                    summary_parts.append(f"max prob {max_prob:.3f}")
+                if isinstance(mean_prob, (int, float)):
+                    summary_parts.append(f"mean prob {mean_prob:.3f}")
+                summary = " | ".join(summary_parts) if summary_parts else "CT inference completed."
+
+                nodules = []
+                if isinstance(inference, dict) and isinstance(inference.get("nodules"), list):
+                    nodules = inference.get("nodules") or []
+                elif isinstance(inference, dict) and isinstance(inference.get("slice_scores"), list):
+                    nodules = [
+                        {
+                            "location": item.get("file") or item.get("index"),
+                            "confidence": item.get("prob_malignant"),
+                            "index": item.get("index"),
+                        }
+                        for item in inference.get("slice_scores")
+                        if isinstance(item, dict)
+                    ]
+
+                model_device_str = str(model_device)
+                analysis_result = {
+                    "summary": summary,
+                    "riskLevel": risk_level,
+                    "nodules": nodules,
+                    "noduleCount": len(nodules),
+                    "elapsedMs": elapsed_ms,
+                    "modelDevice": model_device_str,
+                }
+
+                analysis = {
+                    "status": "done",
+                    "updatedAt": admin_firestore.SERVER_TIMESTAMP,
+                    "model": Path(CT_MODEL_PATH).name if CT_MODEL_PATH else "",
+                    "result": inference,
+                    "fileCount": file_count,
+                    "device": device,
+                    "elapsedMs": elapsed_ms,
+                }
+                doc_ref.set(
+                    {
+                        "analysis": analysis,
+                        "analysisStatus": "done",
+                        "analysisUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
+                        "analysisCompletedAt": admin_firestore.SERVER_TIMESTAMP,
+                        "analysisResult": analysis_result,
+                        "analysisError": None,
+                        "status": "analyzed",
+                        "updatedAt": admin_firestore.SERVER_TIMESTAMP,
+                        "fileCount": file_count,
+                    },
+                    merge=True,
+                )
+                try:
+                    readback = doc_ref.get()
+                    data = {}
+                    has_result = False
+                    if readback.exists:
+                        data = readback.to_dict() or {}
+                        has_result = "analysisResult" in data and data.get("analysisResult") not in (None, "")
+                    logger.info(
+                        "[CT] firestore readback exists=%s keys=%s analysisResult=%s",
+                        readback.exists,
+                        sorted(list(data.keys())),
+                        has_result,
+                    )
+                except Exception:  # noqa: BLE001
+                    logger.exception("[CT] firestore readback failed")
+
+                result = {
+                    "ok": True,
+                    "studyId": study_id,
+                    "patientId": patient_id,
+                    "storagePrefix": storage_prefix,
+                    "analysisResult": analysis_result,
+                    "analysis": inference,
+                    "result": inference,
+                    "device": device,
+                    "elapsedMs": elapsed_ms,
+                }
+                logger.info("[CT] analyze ok elapsed=%.2fs", time.time() - t0)
+                return add_cors(jsonify(result)), 200
         except Exception as exc:  # noqa: BLE001
             tb = traceback.format_exc()
             logger.exception("[CT] analyze failed")
@@ -955,7 +1035,7 @@ def system_init() -> Flask:
                             "analysis": {
                                 "status": "error",
                                 "updatedAt": admin_firestore.SERVER_TIMESTAMP,
-                                "model": CT_MODEL_PATH.name,
+                                "model": Path(CT_MODEL_PATH).name if CT_MODEL_PATH else "",
                                 "error": str(exc),
                             },
                             "analysisStatus": "error",
@@ -1092,19 +1172,42 @@ def system_init() -> Flask:
                 headers=headers,
                 params=request.args,
             )
-            print(f"[screen proxy] -> {target_url} status={proxied.status_code}")
-            resp_headers = {"Content-Type": proxied.headers.get("Content-Type", "application/json")}
-            return Response(proxied.content, status=proxied.status_code, headers=resp_headers)
-        except requests.RequestException:
-            print(f"[screen proxy] -> {target_url} status=unreachable")
+        except requests.RequestException as exc:
+            logger.warning("[screen health] backend unreachable: %s", exc)
             return (
-                jsonify({
-                    "ok": False,
-                    "error": "screen backend unreachable",
-                    "target": target_url,
-                }),
-                502,
+                jsonify(
+                    {
+                        "ok": True,
+                        "screen_backend": "down",
+                        "error": str(exc),
+                    }
+                ),
+                200,
             )
+
+        if proxied.status_code >= 400:
+            logger.warning("[screen health] backend returned status=%s", proxied.status_code)
+            return (
+                jsonify(
+                    {
+                        "ok": True,
+                        "screen_backend": "down",
+                        "error": f"screen backend returned status {proxied.status_code}",
+                    }
+                ),
+                200,
+            )
+
+        return (
+            jsonify(
+                {
+                    "ok": True,
+                    "screen_backend": "up",
+                    "screen_url": SCREEN_BACKEND_URL,
+                }
+            ),
+            200,
+        )
 
     @app.route("/api/metagpt/agents_status", methods=["GET"])
     @require_firebase_auth()

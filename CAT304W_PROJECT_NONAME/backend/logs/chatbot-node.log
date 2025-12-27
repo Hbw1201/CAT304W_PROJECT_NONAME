@@ -4,3 +4,17 @@ Chatbot server listening on http://127.0.0.1:3000
 [req] POST /api/chat ct=application/json
 [req] /api/chat body=object {"messages":[{"role":"assistant","content":"Hi, I am **LungCare AI Assistant**. I can help with lung cancer screening questions and next steps.\n\n- What I can do: explain screening, CT findings, risk...
 [chat] prompt=What should I do after a CT scan?
+Chatbot server listening on http://127.0.0.1:3000
+[req] GET /health ct=
+[req] GET /health ct=
+[req] POST /api/chat ct=application/json
+[req] /api/chat body=object {"messages":[{"role":"assistant","content":"Hi, I am **LungCare AI Assistant**. I can help with lung cancer screening questions and next steps.\n\n- What I can do: explain screening, CT findings, risk...
+[chat] prompt=How is lung cancer detected?
+Chatbot server listening on http://127.0.0.1:3000
+[req] GET /health ct=
+[req] GET /health ct=
+[req] POST /api/chat ct=application/json
+[req] /api/chat body=object {"messages":[{"role":"assistant","content":"Hi, I am **LungCare AI Assistant**. I can help with lung cancer screening questions and next steps.\n\n- What I can do: explain screening, CT findings, risk...
+[chat] prompt=How is lung cancer detected?
+Chatbot server listening on http://127.0.0.1:3000
+[req] GET /health ct=

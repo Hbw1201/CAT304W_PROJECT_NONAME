@@ -143,11 +143,11 @@
 
       <section class="card">
         <div class="screening-embed">
-          <!-- Use SCREEN_BACKEND_URL default (http://127.0.0.1:5100/) per main.py/README. -->
-          <iframe id="screeningFrame" title="MAQ-SCREEN" src="http://127.0.0.1:5100/" loading="lazy" allow="microphone"></iframe>
+          <!-- Use SCREEN_BACKEND_URL default per main.py/README. -->
+          <iframe id="screeningFrame" title="MAQ-SCREEN" src="/screen_embedded" loading="lazy" allow="microphone"></iframe>
           <div id="screeningFallback" class="screening-fallback" style="display:none;">
             <h3>Screening service is not reachable</h3>
-            <p>Please make sure the screening backend is running at <b>http://127.0.0.1:5100</b>.</p>
+            <p>Please make sure the built-in screening service is running.</p>
           </div>
         </div>
       </section>
@@ -196,6 +196,46 @@
       frame.addEventListener("load", () => {
         window.clearTimeout(timeoutId);
         hideFallback();
+      });
+    })();
+  </script>
+  <script type="module">
+    import { auth } from "../firebase-config.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    (function () {
+      const frame = document.getElementById("screeningFrame");
+      if (!frame) return;
+
+      let currentUser = auth.currentUser;
+      let frameLoaded = false;
+      let refreshTimerId = null;
+
+      const postToken = async () => {
+        if (!currentUser || !frame.contentWindow) return;
+        const token = await currentUser.getIdToken(true);
+        frame.contentWindow.postMessage({ type: "AEGIS_TOKEN", token }, window.location.origin);
+      };
+
+      const startRefreshLoop = () => {
+        if (refreshTimerId) return;
+        refreshTimerId = window.setInterval(() => {
+          if (!currentUser) return;
+          postToken().catch(() => {});
+        }, 50 * 60 * 1000);
+      };
+
+      onAuthStateChanged(auth, (user) => {
+        currentUser = user;
+        if (frameLoaded && currentUser) {
+          postToken().catch(() => {});
+        }
+      });
+
+      frame.addEventListener("load", () => {
+        frameLoaded = true;
+        postToken().catch(() => {});
+        startRefreshLoop();
       });
     })();
   </script>

@@ -1,0 +1,101 @@
+@startuml
+title Aegis / MAQ-SCREEN - Screening to Report (Implementation-based)
+autonumber
+
+actor Patient
+participant "Patient Web UI" as UI
+participant "Aegis Backend (main.py)" as API
+participant "MAQ-SCREEN Service (screen/feiaiagent)" as SCREEN
+database "Firestore" as FS
+participant "Firebase Storage" as ST <<cloud>>
+actor Doctor
+participant "Doctor Web UI" as DUI
+
+Patient -> UI: Open /patient/screening.html
+UI -> API: GET /screen_embedded (iframe)
+API -> SCREEN: Proxy GET /
+SCREEN --> API: HTML + JS
+API --> UI: iframe content
+note over UI,SCREEN
+screening.html posts {type:"AEGIS_TOKEN", token} to iframe;
+screen UI sends Authorization: Bearer <token> via authFetch.
+end note
+
+Patient -> UI: Start MetaGPT questionnaire
+UI -> API: POST /api/screen/metagpt/start {session_id}
+API -> SCREEN: POST /metagpt/start
+SCREEN -> SCREEN: SimpleQuestionnaireManager.initialize_questionnaire
+SCREEN --> API: {session_id, question, step}
+API --> UI: first question
+
+loop Each question or answer
+  Patient -> UI: Provide answer
+  UI -> API: POST /api/screen/metagpt/next {session_id, answer}
+  API -> SCREEN: POST /metagpt/next
+  SCREEN -> SCREEN: manager.get_next_question(answer)
+  alt Questionnaire completed (done == true)
+    SCREEN -> SCREEN: generate_assessment_report (risk scoring)
+    alt riskLevel High
+      SCREEN -> SCREEN: include high-risk recommendations
+    else riskLevel Medium
+      SCREEN -> SCREEN: include medium-risk recommendations
+    else riskLevel Low
+      SCREEN -> SCREEN: include low-risk recommendations
+    end
+    SCREEN -> SCREEN: report_manager.save_report / save_report_json / save_report_pdf
+    SCREEN --> API: {done: true, report_id}
+    API --> UI: completion payload
+    UI -> Patient: Render assessment report in UI
+  else Next question
+    SCREEN --> API: {question, done: false}
+    API --> UI: next question
+    UI -> Patient: Display next question
+  end
+end
+
+opt Patient opens report.html (Firestore-backed report list)
+  Patient -> UI: Open /patient/report.html
+  UI -> FS: query reports | riskReports | screeningReports\nwhere patientId|uid|userId|ownerUid
+  FS --> UI: report docs (riskLevel, storagePath, contentText)
+  opt PDF preview available
+    UI -> ST: getDownloadURL reports/{reportId}.pdf
+    ST --> UI: signed URL
+    UI -> Patient: Render PDF preview / Download
+  end
+  opt Text-only report content
+    UI -> Patient: Render contentText
+  end
+end
+
+opt Appointment booking (patient)
+  Patient -> UI: Book appointment (appointment.html)
+  UI -> FS: addDoc appointments {patientId, doctorId, scheduledAt, status}
+  FS --> UI: appointment record
+  UI -> Patient: Show upcoming appointment
+end
+
+opt Doctor-patient chat (question.html)
+  Patient -> UI: Open question.html
+  UI -> FS: query chats where patientId == uid and doctorId == assigned
+  FS --> UI: chatId
+  UI -> FS: onSnapshot chats/{chatId}/messages
+  Patient -> UI: Send message
+  UI -> FS: addDoc chats/{chatId}/messages {senderRole:"patient", text}
+  FS --> UI: message snapshot
+  UI -> Patient: Render messages
+end
+
+opt CT analyze (doctor)
+  Doctor -> DUI: Open ct.html, select study
+  DUI -> FS: query ctStudies where doctorId == uid
+  FS --> DUI: ctStudies (storagePrefix, patientId)
+  DUI -> ST: listAll/getDownloadURL {storagePrefix}/*.dcm
+  ST --> DUI: DICOM URLs
+  DUI -> API: POST http://127.0.0.1:8001/api/ct/analyze {studyId, patientId, storagePrefix}
+  API -> ST: download DICOM by storagePrefix
+  API -> API: infer_dicom_dir -> analysisResult
+  API -> FS: update ctStudies/{studyId} analysisStatus/result
+  FS --> DUI: onSnapshot update
+end
+
+@enduml

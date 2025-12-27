@@ -10,6 +10,23 @@ let isLocalQuestionnaire = false;
 let isAgentMode = false;
 let isMetaGPTMode = false;
 let currentQuestionInfo = null;
+let __AEGIS_TOKEN = null;
+
+window.addEventListener("message", (event) => {
+  if (event.origin !== window.location.origin) return;
+  const data = event.data;
+  if (data && data.type === "AEGIS_TOKEN") {
+    __AEGIS_TOKEN = data.token;
+  }
+});
+
+function authFetch(url, options = {}) {
+  const headers = new Headers(options.headers || {});
+  if (__AEGIS_TOKEN) {
+    headers.set("Authorization", `Bearer ${__AEGIS_TOKEN}`);
+  }
+  return fetch(url, { ...options, headers });
+}
 
 const statusEl = document.getElementById("status");
 const qEl = document.getElementById("questionText");
@@ -619,7 +636,7 @@ async function startMetaGPTQuestionnaire() {
 
     sessionId = Date.now().toString();
 
-    const res = await fetch("/api/metagpt_agent/start_conversational", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({session_id: sessionId})});
+    const res = await authFetch("/api/screen/metagpt/start", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({session_id: sessionId})});
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
       throw new Error(errorData.error || `HTTP ${res.status}: ${res.statusText}`);
@@ -652,7 +669,7 @@ async function submitMetaGPTAnswer(text) {
     log(`提交回答(MetaGPT): "${text}"`);
     addToHistory('answer', text);
 
-    const res = await fetch("/api/metagpt_agent/reply_conversational", {
+    const res = await authFetch("/api/screen/metagpt/next", {
       method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({ session_id: sessionId, answer: text })

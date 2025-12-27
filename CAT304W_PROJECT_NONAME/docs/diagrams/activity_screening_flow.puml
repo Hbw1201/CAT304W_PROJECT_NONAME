@@ -1,0 +1,92 @@
+@startuml activity_screening_flow
+|Patient (Web UI)|
+start
+:Sign in (Firebase Auth) and open patient screening page;
+:Load embedded MAQ-SCREEN UI via /screen_embedded;
+
+|Backend / Agents|
+:Proxy /screen_embedded to screening backend (feiaiagent);
+:POST /api/screen/metagpt/start -> /metagpt/start;
+:Return session_id + first question;
+
+repeat
+  |Patient (Web UI)|
+  :Provide answer (text/voice);
+
+  |Backend / Agents|
+  :POST /api/screen/metagpt/next -> /metagpt/next;
+  if (Answer invalid?) then (Yes)
+    :Return error + repeat same question;
+  else (No)
+    :Store response in session;
+  endif
+repeat while (More questions?) is (Yes)
+
+|Backend / Agents|
+:Generate report text + PDF (report_manager.save_report);
+
+if (Upload report to Firestore? (if implemented)) then (Yes)
+  |Firestore / Storage|
+  :Upload reports/<reportId>.pdf to Storage;
+  :Write riskReports/<reportId> with riskLevel + contentText;
+
+  |Patient (Web UI)|
+  :Open report page (optional);
+
+  |Firestore / Storage|
+  :Query riskReports by patientId;
+  :Read Storage reports/<reportId>.pdf;
+endif
+
+|Patient (Web UI)|
+if (Risk level is Medium/High? (if implemented)) then (Yes)
+  :Show recommendation to book an appointment;
+endif
+:Report displayed to patient;
+
+if (Book appointment?) then (Yes)
+  :Open appointment page and select time;
+
+  |Firestore / Storage|
+  :Add appointments/<appointmentId> status=scheduled;
+
+  |Patient (Web UI)|
+  :See appointment in Upcoming list;
+endif
+
+if (Doctor runs CT analysis?) then (Yes)
+  |Doctor (Web UI)|
+  :Open CT page and select a study;
+
+  |Firestore / Storage|
+  :Read ctStudies metadata + Storage prefix;
+  :Read DICOM files under storagePrefix/*.dcm;
+
+  |Backend / Agents|
+  :POST /api/ct/analyze (studyId, storagePrefix);
+
+  |CT Analysis Service|
+  :Infer DICOM series and run analysis;
+
+  |Firestore / Storage|
+  :Update ctStudies/<studyId> with analysisStatus/result;
+endif
+
+if (Doctor-patient chat?) then (Yes)
+  |Patient (Web UI)|
+  :Open chat page;
+
+  |Firestore / Storage|
+  :Ensure chats/<chatId> exists (patientId+doctorId);
+  :Write chats/<chatId>/messages (patient);
+
+  |Doctor (Web UI)|
+  :Open doctor chat page and reply;
+
+  |Firestore / Storage|
+  :Write chats/<chatId>/messages (doctor);
+  :Update chats/<chatId> lastMessage/updatedAt;
+endif
+
+stop
+@enduml
