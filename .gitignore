@@ -1,0 +1,10 @@
+node_modules
+models/
+*.pt
+*.ckpt
+*.safetensors
+secrets/
+*.json
+serviceAccountKey.json
+
+# Environment variables

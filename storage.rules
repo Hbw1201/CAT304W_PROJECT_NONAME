@@ -1,0 +1,23 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // CT studies storage access model:
+    // - Doctors can read/write their assigned study objects.
+    match /ctStudies/{studyId}/{filePath=**} {
+      allow read, write: if request.auth != null
+        && get(/databases/$(database)/documents/ctStudies/$(studyId)).data.doctorId == request.auth.uid;
+    }
+
+    // Reports storage access model:
+    // - Patients can read only their own PDFs stored at reports/{patientId}/{reportId}.pdf
+    // - Client writes are disabled (server-side only).
+    match /reports/{patientId}/{fileName} {
+      allow read: if request.auth != null && request.auth.uid == patientId;
+      allow write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

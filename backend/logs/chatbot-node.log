@@ -1,0 +1,277 @@
+Chatbot server listening on http://127.0.0.1:3000
+[req] GET /health ct=
+[req] GET /health ct=
+[req] POST /api/chat ct=application/json
+[req] /api/chat body=object {"messages":[{"role":"assistant","content":"Hi, I am **LungCare AI Assistant**. I can help with lung cancer screening questions and next steps.\n\n- What I can do: explain screening, CT findings, risk...
+[chat] prompt=What should I do after a CT scan?
+Chatbot server listening on http://127.0.0.1:3000
+[req] GET /health ct=
+[req] GET /health ct=
+[req] POST /api/chat ct=application/json
+[req] /api/chat body=object {"messages":[{"role":"assistant","content":"Hi, I am **LungCare AI Assistant**. I can help with lung cancer screening questions and next steps.\n\n- What I can do: explain screening, CT findings, risk...
+[chat] prompt=How is lung cancer detected?
+Chatbot server listening on http://127.0.0.1:3000
+[req] GET /health ct=
+[req] GET /health ct=
+[req] POST /api/chat ct=application/json
+[req] /api/chat body=object {"messages":[{"role":"assistant","content":"Hi, I am **LungCare AI Assistant**. I can help with lung cancer screening questions and next steps.\n\n- What I can do: explain screening, CT findings, risk...
+[chat] prompt=How is lung cancer detected?
+Chatbot server listening on http://127.0.0.1:3000
+[req] GET /health ct=
+node:internal/modules/cjs/loader:1210
+  throw err;
+  ^
+
+Error: Cannot find module 'express'
+Require stack:
+- E:\医生端的UI\node\chatbot.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at Module._load (node:internal/modules/cjs/loader:1038:27)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (E:\医生端的UI\node\chatbot.js:5:17)
+    at Module._compile (node:internal/modules/cjs/loader:1521:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ 'E:\\医生端的UI\\node\\chatbot.js' ]
+}
+
+Node.js v20.19.6
+node:internal/modules/cjs/loader:1210
+  throw err;
+  ^
+
+Error: Cannot find module 'express'
+Require stack:
+- E:\医生端的UI\node\chatbot.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at Module._load (node:internal/modules/cjs/loader:1038:27)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (E:\医生端的UI\node\chatbot.js:5:17)
+    at Module._compile (node:internal/modules/cjs/loader:1521:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ 'E:\\医生端的UI\\node\\chatbot.js' ]
+}
+
+Node.js v20.19.6
+node:internal/modules/cjs/loader:1210
+  throw err;
+  ^
+
+Error: Cannot find module 'express'
+Require stack:
+- E:\医生端的UI\node\chatbot.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at Module._load (node:internal/modules/cjs/loader:1038:27)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (E:\医生端的UI\node\chatbot.js:5:17)
+    at Module._compile (node:internal/modules/cjs/loader:1521:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ 'E:\\医生端的UI\\node\\chatbot.js' ]
+}
+
+Node.js v20.19.6
+node:internal/modules/cjs/loader:1210
+  throw err;
+  ^
+
+Error: Cannot find module 'express'
+Require stack:
+- E:\医生端的UI\node\chatbot.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at Module._load (node:internal/modules/cjs/loader:1038:27)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (E:\医生端的UI\node\chatbot.js:5:17)
+    at Module._compile (node:internal/modules/cjs/loader:1521:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ 'E:\\医生端的UI\\node\\chatbot.js' ]
+}
+
+Node.js v20.19.6
+node:internal/modules/cjs/loader:1210
+  throw err;
+  ^
+
+Error: Cannot find module 'express'
+Require stack:
+- E:\医生端的UI\node\chatbot.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at Module._load (node:internal/modules/cjs/loader:1038:27)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (E:\医生端的UI\node\chatbot.js:5:17)
+    at Module._compile (node:internal/modules/cjs/loader:1521:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ 'E:\\医生端的UI\\node\\chatbot.js' ]
+}
+
+Node.js v20.19.6
+node:internal/modules/cjs/loader:1210
+  throw err;
+  ^
+
+Error: Cannot find module 'express'
+Require stack:
+- E:\医生端的UI\node\chatbot.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at Module._load (node:internal/modules/cjs/loader:1038:27)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (E:\医生端的UI\node\chatbot.js:5:17)
+    at Module._compile (node:internal/modules/cjs/loader:1521:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ 'E:\\医生端的UI\\node\\chatbot.js' ]
+}
+
+Node.js v20.19.6
+node:internal/modules/cjs/loader:1210
+  throw err;
+  ^
+
+Error: Cannot find module 'express'
+Require stack:
+- E:\医生端的UI\node\chatbot.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at Module._load (node:internal/modules/cjs/loader:1038:27)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (E:\医生端的UI\node\chatbot.js:5:17)
+    at Module._compile (node:internal/modules/cjs/loader:1521:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ 'E:\\医生端的UI\\node\\chatbot.js' ]
+}
+
+Node.js v20.19.6
+node:internal/modules/cjs/loader:1210
+  throw err;
+  ^
+
+Error: Cannot find module 'express'
+Require stack:
+- E:\医生端的UI\node\chatbot.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at Module._load (node:internal/modules/cjs/loader:1038:27)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (E:\医生端的UI\node\chatbot.js:5:17)
+    at Module._compile (node:internal/modules/cjs/loader:1521:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ 'E:\\医生端的UI\\node\\chatbot.js' ]
+}
+
+Node.js v20.19.6
+node:internal/modules/cjs/loader:1210
+  throw err;
+  ^
+
+Error: Cannot find module 'express'
+Require stack:
+- E:\医生端的UI\node\chatbot.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at Module._load (node:internal/modules/cjs/loader:1038:27)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (E:\医生端的UI\node\chatbot.js:5:17)
+    at Module._compile (node:internal/modules/cjs/loader:1521:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ 'E:\\医生端的UI\\node\\chatbot.js' ]
+}
+
+Node.js v20.19.6
+node:internal/modules/cjs/loader:1210
+  throw err;
+  ^
+
+Error: Cannot find module 'express'
+Require stack:
+- E:\医生端的UI\node\chatbot.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at Module._load (node:internal/modules/cjs/loader:1038:27)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (E:\医生端的UI\node\chatbot.js:5:17)
+    at Module._compile (node:internal/modules/cjs/loader:1521:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ 'E:\\医生端的UI\\node\\chatbot.js' ]
+}
+
+Node.js v20.19.6
+node:internal/modules/cjs/loader:1210
+  throw err;
+  ^
+
+Error: Cannot find module 'firebase-admin'
+Require stack:
+- E:\医生端的UI\node\chatbot.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at Module._load (node:internal/modules/cjs/loader:1038:27)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (E:\医生端的UI\node\chatbot.js:7:15)
+    at Module._compile (node:internal/modules/cjs/loader:1521:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ 'E:\\医生端的UI\\node\\chatbot.js' ]
+}
+
+Node.js v20.19.6
+[maq_chat] listening on http://127.0.0.1:3000
+[maq_chat] listening on http://127.0.0.1:3000
+[maq_chat] listening on http://127.0.0.1:3000
+[maq_chat] listening on http://127.0.0.1:3000
+[maq_chat] listening on http://127.0.0.1:3000
+### MAQ_CHAT BOT VERSION ### 2025-12-28T08:46:46.149Z E:\医生端的UI\node\chatbot.js
+[maq_chat] fetch type: function
+[maq_chat] DASHSCOPE_API_KEY set: false
+[maq_chat] model: qwen-plus
+[maq_chat] listening on http://127.0.0.1:3000
+### MAQ_CHAT BOT VERSION ### 2025-12-28T08:48:26.072Z E:\医生端的UI\node\chatbot.js
+[maq_chat] fetch type: function
+[maq_chat] DASHSCOPE_API_KEY set: true
+[maq_chat] model: qwen-plus
+[maq_chat] listening on http://127.0.0.1:3000

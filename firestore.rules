@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function chatDoc(chatId) {
+      return get(/databases/$(database)/documents/chats/$(chatId));
+    }
+
+    function isChatMember(chatId) {
+      return isSignedIn()
+        && (request.auth.uid == chatDoc(chatId).data.doctorId
+          || request.auth.uid == chatDoc(chatId).data.patientId);
+    }
+
+    function isDoctor(chatId) {
+      return isChatMember(chatId)
+        && request.auth.uid == chatDoc(chatId).data.doctorId;
+    }
+
+    function isPatient(chatId) {
+      return isChatMember(chatId)
+        && request.auth.uid == chatDoc(chatId).data.patientId;
+    }
+
+    function onlyChangesKeys(allowedKeys) {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly(allowedKeys);
+    }
+
+    // Reports access model:
+    // - Patients can read their own reports.
+    // - Doctors can read assigned patient reports (doctorId match or doctorPatients link).
+    // - Client writes are disabled; reports are written server-side.
+    function isReportOwner() {
+      return isSignedIn() && resource.data.patientId == request.auth.uid;
+    }
+
+    function isReportDoctor() {
+      return isSignedIn() && resource.data.doctorId == request.auth.uid;
+    }
+
+    function hasDoctorPatientLink() {
+      return isSignedIn()
+        && resource.data.patientId != null
+        && get(/databases/$(database)/documents/doctorPatients/$(request.auth.uid + "_" + resource.data.patientId)).data.status == "active";
+    }
+
+    match /reports/{reportId} {
+      allow read: if isReportOwner() || isReportDoctor() || hasDoctorPatientLink();
+      allow create, update, delete: if false;
+    }
+
+    match /chats/{chatId} {
+      allow read: if isChatMember(chatId);
+      allow create: if false;
+      allow delete: if false;
+      allow update: if (isDoctor(chatId) && onlyChangesKeys(['lastReadAtDoctor']))
+        || (isPatient(chatId) && onlyChangesKeys(['lastReadAtPatient']));
+    }
+
+    match /chats/{chatId}/messages/{msgId} {
+      allow read: if isChatMember(chatId);
+      allow create: if isSignedIn()
+        && request.resource.data.senderId == request.auth.uid
+        && (request.auth.uid == chatDoc(chatId).data.doctorId
+          || request.auth.uid == chatDoc(chatId).data.patientId);
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}
