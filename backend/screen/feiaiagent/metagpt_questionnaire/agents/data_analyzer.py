@@ -6,9 +6,13 @@
 
 import logging
 import json
+import os
+import inspect
+import traceback
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 from collections import defaultdict, Counter
+from types import SimpleNamespace
 
 from .base_agent import BaseAgent, register_agent
 from ..models.questionnaire import UserResponse, Question, Questionnaire
@@ -44,8 +48,21 @@ class DataAnalyzerAgent(BaseAgent):
                           analysis_type: str = 'comprehensive') -> Dict[str, Any]:
         """分析问卷数据"""
         logger.info(f"📊 {self.name} 开始数据分析，回答数量: {len(responses)}")
+        if os.getenv("SCREENING_DEBUG") == "1":
+            print("[debug][analyzer] responses len:", len(responses))
+            if responses:
+                r0 = responses[0]
+                print("[debug][analyzer] first response class:", r0.__class__)
+                print("[debug][analyzer] first response module:", r0.__class__.__module__)
+                try:
+                    print("[debug][analyzer] source:", inspect.getsourcefile(r0.__class__))
+                except Exception as _e:
+                    print("[debug][analyzer] source: <unknown>", repr(_e))
+                print("[debug][analyzer] has confidence?:", hasattr(r0, "confidence"))
+                print("[debug][analyzer] dict keys:", list(getattr(r0, "__dict__", {}).keys()))
         
         try:
+            responses = self._normalize_responses(responses)
             # 基础统计分析
             basic_stats = self._analyze_basic_statistics(responses)
             
@@ -83,7 +100,44 @@ class DataAnalyzerAgent(BaseAgent):
             
         except Exception as e:
             logger.error(f"❌ {self.name} 数据分析失败: {e}")
+            logger.error(traceback.format_exc())
             return self._create_error_analysis_result(str(e))
+
+    def _safe_to_dict(self, response: Any) -> Dict[str, Any]:
+        """Safely coerce a response object to dict."""
+        if hasattr(response, "to_dict") and callable(getattr(response, "to_dict", None)):
+            try:
+                return response.to_dict()
+            except Exception:
+                pass
+        if isinstance(response, dict):
+            return response
+        return {
+            "question_id": getattr(response, "question_id", None)
+            or getattr(response, "id", None)
+            or getattr(response, "key", None),
+            "answer": getattr(response, "answer", None) or getattr(response, "value", None),
+            "confidence": getattr(response, "confidence", None)
+            or getattr(response, "score", None)
+            or getattr(response, "prob", None),
+        }
+
+    def _normalize_responses(self, responses: List[Any]) -> List[Any]:
+        normalized: List[Any] = []
+        for response in responses:
+            if hasattr(response, "question_id") and hasattr(response, "answer"):
+                normalized.append(response)
+                continue
+            payload = self._safe_to_dict(response)
+            normalized.append(
+                SimpleNamespace(
+                    question_id=payload.get("question_id"),
+                    answer=payload.get("answer"),
+                    confidence=payload.get("confidence"),
+                    timestamp=payload.get("timestamp"),
+                )
+            )
+        return normalized
     
     def _analyze_basic_statistics(self, responses: List[UserResponse]) -> Dict[str, Any]:
         """基础统计分析"""
@@ -188,8 +242,16 @@ class DataAnalyzerAgent(BaseAgent):
                 patterns["response_lengths"].append(len(response.answer))
             
             # 分析置信度
-            if response.confidence is not None:
-                patterns["confidence_scores"].append(response.confidence)
+            try:
+                confidence = self._safe_confidence(response)
+                if confidence is not None:
+                    patterns["confidence_scores"].append(confidence)
+            except Exception as e:
+                logger.warning(
+                    "Failed to resolve response confidence question_id=%s error=%s",
+                    getattr(response, "question_id", ""),
+                    e,
+                )
         
         # 计算统计信息
         if patterns["response_lengths"]:
@@ -202,7 +264,17 @@ class DataAnalyzerAgent(BaseAgent):
             patterns["confidence_range"] = (min(patterns["confidence_scores"]), max(patterns["confidence_scores"]))
         
         return patterns
-    
+
+    def _safe_confidence(self, response: Any) -> float:
+        """Safely resolve confidence for legacy UserResponse shapes."""
+        conf = getattr(response, "confidence", None)
+        if conf is None:
+            conf = getattr(response, "score", None) or getattr(response, "prob", None)
+        try:
+            return float(conf) if conf is not None else 0.5
+        except Exception:
+            return 0.5
+
     def _find_common_answers(self, responses: List[UserResponse]) -> List[Dict[str, Any]]:
         """查找常见答案"""
         answer_counter = Counter()
@@ -227,7 +299,7 @@ class DataAnalyzerAgent(BaseAgent):
         logger.info(f"🔍 {self.name} 开始模式识别")
         
         try:
-            response_payload = [r.to_dict() for r in responses]
+            response_payload = [self._safe_to_dict(r) for r in responses]
             prompt = f"""You must respond in English only.
 Do not output Chinese characters.
 
@@ -423,7 +495,7 @@ Provide:
         
         try:
             q_dict = questionnaire.to_dict() if hasattr(questionnaire, "to_dict") else (questionnaire or {})
-            response_payload = [r.to_dict() for r in responses]
+            response_payload = [self._safe_to_dict(r) for r in responses]
             prompt = f"""You must respond in English only.
 Do not output Chinese characters.
 

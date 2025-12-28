@@ -4,6 +4,8 @@ Simplified intelligent questionnaire manager for MetaGPT conversational flows.
 """
 
 import logging
+import os
+import inspect
 import re
 from typing import Dict, Any, List, Optional, Tuple, Set
 from datetime import datetime
@@ -414,6 +416,24 @@ class SimpleQuestionnaireManager:
                 )
         return normalized
 
+    def _safe_to_dict(self, response: Any) -> Dict[str, Any]:
+        if hasattr(response, "to_dict") and callable(getattr(response, "to_dict", None)):
+            try:
+                return response.to_dict()
+            except Exception:
+                pass
+        if isinstance(response, dict):
+            return response
+        return {
+            "question_id": getattr(response, "question_id", None)
+            or getattr(response, "id", None)
+            or getattr(response, "key", None),
+            "answer": getattr(response, "answer", None) or getattr(response, "value", None),
+            "confidence": getattr(response, "confidence", None)
+            or getattr(response, "score", None)
+            or getattr(response, "prob", None),
+        }
+
     def _infer_additional_facts(self, history: List[UserResponse]) -> Dict[str, Any]:
         """Use the conversational agent to infer structured facts from history."""
         if not self.conversational_agent or not hasattr(self.conversational_agent, "_infer_facts_from_history"):
@@ -703,8 +723,21 @@ class SimpleQuestionnaireManager:
 
             if self.data_analyzer:
                 try:
+                    normalized_responses = [self._safe_to_dict(r) for r in self.answered_questions]
+                    if os.getenv("SCREENING_DEBUG") == "1":
+                        print("[debug] answered_questions type:", type(self.answered_questions))
+                        if self.answered_questions:
+                            r0 = self.answered_questions[0]
+                            print("[debug] first response class:", r0.__class__)
+                            print("[debug] first response module:", r0.__class__.__module__)
+                            try:
+                                print("[debug] first response source:", inspect.getsourcefile(r0.__class__))
+                            except Exception as _e:
+                                print("[debug] first response source: <unknown>", repr(_e))
+                            print("[debug] first response dir has confidence?:", "confidence" in dir(r0))
+                            print("[debug] first response dict keys:", list(getattr(r0, "__dict__", {}).keys()))
                     data_analysis = await self.data_analyzer.process({
-                        "responses": self.answered_questions,
+                        "responses": normalized_responses,
                         "questionnaire": self.questionnaire,
                         "analysis_type": "conversational"
                     })
@@ -716,8 +749,9 @@ class SimpleQuestionnaireManager:
 
             if self.risk_assessor:
                 try:
+                    normalized_responses = [self._safe_to_dict(r) for r in self.answered_questions]
                     risk_assessment = await self.risk_assessor.process({
-                        "responses": self.answered_questions,
+                        "responses": normalized_responses,
                         "questionnaire": self.questionnaire,
                         "user_profile": {"session_id": "metagpt_conversational"}
                     })

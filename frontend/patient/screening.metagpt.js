@@ -1,4 +1,4 @@
-import { fetchWithAuth, debugLog } from "./screening_auth.js";
+import { fetchWithAuth, debugLog, readJsonWithRequestId } from "./screening_auth.js";
 
 const ui = window.screeningUI || {};
 const META_TOTAL = 10;
@@ -29,6 +29,52 @@ function pickTtsUrl(data) {
   );
 }
 
+function isNeedsClarification(data) {
+  return (
+    data?.type === "needs_clarification" ||
+    data?.invalid_answer === true ||
+    data?.error === "invalid_answer"
+  );
+}
+
+function isNeedsRestart(data) {
+  return data?.type === "needs_restart";
+}
+
+function isRepeatQuestion(data) {
+  return data?.type === "repeat_question";
+}
+
+function buildClarificationMessage(data) {
+  const fallback = "Please provide a more specific answer.";
+  const assistantText =
+    data?.assistant?.text ||
+    data?.message ||
+    data?.hint ||
+    (data?.error && data?.error !== "invalid_answer" ? data.error : "") ||
+    "";
+  const assistantQuestion = data?.assistant?.question || data?.question || "";
+  let combined = assistantText;
+  if (assistantQuestion && assistantQuestion !== assistantText) {
+    combined = combined ? `${assistantText} ${assistantQuestion}` : assistantQuestion;
+  }
+  if (!combined) {
+    combined = fallback;
+  }
+  return { text: assistantText || combined, question: assistantQuestion, combined };
+}
+
+function appendClarificationMessage(data) {
+  const clarification = buildClarificationMessage(data);
+  const ttsUrl = pickTtsUrl(data);
+  if (clarification.text) {
+    ui.appendAIMessage?.(clarification.text, { ttsUrl });
+  }
+  if (clarification.question && clarification.question !== clarification.text) {
+    ui.appendAIMessage?.(clarification.question, { ttsUrl });
+  }
+}
+
 async function requestJson(path, payload) {
   let resp;
   try {
@@ -47,18 +93,14 @@ async function requestJson(path, payload) {
     authError.authExpired = true;
     throw authError;
   }
-  let data = {};
-  try {
-    data = await resp.json();
-  } catch {
-    data = {};
-  }
+  const { data, requestId } = await readJsonWithRequestId(resp);
   if (!resp.ok || data?.ok === false) {
     const msg =
       data?.message || data?.error || `Request failed (HTTP ${resp.status})`;
     const error = new Error(msg);
     error.status = resp.status;
     error.data = data;
+    error.requestId = requestId;
     error.url = path;
     throw error;
   }
@@ -119,12 +161,30 @@ function updateUploadStatus(status, data = {}) {
 
 async function resolveNext(payload) {
   let data = await requestJson("/api/screen/metagpt/next", payload);
+  if (isNeedsRestart(data)) {
+    return { data, needsRestart: true };
+  }
+  if (isRepeatQuestion(data)) {
+    return { data, repeatQuestion: true };
+  }
+  if (isNeedsClarification(data)) {
+    return { data, needsClarification: true };
+  }
   let question = pickQuestion(data);
   const doneFlag = Boolean(data?.done || data?.finished || data?.end);
   if (!doneFlag && (!question || !String(question).trim()) && emptyQuestionRetries < 1) {
     emptyQuestionRetries += 1;
     ui.setStatus?.("Processing", "No question returned, retrying...");
     data = await requestJson("/api/screen/metagpt/next", payload);
+    if (isNeedsRestart(data)) {
+      return { data, needsRestart: true };
+    }
+    if (isRepeatQuestion(data)) {
+      return { data, repeatQuestion: true };
+    }
+    if (isNeedsClarification(data)) {
+      return { data, needsClarification: true };
+    }
     question = pickQuestion(data);
   }
   const isDone =
@@ -136,7 +196,14 @@ async function resolveNext(payload) {
     updateUploadStatus("success", data);
   }
 
-  return { data, question, isDone };
+  return {
+    data,
+    question,
+    isDone,
+    needsClarification: false,
+    needsRestart: false,
+    repeatQuestion: false,
+  };
 }
 
 async function startMetagptSession() {
@@ -202,7 +269,31 @@ async function submitAnswer(answer) {
       step: metagptStep,
     };
     ui.recordAnswer?.(ui.getCurrentQuestion?.() || "", trimmed, "metagpt");
-    const { data, question, isDone } = await resolveNext(payload);
+    const { data, question, isDone, needsClarification, needsRestart, repeatQuestion } =
+      await resolveNext(payload);
+    if (needsRestart) {
+      const restartText =
+        data?.assistant?.text ||
+        "Session expired. Please start screening again.";
+      ui.appendSystemMessage?.(restartText);
+      await startMetagptSession();
+      return;
+    }
+    if (repeatQuestion) {
+      const repeatText = data?.assistant?.text || data?.question || "Please answer the current question.";
+      ui.appendAIMessage?.(repeatText, { ttsUrl: pickTtsUrl(data) });
+      ui.resetAnswer?.();
+      ui.setReadyToGenerate?.(false);
+      ui.setStatus?.("Idle", "Repeating the previous question");
+      return;
+    }
+    if (needsClarification) {
+      appendClarificationMessage(data);
+      ui.resetAnswer?.();
+      ui.setReadyToGenerate?.(false);
+      ui.setStatus?.("Idle", "Awaiting a more specific answer");
+      return;
+    }
     if (isDone) {
       updateUploadStatus("generating");
       ui.appendSystemMessage?.("All questions completed. Preparing your report...");
@@ -226,6 +317,24 @@ async function submitAnswer(answer) {
     if (err?.authExpired || err?.status === 401 || err?.status === 403) {
       return;
     }
+    if (isNeedsClarification(err?.data)) {
+      appendClarificationMessage(err.data);
+      ui.resetAnswer?.();
+      ui.setReadyToGenerate?.(false);
+      ui.setStatus?.("Idle", "Awaiting a more specific answer");
+      return;
+    }
+    if (isRepeatQuestion(err?.data)) {
+      const repeatText =
+        err?.data?.assistant?.text ||
+        err?.data?.question ||
+        "Please answer the current question.";
+      ui.appendAIMessage?.(repeatText, { ttsUrl: pickTtsUrl(err?.data) });
+      ui.resetAnswer?.();
+      ui.setReadyToGenerate?.(false);
+      ui.setStatus?.("Idle", "Repeating the previous question");
+      return;
+    }
     const answers = ui.getAnswers?.() || [];
     const errorDetail = err?.data?.detail || err?.message || "";
     const isTimeout = /timed out/i.test(errorDetail);
@@ -237,10 +346,20 @@ async function submitAnswer(answer) {
       markReady("All questions completed. Ready to generate report.");
       return;
     }
-    const status = err?.status ? `HTTP ${err.status}` : "Network error";
+    const statusCode = err?.status || 0;
+    const status = statusCode ? `HTTP ${statusCode}` : "Network error";
     const url = err?.url || "/api/screen/metagpt/next";
-    const detail = err?.data?.message || err?.data?.error || err.message || "Failed to submit answer.";
-    const message = `${detail} (${status}, ${url})`;
+    const requestId = err?.data?.request_id || err?.requestId || "";
+    const detail =
+      err?.data?.message ||
+      err?.data?.error ||
+      err.message ||
+      "Failed to submit answer.";
+    const serverMessage =
+      statusCode >= 500
+        ? `Server error (${statusCode}). request_id=${requestId || "unknown"}. Check backend logs.`
+        : detail;
+    const message = `${serverMessage} (${status}, ${url})`;
     const hint = err?.data?.hint || err?.data?.question || "";
     if (hint) {
       ui.appendAIMessage?.(hint, { ttsUrl: pickTtsUrl(err?.data) });

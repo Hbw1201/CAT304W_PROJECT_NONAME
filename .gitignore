@@ -8,3 +8,21 @@ secrets/
 serviceAccountKey.json
 
 # Environment variables
+.env
+.env.*
+
+# Logs and runtime artifacts
+*.log
+run.log
+backend/logs/*.log
+backend/logs/chatbot-node.log
+
+# Generated reports (keep directory, ignore files)
+backend/screen/feiaiagent/report/*
+!backend/screen/feiaiagent/report/.keep
+backend/screen/feiaiagent/report/**/*.html
+backend/screen/feiaiagent/report/**/*.pdf
+backend/screen/feiaiagent/report/**/*.json
+backend/screen/feiaiagent/report/**/*.txt
+backend/report/**
+report/**

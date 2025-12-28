@@ -675,12 +675,41 @@ async function submitMetaGPTAnswer(text) {
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({ session_id: sessionId, answer: text })
     });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+    const data = await res.json().catch(() => ({}));
+    const needsClarification =
+      data?.type === "needs_clarification" ||
+      data?.invalid_answer === true ||
+      data?.error === "invalid_answer";
+    if ((!res.ok && !needsClarification) || data?.type === "bad_request") {
+      throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
     }
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
+    if (data.error && !needsClarification) throw new Error(data.error);
+
+    if (needsClarification) {
+      sessionId = data.session_id || sessionId;
+      const assistantText =
+        data?.assistant?.text ||
+        data?.message ||
+        data?.hint ||
+        (data?.error && data?.error !== "invalid_answer" ? data.error : "") ||
+        "Please provide a more specific answer.";
+      const assistantQuestion = data?.assistant?.question || data?.question || "";
+      let combined = assistantText;
+      if (assistantQuestion && assistantQuestion !== assistantText) {
+        combined = assistantText ? `${assistantText} ${assistantQuestion}` : assistantQuestion;
+      }
+      if (!combined) combined = "Please provide a more specific answer.";
+      qEl.textContent = combined;
+      addToHistory('warning', `Answer unclear: ${data?.state?.reason || data?.invalid_reason || data?.message || 'Not specific / unrecognized'}`);
+      addToHistory('question', `[MetaGPT] ${combined}`);
+      statusEl.textContent = "Status: Clarification needed, waiting for your answer";
+      speakTextWithFallback(combined, {
+        prefix: "metagpt-question",
+        label: "Answer unclear; replaying question...",
+        autoRecord: true
+      });
+      return;
+    }
 
     sessionId = data.session_id;
     const question = data.question || "(none)";

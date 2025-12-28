@@ -722,7 +722,7 @@
       }
     }
 
-    async function ensurePdf(reportId, statusEl, viewBtn, downloadBtn, pdfPath, pdfUrl, hasText) {
+    async function ensurePdf(reportId, statusEl, viewBtn, downloadBtn, pdfPath, pdfUrl, downloadUrlLocal, hasText) {
       if (!reportId) {
         if (statusEl) statusEl.textContent = "Missing reportId";
         if (viewBtn) viewBtn.disabled = true;
@@ -754,7 +754,14 @@
       if (viewBtn) viewBtn.disabled = true;
       if (downloadBtn) downloadBtn.disabled = true;
 
-      let url = pdfUrl || null;
+      let url = downloadUrlLocal || pdfUrl || null;
+      if (downloadUrlLocal) {
+        state.pdfCache.set(reportId, url);
+        if (statusEl) statusEl.textContent = "";
+        if (viewBtn) viewBtn.disabled = false;
+        if (downloadBtn) downloadBtn.disabled = false;
+        return url;
+      }
       if (!url) {
         const defaultPath = state.patientId
           ? `reports/${state.patientId}/${reportId}.pdf`
@@ -830,6 +837,7 @@
         downloadBtn,
         report.pdfPath || report.storagePath,
         report.pdfUrl || report.downloadUrl,
+        report.downloadUrlLocal,
         Boolean(report.contentText)
       );
       state.selectedId = reportId;
@@ -861,6 +869,7 @@
         downloadBtn,
         report.pdfPath || report.storagePath,
         report.pdfUrl || report.downloadUrl,
+        report.downloadUrlLocal,
         Boolean(report.contentText)
       );
       if (!url) return;
@@ -937,6 +946,7 @@
             downloadBtn,
             report.pdfPath || report.storagePath,
             report.pdfUrl || report.downloadUrl,
+            report.downloadUrlLocal,
             Boolean(report.contentText)
           );
         } else {

@@ -146,12 +146,34 @@ class RiskAssessorAgent(BaseAgent):
             logger.error(f"❌ {self.name} 风险评估失败: {e}")
             # 返回默认评估结果
             return self._create_default_assessment(user_profile)
+
+    def _safe_to_dict(self, response: Any) -> Dict[str, Any]:
+        if hasattr(response, "to_dict") and callable(getattr(response, "to_dict", None)):
+            try:
+                return response.to_dict()
+            except Exception:
+                pass
+        if isinstance(response, dict):
+            return response
+        return {
+            "question_id": getattr(response, "question_id", None)
+            or getattr(response, "id", None)
+            or getattr(response, "key", None),
+            "answer": getattr(response, "answer", None) or getattr(response, "value", None),
+            "confidence": getattr(response, "confidence", None)
+            or getattr(response, "score", None)
+            or getattr(response, "prob", None),
+        }
     
     def _parse_responses(self, responses: List[UserResponse]) -> Dict[str, Any]:
         """解析用户回答"""
         parsed = {}
         for response in responses:
-            parsed[response.question_id] = response.answer
+            payload = self._safe_to_dict(response)
+            question_id = payload.get("question_id")
+            if not question_id:
+                continue
+            parsed[question_id] = payload.get("answer")
         return parsed
     
     def _calculate_risk_score(self, responses: Dict[str, Any]) -> Tuple[float, List[Dict[str, Any]]]:

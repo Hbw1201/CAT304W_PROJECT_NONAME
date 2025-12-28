@@ -39,7 +39,41 @@ class UserResponse:
     question_id: str
     answer: str
     timestamp: float
-    confidence: float = 1.0  # 回答可信度
+    confidence: Optional[float] = None  # 回答可信度
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary without raising exceptions."""
+        try:
+            data: Dict[str, Any] = {
+                "question_id": getattr(self, "question_id", None)
+                or getattr(self, "id", None)
+                or getattr(self, "key", None),
+                "answer": getattr(self, "answer", None) or getattr(self, "value", None),
+                "confidence": getattr(self, "confidence", None)
+                or getattr(self, "score", None)
+                or getattr(self, "prob", None),
+            }
+            for key in ("category", "timestamp", "source", "raw", "notes", "reasoning"):
+                if hasattr(self, key):
+                    data[key] = getattr(self, key)
+            return data
+        except Exception:
+            return {"question_id": None, "answer": None, "confidence": None}
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary without raising exceptions."""
+        try:
+            return {
+                "question_id": getattr(self, "question_id", None)
+                or getattr(self, "id", None)
+                or getattr(self, "key", None),
+                "answer": getattr(self, "answer", None) or getattr(self, "value", None),
+                "confidence": getattr(self, "confidence", None)
+                or getattr(self, "score", None)
+                or getattr(self, "prob", None),
+            }
+        except Exception:
+            return {"question_id": None, "answer": None, "confidence": None}
 
 class IntelligentQuestionnaireManager:
     """智能动态问卷管理器"""

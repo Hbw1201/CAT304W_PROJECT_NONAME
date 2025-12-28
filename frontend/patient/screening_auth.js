@@ -78,3 +78,26 @@ export async function fetchWithAuth(url, options = {}) {
 
   return response;
 }
+
+export async function readJsonWithRequestId(response) {
+  let data = {};
+  try {
+    data = await response.json();
+  } catch {
+    data = {};
+  }
+  const headerRequestId = response.headers.get("X-Request-Id");
+  if (
+    headerRequestId &&
+    data &&
+    typeof data === "object" &&
+    !Array.isArray(data) &&
+    !data.request_id
+  ) {
+    data.request_id = headerRequestId;
+  }
+  return {
+    data,
+    requestId: data?.request_id || headerRequestId || "",
+  };
+}

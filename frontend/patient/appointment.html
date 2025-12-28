@@ -198,7 +198,10 @@ Test steps:
                   <div>
                     <p class="eyebrow">Assigned doctor</p>
                     <p class="doctor-name" id="doctorName">Loading...</p>
-                    <p class="label" id="doctorHospital"></p>
+                    <div class="clinic-name-line">
+                      <p class="label" id="doctorHospital"></p>
+                      <button id="btnClinicMap" class="map-btn" type="button" style="display:none;">View on Map</button>
+                    </div>
                   </div>
                   <span class="pill plain" id="doctorSpecialty">Specialty</span>
                 </div>
@@ -490,6 +493,34 @@ Test steps:
       margin: 4px 0;
       color: #0f172a;
     }
+    .clinic-name-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .map-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid #cbd5f5;
+      background: #eef2ff;
+      color: #3730a3;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .map-btn:hover {
+      border-color: #818cf8;
+      background: #e0e7ff;
+    }
+    .map-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
     .doctor-meta {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -630,6 +661,7 @@ Test steps:
       historyEmpty: document.getElementById("historyEmpty"),
       doctorName: document.getElementById("doctorName"),
       doctorHospital: document.getElementById("doctorHospital"),
+      clinicMapBtn: document.getElementById("btnClinicMap"),
       doctorSpecialty: document.getElementById("doctorSpecialty"),
       doctorEmail: document.getElementById("doctorEmail"),
       doctorPhone: document.getElementById("doctorPhone"),
@@ -681,6 +713,7 @@ Test steps:
         id: doctorId,
         name: doctorData.fullName || doctorData.name || "Doctor",
         hospital: doctorData.hospital || doctorData.hospital_name || doctorData.organization || "",
+        clinicAddress: doctorData.clinicAddress || doctorData.address || "",
         specialty: doctorData.specialty || "",
         contactEmail: doctorData.contactEmail || doctorData.email || "-",
         contactPhone: doctorData.contactPhone || doctorData.phone || "-",
@@ -792,6 +825,30 @@ Test steps:
 
       if (ui.doctorName) ui.doctorName.textContent = profile.name || (hasDoctor ? "Doctor" : "No doctor");
       if (ui.doctorHospital) ui.doctorHospital.textContent = profile.hospital || "";
+      if (ui.clinicMapBtn) {
+        if (!hasDoctor) {
+          ui.clinicMapBtn.style.display = "none";
+          ui.clinicMapBtn.onclick = null;
+        } else {
+          const addr = String(profile.clinicAddress || "").trim();
+          if (addr) {
+            const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
+            ui.clinicMapBtn.style.display = "inline-flex";
+            ui.clinicMapBtn.disabled = false;
+            ui.clinicMapBtn.textContent = "View on Map";
+            ui.clinicMapBtn.title = addr;
+            ui.clinicMapBtn.onclick = () =>
+              window.open(url, "_blank", "noopener,noreferrer");
+          } else {
+            ui.clinicMapBtn.style.display = "inline-flex";
+            ui.clinicMapBtn.disabled = true;
+            ui.clinicMapBtn.textContent = "No address";
+            ui.clinicMapBtn.title = "No address";
+            ui.clinicMapBtn.onclick = null;
+            console.warn("[appointment] clinicAddress missing for doctor", profile.id || "");
+          }
+        }
+      }
       if (ui.doctorSpecialty) ui.doctorSpecialty.textContent = profile.specialty || "Specialty";
       const doctorEmail = profile.contactEmail || profile.email || "-";
       const doctorPhone = profile.contactPhone || profile.phone || "-";
@@ -1219,5 +1276,3 @@ Test steps:
   </script>
 </body>
 </html>
-
-

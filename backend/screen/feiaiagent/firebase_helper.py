@@ -25,6 +25,7 @@ _db: Optional[firestore.Client] = None
 _bucket = None
 _project_id: Optional[str] = None
 _init_logged = False
+_bucket_logged = False
 
 
 def _read_service_account(path: Path) -> Dict[str, Any]:
@@ -96,6 +97,7 @@ def get_firestore_client() -> firebase_admin.firestore.Client:
 def get_storage_bucket():
     """Return a cached default storage bucket."""
     global _bucket
+    global _bucket_logged
     if _bucket is not None:
         return _bucket
     app = _init_app()
@@ -107,26 +109,53 @@ def get_storage_bucket():
     if not bucket_name:
         raise RuntimeError("No storage bucket configured. Set FIREBASE_STORAGE_BUCKET or storageBucket in credentials.")
     _bucket = storage.bucket(bucket_name, app=app)
+    if not _bucket_logged:
+        logger.info("[firebase-admin] storage bucket=%s", bucket_name)
+        _bucket_logged = True
     return _bucket
 
 
-def upload_pdf_to_storage(patient_id: str, report_id: str, pdf_bytes: bytes) -> str:
+def upload_report_to_storage(
+    local_path: str,
+    patient_id: str,
+    report_id: str,
+    ext: str,
+) -> str:
     """
-    Upload PDF to Firebase Storage at reports/{patientId}/{reportId}.pdf
+    Upload report to Firebase Storage at reports/{patientId}/{reportId}.{ext}.
     
     Returns:
         Storage path (e.g., "reports/{patientId}/{reportId}.pdf")
     """
     try:
+        safe_ext = ext.lstrip(".") or "pdf"
+        file_path = Path(local_path)
+        if not file_path.exists():
+            raise FileNotFoundError(f"Report file not found: {file_path}")
         bucket = get_storage_bucket()
-        path = f"reports/{patient_id}/{report_id}.pdf"
+        path = f"reports/{patient_id}/{report_id}.{safe_ext}"
         blob = bucket.blob(path)
-        blob.upload_from_string(pdf_bytes, content_type="application/pdf")
-        logger.info(f"[firebase] PDF uploaded to {path} ({len(pdf_bytes)} bytes)")
+        content_type = "text/html; charset=utf-8" if safe_ext == "html" else "application/pdf"
+        blob.upload_from_filename(str(file_path), content_type=content_type)
+        try:
+            blob.reload()
+        except Exception:
+            pass
+        logger.info(
+            "[firebase] report uploaded to %s size=%s content_type=%s",
+            path,
+            blob.size,
+            blob.content_type,
+        )
         return path
     except Exception as exc:
         logger.error(f"[firebase] Storage upload failed: {exc}")
         raise
+
+
+def upload_pdf_to_storage(patient_id: str, report_id: str, local_path: str) -> str:
+    """Backward-compatible PDF upload helper."""
+    return upload_report_to_storage(local_path, patient_id, report_id, "pdf")
 
 
 def write_report_doc(
@@ -134,8 +163,13 @@ def write_report_doc(
     patient_id: str,
     screening_id: str,
     risk_level: str,
-    pdf_path: str,
+    storage_path: str,
+    report_format: str,
     doctor_id: Optional[str] = None,
+    source: str = "screening",
+    file_name: Optional[str] = None,
+    local_path: Optional[str] = None,
+    download_url_local: Optional[str] = None,
     content_text: Optional[str] = None,
     answers_raw: Optional[Dict[str, Any]] = None,
     answers_normalized: Optional[Dict[str, Any]] = None,
@@ -155,12 +189,24 @@ def write_report_doc(
             "updatedAt": firestore.SERVER_TIMESTAMP,
             "doctorId": doctor_id or "",
             "patientId": patient_id,
+            "userId": patient_id,
             "reportId": report_id,
             "screeningId": screening_id,
+            "sessionId": screening_id,
             "riskLevel": risk_level,
-            "pdfPath": pdf_path,
+            "storagePath": storage_path,
+            "fileName": file_name or Path(storage_path).name,
+            "format": report_format,
+            "title": "Lung Cancer Screening Report",
+            "source": source,
             "status": "ready",
         }
+        if local_path:
+            payload["localPath"] = local_path
+        if download_url_local:
+            payload["downloadUrlLocal"] = download_url_local
+        if report_format == "pdf":
+            payload["pdfPath"] = storage_path
         if content_text:
             payload["contentText"] = content_text
         if answers_raw:

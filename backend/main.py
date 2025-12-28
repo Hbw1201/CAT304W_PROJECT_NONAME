@@ -731,88 +731,105 @@ def system_init() -> Flask:
         if not uid:
             return jsonify({"error": "Unauthorized"}), 401
         
+        def _to_sort_ts(value: Any) -> float:
+            if value is None:
+                return 0.0
+            try:
+                if hasattr(value, "timestamp"):
+                    return float(value.timestamp())
+            except Exception:
+                pass
+            if isinstance(value, str):
+                try:
+                    from datetime import datetime
+                    return datetime.fromisoformat(value).timestamp()
+                except Exception:
+                    return 0.0
+            return 0.0
+
         try:
             db = get_firestore_client()
-            # Query reports collection where patientId == uid
             reports_ref = db.collection("reports")
-            query = reports_ref.where("patientId", "==", uid).order_by("createdAt", direction=admin_firestore.Query.DESCENDING).limit(50)
-            
-            docs = query.stream()
+            try:
+                docs = reports_ref.where("userId", "==", uid).stream()
+            except Exception as exc:
+                logger.warning("[reports] primary query failed, retry without index: %s", exc)
+                docs = reports_ref.where("userId", "==", uid).stream()
             reports = []
             for doc in docs:
-                data = doc.to_dict()
-                if data:
-                    # Convert Firestore timestamps to ISO strings
-                    report_item = {
-                        "reportId": data.get("reportId", doc.id),
-                        "patientId": data.get("patientId", ""),
-                        "doctorId": data.get("doctorId", ""),
-                        "screeningId": data.get("screeningId", ""),
-                        "riskLevel": data.get("riskLevel", "low"),
-                        "pdfPath": data.get("pdfPath", ""),
-                        "status": data.get("status", "ready"),
-                    }
-                    # Handle timestamps
-                    created_at = data.get("createdAt")
-                    if created_at:
-                        if hasattr(created_at, "isoformat"):
-                            report_item["createdAt"] = created_at.isoformat()
-                        else:
-                            report_item["createdAt"] = str(created_at)
-                    else:
-                        report_item["createdAt"] = None
-                    
-                    updated_at = data.get("updatedAt")
-                    if updated_at:
-                        if hasattr(updated_at, "isoformat"):
-                            report_item["updatedAt"] = updated_at.isoformat()
-                        else:
-                            report_item["updatedAt"] = str(updated_at)
-                    else:
-                        report_item["updatedAt"] = None
-                    
-                    # Optional fields
-                    if "contentText" in data:
-                        report_item["contentText"] = data["contentText"]
-                    if "answersRaw" in data:
-                        report_item["answersRaw"] = data["answersRaw"]
-                    if "answersNormalized" in data:
-                        report_item["answersNormalized"] = data["answersNormalized"]
-                    
-                    # Generate signed URL for PDF if pdfPath exists
-                    pdf_path = report_item.get("pdfPath")
-                    if pdf_path:
-                        try:
-                            bucket = get_storage_bucket()
-                            blob = bucket.blob(pdf_path)
-                            if blob.exists():
-                                # Generate signed URL valid for 1 hour
-                                from datetime import timedelta
-                                url = blob.generate_signed_url(
-                                    expiration=timedelta(hours=1),
-                                    method="GET"
-                                )
-                                report_item["pdfUrl"] = url
-                        except Exception as exc:
-                            logger.warning(f"[reports] Failed to generate signed URL for {pdf_path}: {exc}")
-                            report_item["pdfUrl"] = None
+                data = doc.to_dict() or {}
+                storage_path = data.get("storagePath") or data.get("pdfPath") or ""
+                local_path = data.get("localPath") or ""
+                download_url_local = data.get("downloadUrlLocal") or ""
+                report_item = {
+                    "reportId": data.get("reportId", doc.id),
+                    "patientId": data.get("patientId", ""),
+                    "userId": data.get("userId", data.get("patientId", "")),
+                    "doctorId": data.get("doctorId", ""),
+                    "screeningId": data.get("screeningId", ""),
+                    "riskLevel": data.get("riskLevel", "low"),
+                    "format": data.get("format", "pdf" if data.get("pdfPath") else ""),
+                    "storagePath": storage_path,
+                    "pdfPath": data.get("pdfPath", ""),
+                    "localPath": local_path,
+                    "downloadUrlLocal": download_url_local,
+                    "title": data.get("title", "Lung Cancer Screening Report"),
+                    "source": data.get("source", "screening"),
+                    "status": data.get("status", "ready"),
+                }
+                created_at = data.get("createdAt")
+                report_item["createdAt"] = created_at.isoformat() if hasattr(created_at, "isoformat") else (str(created_at) if created_at else None)
+                report_item["_createdAtSort"] = _to_sort_ts(created_at)
+                updated_at = data.get("updatedAt")
+                report_item["updatedAt"] = updated_at.isoformat() if hasattr(updated_at, "isoformat") else (str(updated_at) if updated_at else None)
+                if "contentText" in data:
+                    report_item["contentText"] = data["contentText"]
+                if "answersRaw" in data:
+                    report_item["answersRaw"] = data["answersRaw"]
+                if "answersNormalized" in data:
+                    report_item["answersNormalized"] = data["answersNormalized"]
+                pdf_path = report_item.get("pdfPath")
+                if storage_path or pdf_path:
+                    path_to_use = storage_path or pdf_path
+                    try:
+                        bucket = get_storage_bucket()
+                        blob = bucket.blob(path_to_use)
+                        if blob.exists():
+                            from datetime import timedelta
+                            url = blob.generate_signed_url(
+                                expiration=timedelta(hours=1),
+                                method="GET"
+                            )
+                            report_item["pdfUrl"] = url
+                    except Exception as exc:
+                        logger.warning(f"[reports] Failed to generate signed URL for {path_to_use}: {exc}")
+                        report_item["pdfUrl"] = None
+                else:
+                    if download_url_local:
+                        report_item["pdfUrl"] = download_url_local
+                    elif local_path:
+                        report_item["pdfUrl"] = f"/api/reports/download/{os.path.basename(local_path)}"
                     else:
                         report_item["pdfUrl"] = None
-                    
-                    reports.append(report_item)
-            
-            return jsonify({
-                "ok": True,
-                "reports": reports,
-                "stats": {
-                    "total_reports": len(reports),
-                    "total_size_mb": 0,  # Could calculate from Storage if needed
-                    "reports_dir": "",
-                },
-            }), 200
-            
+                reports.append(report_item)
+            reports.sort(key=lambda item: item.get("_createdAtSort") or 0, reverse=True)
+            for item in reports:
+                item.pop("_createdAtSort", None)
+            logger.info("[reports] list_reports uid=%s count=%s", uid, len(reports))
+            return jsonify(
+                {
+                    "ok": True,
+                    "reports": reports,
+                    "stats": {
+                        "total_reports": len(reports),
+                        "total_size_mb": 0,
+                        "reports_dir": "",
+                    },
+                }
+            ), 200
         except Exception as exc:  # noqa: BLE001
-            logger.error(f"[reports] Firestore query failed: {exc}", exc_info=True)
+            logger.exception("[reports] Firestore query failed")
+            return jsonify({"ok": False, "error": "Failed to query reports", "detail": str(exc), "reports": []}), 500
             # Fallback: try screen backend if available
             if _is_port_open(SCREEN_HOST, SCREEN_PORT):
                 try:
@@ -944,10 +961,14 @@ def system_init() -> Flask:
                 "updatedAt": admin_firestore.SERVER_TIMESTAMP,
                 "doctorId": doctor_id,
                 "patientId": uid,
+                "userId": uid,
                 "reportId": report_id,
                 "screeningId": screening_id,
                 "riskLevel": risk_level,
                 "pdfPath": path,
+                "storagePath": path,
+                "format": "pdf",
+                "title": "Lung Cancer Screening Report",
                 "source": mode,
                 "status": "ready",
                 "answersRaw": answers_raw,
@@ -1332,7 +1353,7 @@ def system_init() -> Flask:
         # default timeout and extended timeout for MetaGPT endpoints which may take longer
         timeout = 20
         if "/metagpt" in path or "/api/metagpt" in path:
-            timeout = int(os.environ.get("SCREEN_METAGPT_TIMEOUT", "120"))
+            timeout = int(os.environ.get("SCREEN_METAGPT_TIMEOUT", "300"))
         try:
             if method.upper() == "GET":
                 proxied = requests.get(
@@ -1356,7 +1377,16 @@ def system_init() -> Flask:
                 )
         except requests.RequestException as exc:
             print(f"[screen proxy] -> {target_url} error={exc}")
-            return jsonify({"error": "screen backend unreachable", "detail": str(exc)}), 502
+            request_id = uuid.uuid4().hex[:8]
+            resp = jsonify({
+                "ok": False,
+                "type": "bad_gateway",
+                "error": "screen backend unreachable",
+                "detail": str(exc),
+                "request_id": request_id
+            })
+            resp.headers["X-Request-Id"] = request_id
+            return resp, 502
         content_type = proxied.headers.get("Content-Type", "application/json")
         resp_content: Any = proxied.content
         if "text/html" in content_type.lower():
@@ -1390,6 +1420,9 @@ def system_init() -> Flask:
                     html = base_tag + html
             resp_content = html
         resp_headers = {"Content-Type": content_type}
+        request_id = proxied.headers.get("X-Request-Id")
+        if request_id:
+            resp_headers["X-Request-Id"] = request_id
         for header_name in ("Content-Disposition", "Content-Length", "Cache-Control"):
             header_value = proxied.headers.get(header_name)
             if header_value:

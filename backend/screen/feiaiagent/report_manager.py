@@ -11,7 +11,9 @@
 import os
 import time
 import json
+from string import Template
 import logging
+import traceback
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 from datetime import datetime
@@ -223,7 +225,7 @@ class ReportManager:
     def save_report_pdf(self, report_content: str, answers: Dict[str, str], 
                        session_id: str = None) -> Optional[str]:
         """
-        保存评估报告为PDF格式（如果PDF库不可用，则生成HTML格式）
+        保存评估报告为PDF格式（优先使用reportlab）
         
         Args:
             report_content: 报告内容
@@ -233,16 +235,14 @@ class ReportManager:
         Returns:
             保存的文件路径，失败返回None
         """
-        if not PDF_AVAILABLE and not WEASYPRINT_AVAILABLE:
-            # 如果PDF库不可用，生成HTML格式作为替代
-            logger.warning("PDF功能不可用，生成HTML格式报告作为替代")
-            return self._save_report_html(report_content, answers, session_id)
-        
-        # 优先使用reportlab，如果不可用则使用HTML转PDF
-        if PDF_AVAILABLE:
+        if not PDF_AVAILABLE:
+            logger.error("PDF功能不可用，reportlab未安装（必须安装 reportlab 以生成PDF）")
+            raise RuntimeError("reportlab is required for PDF generation")
+        try:
             return self._save_report_pdf_reportlab(report_content, answers, session_id)
-        else:
-            return self._save_report_pdf_html(report_content, answers, session_id)
+        except Exception as exc:
+            logger.error(f"PDF生成失败: {exc}", exc_info=True)
+            return None
     
     def _save_report_html(self, report_content: str, answers: Dict[str, str], 
                          session_id: str = None) -> Optional[str]:
@@ -263,14 +263,25 @@ class ReportManager:
             
             # 生成文件名
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            safe_name = self._sanitize_filename(str(name))
+            safe_phone = self._sanitize_filename(str(phone))
             if phone and phone != "无手机号":
-                filename = f"{name}_{phone}_{timestamp}.html"
+                filename = f"{safe_name}_{safe_phone}_{timestamp}.html"
             else:
-                filename = f"{name}_{timestamp}.html"
+                filename = f"{safe_name}_{timestamp}.html"
             
             file_path = self.reports_dir / filename
             
             # 生成HTML内容
+            if os.getenv("SCREENING_DEBUG") == "1":
+                print("[debug][report] report_id:", session_id or "")
+                print("[debug][report] output_path:", str(file_path))
+                print("[debug][report] format_method:", "safe_substitute")
+                try:
+                    snippet = html_template.template[:200]
+                except Exception as _e:
+                    snippet = "<unavailable>"
+                print("[debug][report] template_head:", snippet)
             html_content = self._generate_html_report(report_content, answers, session_id)
             
             # 保存HTML文件
@@ -281,7 +292,8 @@ class ReportManager:
             return str(file_path)
             
         except Exception as e:
-            logger.error(f"保存HTML报告失败: {e}")
+            logger.error(f"保存HTML报告失败: {repr(e)}")
+            logger.error(traceback.format_exc())
             return None
     
     def _save_report_pdf_html(self, report_content: str, answers: Dict[str, str], 
@@ -289,16 +301,15 @@ class ReportManager:
         """
         使用HTML转PDF的方式生成报告
         """
+        report_id = session_id or f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        if not report_id:
+            report_id = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            logger.warning("report_id missing, generated=%s", report_id)
+        if not report_id:
+            report_id = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            logger.warning("report_id missing, generated=%s", report_id)
         try:
-            # 提取用户信息
-            name, phone = self._extract_user_info(answers)
-            
-            # 生成文件名
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            if phone and phone != "无手机号":
-                filename = f"{name}_{phone}_{timestamp}.pdf"
-            else:
-                filename = f"{name}_{timestamp}.pdf"
+            filename = f"{self._sanitize_filename(str(report_id))}.pdf"
             
             file_path = self.reports_dir / filename
             
@@ -313,7 +324,7 @@ class ReportManager:
             return str(file_path)
             
         except Exception as e:
-            logger.error(f"HTML转PDF失败: {e}")
+            logger.error(f"HTML转PDF失败 report_id={report_id}: {e}")
             return None
     
     def _generate_html_report(self, report_content: str, answers: Dict[str, str], 
@@ -321,7 +332,7 @@ class ReportManager:
         """
         生成HTML格式的报告
         """
-        html_template = """
+        html_template = Template("""
         <!DOCTYPE html>
         <html lang="zh-CN">
         <head>
@@ -413,38 +424,39 @@ class ReportManager:
             <div class="section">
                 <div class="section-title">【用户信息】</div>
                 <table class="info-table">
-                    <tr><th>姓名</th><td>{name}</td></tr>
-                    <tr><th>性别</th><td>{gender}</td></tr>
-                    <tr><th>出生年份</th><td>{birth_year}</td></tr>
-                    <tr><th>手机号</th><td>{phone}</td></tr>
-                    <tr><th>住宅电话</th><td>{home_phone}</td></tr>
-                    <tr><th>家庭地址</th><td>{address}</td></tr>
+                    <tr><th>姓名</th><td>$name</td></tr>
+                    <tr><th>性别</th><td>$gender</td></tr>
+                    <tr><th>出生年份</th><td>$birth_year</td></tr>
+                    <tr><th>手机号</th><td>$phone</td></tr>
+                    <tr><th>住宅电话</th><td>$home_phone</td></tr>
+                    <tr><th>家庭地址</th><td>$address</td></tr>
                 </table>
             </div>
             
             <div class="section">
                 <div class="section-title">【会话信息】</div>
                 <table class="info-table">
-                    <tr><th>会话ID</th><td>{session_id}</td></tr>
-                    <tr><th>生成时间</th><td>{generate_time}</td></tr>
+                    <tr><th>会话ID</th><td>$session_id</td></tr>
+                    <tr><th>生成时间</th><td>$generate_time</td></tr>
                     <tr><th>报告类型</th><td>肺癌早筛风险评估报告</td></tr>
                 </table>
             </div>
             
-            {answers_section}
+            $answers_section
             
             <div class="section">
                 <div class="section-title">【评估报告】</div>
-                <div class="report-content">{report_content}</div>
+                <div class="report-content">$report_content</div>
             </div>
             
             <div class="footer">
-                报告生成时间: {generate_time}
+                报告生成时间: $generate_time
             </div>
         </body>
         </html>
         """
-        
+        )
+
         # 准备数据
         name = answers.get("姓名", "未知")
         gender = answers.get("性别(1男 2女)", "未知")
@@ -471,7 +483,7 @@ class ReportManager:
             answers_section += "</table></div>"
         
         # 填充模板
-        html_content = html_template.format(
+        html_content = html_template.safe_substitute(
             name=name,
             gender=gender,
             birth_year=birth_year,
@@ -491,16 +503,13 @@ class ReportManager:
         """
         使用reportlab生成PDF报告
         """
+        report_id = session_id or f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         try:
-            # 提取用户信息
+            # 提取用户信息（内容展示用）
             name, phone = self._extract_user_info(answers)
             
-            # 生成文件名
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            if phone and phone != "无手机号":
-                filename = f"{name}_{phone}_{timestamp}.pdf"
-            else:
-                filename = f"{name}_{timestamp}.pdf"
+            # 生成文件名（使用 report_id）
+            filename = f"{self._sanitize_filename(str(report_id))}.pdf"
             
             file_path = self.reports_dir / filename
             
@@ -541,8 +550,31 @@ class ReportManager:
             )
             
             # 添加标题
-            story.append(Paragraph("肺癌早筛风险评估报告", title_style))
-            story.append(Spacer(1, 20))
+            story.append(Paragraph("Lung Cancer Screening Report", title_style))
+            story.append(Spacer(1, 12))
+            story.append(Paragraph(f"Report ID: {report_id}", normal_style))
+            story.append(Spacer(1, 8))
+            user_id = (
+                answers.get("userId")
+                or answers.get("用户ID")
+                or answers.get("user_id")
+                or answers.get("uid")
+                or "unknown"
+            )
+            risk_level = answers.get("riskLevel") or answers.get("risk_level")
+            if not risk_level:
+                report_lower = report_content.lower()
+                if "high risk" in report_lower or "🔴" in report_content:
+                    risk_level = "high"
+                elif "medium risk" in report_lower or "🟡" in report_content:
+                    risk_level = "medium"
+                elif "low risk" in report_lower or "🟢" in report_content:
+                    risk_level = "low"
+                else:
+                    risk_level = "unknown"
+            story.append(Paragraph(f"User ID: {user_id}", normal_style))
+            story.append(Paragraph(f"Risk Level: {risk_level}", normal_style))
+            story.append(Spacer(1, 8))
             
             # 添加用户信息
             story.append(Paragraph("【用户信息】", heading_style))
@@ -633,11 +665,15 @@ class ReportManager:
             # 构建PDF
             doc.build(story)
             
-            logger.info(f"PDF报告保存成功: {file_path}")
+            try:
+                size = file_path.stat().st_size
+            except Exception:
+                size = 0
+            logger.info(f"[report] pdf generated path={file_path} size={size}")
             return str(file_path)
             
         except Exception as e:
-            logger.error(f"保存PDF报告失败: {e}")
+            logger.error(f"保存PDF报告失败 report_id={report_id}: {e}")
             return None
     
     def get_reports_list(self) -> List[Dict[str, str]]:
