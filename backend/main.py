@@ -36,7 +36,6 @@ from flask import Flask, abort, jsonify, request, send_from_directory, Response,
 from flask_cors import CORS
 import requests
 import firebase_admin
-import torch
 from firebase_admin import credentials as admin_credentials
 from firebase_admin import firestore as admin_firestore
 from firebase_admin import storage as admin_storage
@@ -99,46 +98,87 @@ PATIENT_ROOT_FALLBACKS = {"login.css", "script.js"}
 
 CT_BUCKET_NAME = "feiai-7c59e.firebasestorage.app"
 CT_MODEL = None
-CT_MODEL_PATH = os.environ.get("CT_MODEL_PATH", "").strip()
+CT_MODEL_ERR = None
+CT_MODEL_PATH_DEFAULT = str(CT_DIR / "best_resnet_nodule_precise.pt")
+CT_MODEL_PATH = os.environ.get("CT_MODEL_PATH", CT_MODEL_PATH_DEFAULT).strip()
 CT_ALLOWED_EXTENSIONS = (".dcm", ".png", ".jpg", ".jpeg")
-
-if str(CT_DIR) not in sys.path:
-    sys.path.insert(0, str(CT_DIR))
-from infer_dicom_series import infer_dicom_dir, load_model
-
-logger.info("[CT] torch version=%s", getattr(torch, "__version__", "unknown"))
-logger.info("[CT] cuda available=%s", torch.cuda.is_available())
-if torch.cuda.is_available():
-    try:
-        logger.info("[CT] cuda device=%s", torch.cuda.get_device_name(0))
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("[CT] cuda device name unavailable: %s", exc)
-
-CT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+CT_DEVICE = (os.environ.get("CT_DEVICE") or "cpu").strip().lower() or "cpu"
+_CT_TORCH = None
+_CT_INFER_MODULE = None
 _CT_FIRESTORE_CLIENT: Optional[Any] = None
 
 
-def _load_ct_model():
-    global CT_MODEL
-    path = CT_MODEL_PATH
-    if not path:
-        logger.warning("[CT] CT_MODEL_PATH not set; CT model will be unavailable.")
-        return None
-    if not os.path.exists(path):
-        logger.error("[CT] CT model file not found: %s", path)
-        return None
+def _get_ct_torch():
+    global _CT_TORCH
+    if _CT_TORCH is not None:
+        return _CT_TORCH
     try:
-        logger.info("[CT] loading CT model from %s", CT_MODEL_PATH)
-        from ct.infer_dicom_series import load_model
-        model = load_model(weights_path=CT_MODEL_PATH)
+        import torch
+    except Exception:  # noqa: BLE001
+        logger.exception("[CT] torch import failed")
+        raise
+    _CT_TORCH = torch
+    return torch
+
+
+def _get_ct_infer_module():
+    global _CT_INFER_MODULE
+    if _CT_INFER_MODULE is not None:
+        return _CT_INFER_MODULE
+    if str(CT_DIR) not in sys.path:
+        sys.path.insert(0, str(CT_DIR))
+    try:
+        import importlib
+        _CT_INFER_MODULE = importlib.import_module("infer_dicom_series")
+    except Exception:  # noqa: BLE001
+        logger.exception("[CT] Failed to import infer_dicom_series")
+        raise
+    return _CT_INFER_MODULE
+
+
+def _load_ct_model():
+    global CT_MODEL_PATH, CT_DEVICE
+    try:
+        path = os.environ.get("CT_MODEL_PATH", CT_MODEL_PATH_DEFAULT).strip()
+        if not path:
+            raise RuntimeError("CT_MODEL_PATH is not set")
+        if not os.path.exists(path):
+            raise RuntimeError(f"CT model file not found: {path}")
+        device = (os.environ.get("CT_DEVICE") or "cpu").strip().lower() or "cpu"
+        if device not in ("cpu", "cuda", "auto"):
+            logger.warning("[CT] unsupported CT_DEVICE=%s; using cpu", device)
+            device = "cpu"
+        torch = _get_ct_torch()
+        if device == "auto":
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        elif device == "cuda" and not torch.cuda.is_available():
+            logger.warning("[CT] CT_DEVICE=cuda but cuda not available; using cpu")
+            device = "cpu"
+        infer_module = _get_ct_infer_module()
+        logger.info("[CT] loading CT model from %s (device=%s)", path, device)
+        model = infer_module.load_model(weights_path=path, device=device)
         model.eval()
+        CT_MODEL_PATH = path
+        CT_DEVICE = device
         return model
-    except Exception:
-        logger.exception("[CT] Failed to load CT model")
-        return None
+    except Exception:  # noqa: BLE001
+        logger.exception("[CT] CT model load failed")
+        raise
 
 
-CT_MODEL = _load_ct_model()
+def _init_ct_model() -> None:
+    global CT_MODEL, CT_MODEL_ERR
+    try:
+        CT_MODEL = _load_ct_model()
+        CT_MODEL_ERR = None
+        logger.info("[CT] model loaded at startup")
+    except Exception as exc:  # noqa: BLE001
+        CT_MODEL = None
+        CT_MODEL_ERR = f"{type(exc).__name__}: {exc}"
+        logger.warning("[CT] model NOT loaded at startup: %s", CT_MODEL_ERR)
+
+
+_init_ct_model()
 
 
 def _ensure_ct_admin_app() -> firebase_admin.App:
@@ -1482,7 +1522,7 @@ def system_init() -> Flask:
 
     @app.route("/api/ct/analyze", methods=["GET", "POST", "OPTIONS"])
     def ct_analyze() -> Any:
-        global CT_MODEL
+        global CT_MODEL, CT_MODEL_ERR, CT_DEVICE
         logger.info("[CT] /api/ct/analyze %s hit (main.py)", request.method)
         if request.method == "OPTIONS":
             resp = jsonify({"ok": True})
@@ -1534,7 +1574,22 @@ def system_init() -> Flask:
 
             with _study_lock(study_id):
                 if CT_MODEL is None:
-                    return _ct_error("ct_model_unavailable", "CT model not loaded at startup", 500)
+                    logger.info("[CT] model missing, try lazy-load")
+                    try:
+                        CT_MODEL = _load_ct_model()
+                        CT_MODEL_ERR = None
+                        logger.info("[CT] model loaded via lazy-load")
+                    except Exception as exc:  # noqa: BLE001
+                        CT_MODEL = None
+                        CT_MODEL_ERR = f"{type(exc).__name__}: {exc}"
+                        logger.exception("[CT] lazy-load failed")
+                        return _ct_error(
+                            "ct_model_unavailable",
+                            "CT model is not available on server",
+                            503,
+                            detail=CT_MODEL_ERR,
+                            hint="Check CT_MODEL_PATH / torch install / weights file",
+                        )
 
                 try:
                     db = _get_ct_firestore()
@@ -1583,22 +1638,28 @@ def system_init() -> Flask:
                 if file_count == 0:
                     raise RuntimeError("No DICOM files downloaded from storage.")
 
-                device = "cuda" if torch.cuda.is_available() else "cpu"
-                model_device = next(CT_MODEL.parameters()).device
-                logger.info("[CT] inference start device=%s model=%s pid=%s", device, model_device, os.getpid())
-                if torch.cuda.is_available():
+                torch = _get_ct_torch()
+                device = CT_DEVICE
+                if device == "auto":
+                    device = "cuda" if torch.cuda.is_available() else "cpu"
+                elif device == "cuda" and not torch.cuda.is_available():
+                    logger.warning("[CT] CT_DEVICE=cuda but cuda not available; using cpu")
+                    device = "cpu"
+                if device == "cuda":
                     CT_MODEL.to("cuda")
-                    logger.info("[CT] model moved to cuda device=%s", next(CT_MODEL.parameters()).device)
                     try:
                         _ = torch.ones(1, device="cuda") * 2
                         logger.info("[CT] cuda smoke ok")
                     except Exception as exc:  # noqa: BLE001
                         logger.exception("[CT] cuda smoke failed: %s", exc)
                 else:
-                    logger.info("[CT] cuda not available; using cpu")
+                    logger.info("[CT] using cpu for inference")
+                model_device = next(CT_MODEL.parameters()).device
+                logger.info("[CT] inference start device=%s model=%s pid=%s", device, model_device, os.getpid())
 
                 start_ts = time.perf_counter()
-                inference = infer_dicom_dir(
+                infer_module = _get_ct_infer_module()
+                inference = infer_module.infer_dicom_dir(
                     str(tmp_dir),
                     device=device,
                     model=CT_MODEL,
