@@ -1546,6 +1546,23 @@ def system_init() -> Flask:
             resp = jsonify(payload)
             resp.status_code = status
             return add_cors(resp)
+        def _persist_ct_error(message: str, detail: str = "") -> None:
+            if doc_ref is None:
+                return
+            try:
+                doc_ref.set(
+                    {
+                        "analysisStatus": "failed",
+                        "analysisError": message,
+                        "analysisErrorDetail": detail,
+                        "analysisUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
+                        "analysisCompletedAt": admin_firestore.SERVER_TIMESTAMP,
+                        "updatedAt": admin_firestore.SERVER_TIMESTAMP,
+                    },
+                    merge=True,
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception("[CT] analyze failed to persist error state")
         try:
             if not request.is_json:
                 return _ct_error(
@@ -1622,6 +1639,7 @@ def system_init() -> Flask:
                 blobs = _list_ct_blobs(storage_prefix, CT_ALLOWED_EXTENSIONS)
                 logger.info("[CT] slices found: %s under %s", len(blobs), storage_prefix)
                 if not blobs:
+                    _persist_ct_error("No CT slices found under storagePrefix", storage_prefix)
                     return _ct_error(
                         "no_ct_slices",
                         "No CT slices found under storagePrefix",
@@ -1636,7 +1654,14 @@ def system_init() -> Flask:
 
                 file_count = _download_ct_blobs(blobs, tmp_dir)
                 if file_count == 0:
-                    raise RuntimeError("No DICOM files downloaded from storage.")
+                    _persist_ct_error("No CT slices found under storagePrefix", storage_prefix)
+                    return _ct_error(
+                        "no_ct_slices",
+                        "No CT slices found under storagePrefix",
+                        400,
+                        detail=storage_prefix,
+                        hint="Upload DICOM slices to this prefix before analysis",
+                    )
 
                 torch = _get_ct_torch()
                 device = CT_DEVICE
@@ -1668,6 +1693,30 @@ def system_init() -> Flask:
                 elapsed_ms = int((time.perf_counter() - start_ts) * 1000)
                 logger.info("[CT] inference end elapsedMs=%s", elapsed_ms)
 
+                slices = []
+                if isinstance(inference, dict):
+                    raw_slices = inference.get("slice_scores") or inference.get("slices") or []
+                    if isinstance(raw_slices, list):
+                        for item in raw_slices:
+                            if not isinstance(item, dict):
+                                continue
+                            index_val = item.get("index")
+                            try:
+                                index_val = int(index_val) if index_val is not None else None
+                            except (TypeError, ValueError):
+                                index_val = None
+                            prob = item.get("prob_malignant")
+                            if prob is None:
+                                prob = item.get("prob") or item.get("score")
+                            prob_val = float(prob) if isinstance(prob, (int, float)) else None
+                            slices.append(
+                                {
+                                    "index": index_val,
+                                    "file": item.get("file") or item.get("path") or "",
+                                    "prob_malignant": prob_val,
+                                }
+                            )
+
                 risk_level = "unknown"
                 if isinstance(inference, dict):
                     risk_level = inference.get("label") or inference.get("riskLevel") or "unknown"
@@ -1675,13 +1724,21 @@ def system_init() -> Flask:
                 max_prob = aggregate.get("max_prob_malignant")
                 mean_prob = aggregate.get("mean_prob_malignant")
                 num_slices = aggregate.get("num_slices_scored")
+                max_prob_val = float(max_prob) if isinstance(max_prob, (int, float)) else None
+                mean_prob_val = float(mean_prob) if isinstance(mean_prob, (int, float)) else None
+                prob_malignant = max_prob_val if max_prob_val is not None else mean_prob_val
+                high_risk_slices = sum(
+                    1
+                    for item in slices
+                    if isinstance(item.get("prob_malignant"), (int, float)) and item["prob_malignant"] >= 0.7
+                )
                 summary_parts = []
                 if num_slices is not None:
                     summary_parts.append(f"{num_slices} slices scored")
-                if isinstance(max_prob, (int, float)):
-                    summary_parts.append(f"max prob {max_prob:.3f}")
-                if isinstance(mean_prob, (int, float)):
-                    summary_parts.append(f"mean prob {mean_prob:.3f}")
+                if max_prob_val is not None:
+                    summary_parts.append(f"max prob {max_prob_val:.3f}")
+                if mean_prob_val is not None:
+                    summary_parts.append(f"mean prob {mean_prob_val:.3f}")
                 summary = " | ".join(summary_parts) if summary_parts else "CT inference completed."
 
                 nodules = []
@@ -1708,8 +1765,20 @@ def system_init() -> Flask:
                     "modelDevice": model_device_str,
                 }
 
+                result_summary = {
+                    "prob_malignant": prob_malignant,
+                    "max_prob": max_prob_val,
+                    "avg_prob": mean_prob_val,
+                    "high_risk_slices": high_risk_slices,
+                }
+                slices_by_index = {
+                    str(item["index"]): item["prob_malignant"]
+                    for item in slices
+                    if item.get("index") is not None and isinstance(item.get("prob_malignant"), (int, float))
+                }
+
                 analysis = {
-                    "status": "done",
+                    "status": "analyzed",
                     "updatedAt": admin_firestore.SERVER_TIMESTAMP,
                     "model": Path(CT_MODEL_PATH).name if CT_MODEL_PATH else "",
                     "result": inference,
@@ -1720,11 +1789,15 @@ def system_init() -> Flask:
                 doc_ref.set(
                     {
                         "analysis": analysis,
-                        "analysisStatus": "done",
+                        "analysisStatus": "analyzed",
                         "analysisUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
                         "analysisCompletedAt": admin_firestore.SERVER_TIMESTAMP,
                         "analysisResult": analysis_result,
                         "analysisError": None,
+                        "analysisErrorDetail": None,
+                        "resultSummary": result_summary,
+                        "slices": slices,
+                        "sliceScores": slices_by_index if slices_by_index else None,
                         "status": "analyzed",
                         "updatedAt": admin_firestore.SERVER_TIMESTAMP,
                         "fileCount": file_count,
@@ -1751,38 +1824,16 @@ def system_init() -> Flask:
                     "ok": True,
                     "studyId": study_id,
                     "updatedAt": datetime.utcnow().isoformat() + "Z",
-                    "resultSummary": analysis_result,
-                    "resultSlicesCount": file_count,
+                    "resultSummary": result_summary,
+                    "resultSlicesCount": len(slices),
                 }
                 logger.info("[CT] analyze ok elapsed=%.2fs", time.time() - t0)
                 return add_cors(jsonify(result)), 200
         except Exception as exc:  # noqa: BLE001
             tb = traceback.format_exc()
             logger.exception("[CT] analyze failed")
-            if doc_ref is not None:
-                try:
-                    doc_ref.set(
-                        {
-                            "analysis": {
-                                "status": "error",
-                                "updatedAt": admin_firestore.SERVER_TIMESTAMP,
-                                "model": Path(CT_MODEL_PATH).name if CT_MODEL_PATH else "",
-                                "error": str(exc),
-                            },
-                            "analysisStatus": "error",
-                            "analysisUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
-                            "analysisCompletedAt": admin_firestore.SERVER_TIMESTAMP,
-                            "analysisError": {
-                                "message": str(exc),
-                                "stack": tb,
-                            },
-                            "updatedAt": admin_firestore.SERVER_TIMESTAMP,
-                        },
-                        merge=True,
-                    )
-                except Exception:  # noqa: BLE001
-                    logger.exception("[CT] analyze failed to persist error state")
             detail = f"{type(exc).__name__}: {exc}"
+            _persist_ct_error(detail, tb)
             return _ct_error("internal_error", "CT analysis failed", 500, detail=detail)
 
     def proxy_screen(path: str, method: str = "GET"):
