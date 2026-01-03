@@ -100,6 +100,7 @@ PATIENT_ROOT_FALLBACKS = {"login.css", "script.js"}
 CT_BUCKET_NAME = "feiai-7c59e.firebasestorage.app"
 CT_MODEL = None
 CT_MODEL_PATH = os.environ.get("CT_MODEL_PATH", "").strip()
+CT_ALLOWED_EXTENSIONS = (".dcm", ".png", ".jpg", ".jpeg")
 
 if str(CT_DIR) not in sys.path:
     sys.path.insert(0, str(CT_DIR))
@@ -187,13 +188,24 @@ def _get_ct_bucket():
     return admin_storage.bucket(CT_BUCKET_NAME, app=app)
 
 
-def _download_all_dicoms(storage_prefix: str, out_dir: Path) -> int:
+def _list_ct_blobs(storage_prefix: str, allowed_exts: tuple[str, ...]) -> list[Any]:
     bucket = _get_ct_bucket()
-    count = 0
-    for blob in bucket.list_blobs(prefix=storage_prefix):
+    prefix = storage_prefix.lstrip("/")
+    blobs: list[Any] = []
+    for blob in bucket.list_blobs(prefix=prefix):
         name = blob.name or ""
-        if not name.lower().endswith(".dcm"):
+        if not name or name.endswith("/"):
             continue
+        if allowed_exts and not name.lower().endswith(allowed_exts):
+            continue
+        blobs.append(blob)
+    return blobs
+
+
+def _download_ct_blobs(blobs: list[Any], out_dir: Path) -> int:
+    count = 0
+    for blob in blobs:
+        name = blob.name or ""
         filename = os.path.basename(name) or f"slice_{count:04d}.dcm"
         dest = out_dir / filename
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -1552,11 +1564,22 @@ def system_init() -> Flask:
                     running_update["storagePrefix"] = storage_prefix
                 doc_ref.set(running_update, merge=True)
 
+                blobs = _list_ct_blobs(storage_prefix, CT_ALLOWED_EXTENSIONS)
+                logger.info("[CT] slices found: %s under %s", len(blobs), storage_prefix)
+                if not blobs:
+                    return _ct_error(
+                        "no_ct_slices",
+                        "No CT slices found under storagePrefix",
+                        400,
+                        detail=storage_prefix,
+                        hint="Upload DICOM slices to this prefix before analysis",
+                    )
+
                 req_id = uuid.uuid4().hex[:8]
                 tmp_dir = Path("/tmp") / "aegis_ct" / f"{study_id}_{req_id}"
                 tmp_dir.mkdir(parents=True, exist_ok=True)
 
-                file_count = _download_all_dicoms(storage_prefix, tmp_dir)
+                file_count = _download_ct_blobs(blobs, tmp_dir)
                 if file_count == 0:
                     raise RuntimeError("No DICOM files downloaded from storage.")
 
