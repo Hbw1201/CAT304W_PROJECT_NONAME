@@ -119,6 +119,165 @@ body.doctor-theme {
   overflow: auto;
 }
 
+/* CT Imaging risk summary + viewer overlay */
+.ct-details-body .info-row.info-muted .info-label {
+  color: rgba(15, 23, 42, 0.45);
+}
+
+.ct-details-body .info-row.info-muted .info-value {
+  color: rgba(15, 23, 42, 0.55);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.risk-card {
+  background: #f8fafc;
+  border: 1px solid var(--doctor-border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.risk-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.risk-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--doctor-strong);
+}
+
+.risk-sub {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--doctor-muted);
+}
+
+.risk-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.risk-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.risk-metric {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.risk-label {
+  font-size: 12px;
+  color: var(--doctor-muted);
+  letter-spacing: 0.02em;
+}
+
+.risk-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--doctor-strong);
+}
+
+.risk-interpretation {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--doctor-muted);
+  background: #ffffff;
+  border: 1px dashed rgba(15, 23, 42, 0.12);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.risk-low,
+.risk-card.risk-low {
+  color: #16794c;
+  border-color: rgba(22, 121, 76, 0.35);
+}
+
+.risk-moderate,
+.risk-card.risk-moderate {
+  color: #b7791f;
+  border-color: rgba(183, 121, 31, 0.35);
+}
+
+.risk-high,
+.risk-card.risk-high {
+  color: #b4231a;
+  border-color: rgba(180, 35, 26, 0.35);
+}
+
+.risk-neutral,
+.risk-card.risk-neutral {
+  color: var(--doctor-muted);
+  border-color: rgba(15, 23, 42, 0.12);
+}
+
+.risk-badge.risk-low {
+  background: rgba(22, 121, 76, 0.12);
+  border-color: rgba(22, 121, 76, 0.35);
+}
+
+.risk-badge.risk-moderate {
+  background: rgba(183, 121, 31, 0.15);
+  border-color: rgba(183, 121, 31, 0.35);
+}
+
+.risk-badge.risk-high {
+  background: rgba(180, 35, 26, 0.12);
+  border-color: rgba(180, 35, 26, 0.35);
+}
+
+.risk-badge.risk-neutral {
+  background: rgba(15, 23, 42, 0.08);
+  border-color: rgba(15, 23, 42, 0.2);
+}
+
+.ct-viewer-overlay {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.ct-hidden {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  .risk-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .doctor-theme .patients-table {
   width: 100%;
   border-collapse: collapse;

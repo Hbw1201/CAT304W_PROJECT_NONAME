@@ -38,7 +38,10 @@ const ui = {
   infoAnalysisUpdated: document.getElementById("infoAnalysisUpdated"),
   analysisStatusBadge: document.getElementById("analysisStatusBadge"),
   analysisMeta: document.getElementById("analysisMeta"),
-  analysisResult: document.getElementById("analysisResult")
+  analysisResult: document.getElementById("analysisResult"),
+  riskSummary: document.getElementById("ctRiskSummary"),
+  riskInterpretation: document.getElementById("ctRiskInterpretation"),
+  viewerOverlay: document.getElementById("viewerOverlay")
 };
 
 const EMPTY_PLACEHOLDER = "\u2014";
@@ -105,6 +108,7 @@ function updateFrameIndicator() {
   const total = state.stack.length;
   const current = total ? state.currentIndex + 1 : 0;
   ui.frameIndicator.textContent = `${current} / ${total}`;
+  updateViewerOverlay();
 }
 
 function updateViewerControls() {
@@ -113,6 +117,29 @@ function updateViewerControls() {
   if (ui.btnNext) ui.btnNext.disabled = !hasStack || state.currentIndex >= state.stack.length - 1;
   if (ui.btnZoomIn) ui.btnZoomIn.disabled = !hasStack;
   if (ui.btnZoomOut) ui.btnZoomOut.disabled = !hasStack;
+}
+
+function getSelectedStudy() {
+  return state.studies.find((item) => item.id === state.selectedStudyId) || null;
+}
+
+function resolveSliceRisk(slices, currentIndex) {
+  if (!slices?.length) return null;
+  const direct = slices.find((item) => item?.index === currentIndex);
+  if (direct && Number.isFinite(direct.prob_malignant)) return direct.prob_malignant;
+  const fallback = slices[currentIndex];
+  if (fallback && Number.isFinite(fallback.prob_malignant)) return fallback.prob_malignant;
+  return null;
+}
+
+function updateViewerOverlay() {
+  if (!ui.viewerOverlay) return;
+  const total = state.stack.length;
+  const current = total ? state.currentIndex + 1 : 0;
+  const study = getSelectedStudy();
+  const slices = resolveSlices(study);
+  const risk = resolveSliceRisk(slices, state.currentIndex);
+  ui.viewerOverlay.textContent = `Slice ${current} / ${total || 0} \u00b7 Risk ${formatPct(risk)}`;
 }
 
 function updateRunAiLabel(study) {
@@ -163,7 +190,10 @@ function resolveSlices(study) {
     legacy.sort((a, b) => a.index - b.index);
     return legacy;
   }
-  const rawSlices = study?.analysis?.result?.slice_scores;
+  const rawSlices =
+    study?.analysis?.result?.slice_scores ||
+    study?.analysisResult?.slice_scores ||
+    study?.analysisResult?.slices;
   if (Array.isArray(rawSlices)) {
     return rawSlices.map((item) => ({
       index: typeof item?.index === "number" ? item.index : null,
@@ -174,10 +204,158 @@ function resolveSlices(study) {
   return [];
 }
 
-function formatSummaryValue(value) {
-  if (typeof value === "number") return formatProb(value);
-  if (value === null || value === undefined || value === "") return "-";
-  return String(value);
+function formatPct(prob) {
+  if (!Number.isFinite(prob)) return "\u2014";
+  const pct = prob > 1 ? prob : prob * 100;
+  return `${pct.toFixed(1)}%`;
+}
+
+function riskLevel(maxProb) {
+  if (!Number.isFinite(maxProb)) {
+    return { label: "Unknown", tone: "neutral", className: "risk-neutral" };
+  }
+  const normalized = maxProb > 1 ? maxProb / 100 : maxProb;
+  if (normalized >= 0.7) {
+    return { label: "High", tone: "high", className: "risk-high" };
+  }
+  if (normalized >= 0.4) {
+    return { label: "Moderate", tone: "moderate", className: "risk-moderate" };
+  }
+  return { label: "Low", tone: "low", className: "risk-low" };
+}
+
+function interpretation(level) {
+  if (level === "high") {
+    return (
+      "High-risk CT slices detected with elevated malignant probability. " +
+      "Prompt clinical correlation and follow-up imaging recommended."
+    );
+  }
+  if (level === "moderate") {
+    return (
+      "No high-risk CT slices detected. Mild to moderate abnormalities observed in isolated slices. " +
+      "Clinical correlation recommended."
+    );
+  }
+  if (level === "low") {
+    return (
+      "No high-risk CT slices detected. Findings suggest low malignant risk across analyzed slices. " +
+      "Continue routine monitoring as appropriate."
+    );
+  }
+  return "Run AI analysis to view clinical summary.";
+}
+
+function pickNumber(...values) {
+  for (const value of values) {
+    if (Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
+function buildRiskSummary(study) {
+  if (!study) return null;
+  const summary = study.resultSummary || study.analysisResult?.resultSummary || study.analysis?.resultSummary || {};
+  const slices = resolveSlices(study);
+  const sliceProbs = slices
+    .map((item) => item?.prob_malignant)
+    .filter((value) => Number.isFinite(value));
+  const maxFromSlices = sliceProbs.length ? Math.max(...sliceProbs) : null;
+  const avgFromSlices = sliceProbs.length
+    ? sliceProbs.reduce((acc, value) => acc + value, 0) / sliceProbs.length
+    : null;
+  const highRiskFromSlices = sliceProbs.filter((value) => value >= 0.7).length;
+
+  const maxProb = pickNumber(
+    summary.max_prob,
+    summary.maxProb,
+    summary.max_prob_malignant,
+    summary.prob_malignant,
+    study.max_prob,
+    study.maxProb,
+    study.max_prob_malignant,
+    study.prob_malignant,
+    maxFromSlices
+  );
+  const avgProb = pickNumber(
+    summary.avg_prob,
+    summary.avgProb,
+    summary.mean_prob,
+    study.avg_prob,
+    study.avgProb,
+    study.mean_prob,
+    avgFromSlices
+  );
+  const highRisk = Number.isFinite(summary.high_risk_slices)
+    ? summary.high_risk_slices
+    : Number.isFinite(study.high_risk_slices)
+      ? study.high_risk_slices
+      : highRiskFromSlices || null;
+  const totalSlices = Number.isFinite(summary.slices_analyzed)
+    ? summary.slices_analyzed
+    : Number.isFinite(summary.total_slices)
+      ? summary.total_slices
+      : Number.isFinite(study.total_slices)
+        ? study.total_slices
+        : slices.length || study.resultSlicesCount || null;
+
+  const level = riskLevel(maxProb);
+  return {
+    maxProb,
+    avgProb,
+    highRisk,
+    totalSlices,
+    level
+  };
+}
+
+function renderRiskSummary(data) {
+  if (!ui.riskSummary) return;
+  const safeData = data || {
+    maxProb: null,
+    avgProb: null,
+    highRisk: null,
+    totalSlices: null,
+    level: { label: "Unknown", tone: "neutral", className: "risk-neutral" }
+  };
+  const { maxProb, avgProb, highRisk, totalSlices, level } = safeData;
+  const totalLabel = totalSlices ?? "\u2014";
+  const highRiskLabel = highRisk ?? "\u2014";
+  const toneClasses = ["risk-low", "risk-moderate", "risk-high", "risk-neutral"];
+  ui.riskSummary.classList.add("risk-card");
+  ui.riskSummary.classList.remove(...toneClasses);
+  ui.riskSummary.classList.add(level.className);
+  ui.riskSummary.innerHTML = `
+    <div class="risk-card-head">
+      <div>
+        <p class="risk-title">Risk Summary</p>
+        <p class="risk-sub">Auto-generated from CT slice scores.</p>
+      </div>
+      <span class="risk-badge ${level.className}">${level.label}</span>
+    </div>
+    <div class="risk-grid">
+      <div class="risk-metric">
+        <span class="risk-label">Overall Risk</span>
+        <span class="risk-value">${level.label}</span>
+      </div>
+      <div class="risk-metric">
+        <span class="risk-label">Highest Slice Risk</span>
+        <span class="risk-value">${formatPct(maxProb)}</span>
+      </div>
+      <div class="risk-metric">
+        <span class="risk-label">Average Slice Risk</span>
+        <span class="risk-value">${formatPct(avgProb)}</span>
+      </div>
+      <div class="risk-metric">
+        <span class="risk-label">High-risk Slices</span>
+        <span class="risk-value">${highRiskLabel} / ${totalLabel}</span>
+      </div>
+      <div class="risk-metric">
+        <span class="risk-label">Slices analyzed</span>
+        <span class="risk-value">${totalLabel}</span>
+      </div>
+    </div>
+  `;
 }
 
 function formatResultSummary(summary, slices) {
@@ -236,8 +414,7 @@ function updateAnalysisPanel(study) {
     ui.analysisMeta.textContent = "Awaiting analysis.";
   }
 
-  const summary = study?.resultSummary;
-  const slices = resolveSlices(study);
+  const summaryData = buildRiskSummary(study);
   const result = study?.analysisResult;
   ui.analysisResult.classList.toggle("error", isError);
   if (isError) {
@@ -246,32 +423,21 @@ function updateAnalysisPanel(study) {
     if (errorDetail && errorDetail !== errorMessage) parts.push(errorDetail);
     if (errorHint) parts.push(errorHint);
     ui.analysisResult.textContent = parts.length ? parts.join("\n") : "Analysis failed.";
+    ui.analysisResult.classList.remove("ct-hidden");
+    if (ui.riskSummary) ui.riskSummary.classList.add("ct-hidden");
+    if (ui.riskInterpretation) ui.riskInterpretation.classList.add("ct-hidden");
     return;
   }
-  if (summary) {
-    const formatted = formatResultSummary(summary, slices);
-    if (formatted) {
-      ui.analysisResult.textContent = formatted;
-      return;
-    }
+  renderRiskSummary(summaryData);
+  if (ui.riskSummary) ui.riskSummary.classList.remove("ct-hidden");
+  if (ui.riskInterpretation) {
+    ui.riskInterpretation.classList.remove("ct-hidden");
+    ui.riskInterpretation.textContent = interpretation(summaryData?.level?.tone);
   }
+  ui.analysisResult.classList.add("ct-hidden");
   if (result === null || result === undefined || result === "") {
     ui.analysisResult.textContent = "No analysis result yet.";
     return;
-  }
-  if (typeof result === "string") {
-    ui.analysisResult.textContent = result;
-    return;
-  }
-  if (typeof result === "object") {
-    const formatted = formatAnalysisResult(result, 10);
-    ui.analysisResult.textContent = formatted || "No analysis result yet.";
-    return;
-  }
-  try {
-    ui.analysisResult.textContent = JSON.stringify(result, null, 2);
-  } catch (error) {
-    ui.analysisResult.textContent = String(result);
   }
 }
 
@@ -300,6 +466,7 @@ function updateStudyDetails(study) {
   updateAnalysisPanel(study);
   updateRunAiLabel(study);
   setRunAiBusy(state.runAiBusy);
+  updateViewerOverlay();
 }
 
 function pickPatientName(data) {

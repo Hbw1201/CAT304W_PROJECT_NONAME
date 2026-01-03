@@ -237,8 +237,8 @@
 
     .ct-viewport {
       position: relative;
-      height: clamp(540px, 68vh, 760px);
-      min-height: 540px;
+      height: clamp(600px, 72vh, 820px);
+      min-height: 600px;
       border-radius: 18px;
       overflow: hidden;
     }
@@ -577,11 +577,11 @@
             <div class="ct-card-scroll" id="ctDetailsScroll">
               <div class="ct-details-body" id="studyDetailsBody">
                 <div class="ct-info-grid">
-                  <div class="info-row">
+                  <div class="info-row info-muted">
                     <span class="info-label">Study ID</span>
                     <span class="info-value" id="infoStudyId">-</span>
                   </div>
-                  <div class="info-row">
+                  <div class="info-row info-muted">
                     <span class="info-label">Patient ID</span>
                     <span class="info-value" id="infoPatientId">-</span>
                   </div>
@@ -608,7 +608,9 @@
                     <span class="status-pill" id="analysisStatusBadge">Not run</span>
                   </div>
                   <div class="analysis-meta" id="analysisMeta">Awaiting analysis.</div>
-                  <pre class="analysis-result" id="analysisResult">No analysis result yet.</pre>
+                  <div class="risk-card" id="ctRiskSummary"></div>
+                  <div class="risk-interpretation" id="ctRiskInterpretation">Run AI analysis to view clinical summary.</div>
+                  <div class="analysis-result" id="analysisResult">No analysis result yet.</div>
                 </div>
               </div>
             </div>
@@ -629,6 +631,7 @@
             </div>
           </div>
           <div class="ct-viewer ct-viewport" id="dicomViewer">
+            <div class="ct-viewer-overlay" id="viewerOverlay">Slice 0 / 0 · Risk —</div>
             <div class="viewer-status" id="viewerStatus">Select a study to load DICOM images.</div>
           </div>
         </article>
