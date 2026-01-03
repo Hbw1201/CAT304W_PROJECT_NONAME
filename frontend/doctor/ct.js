@@ -84,7 +84,7 @@ function formatStatus(value, fallback = "Unknown") {
 function statusToVariant(value) {
   const status = String(value || "").toLowerCase();
   if (["pending", "analyzing", "queued", "uploaded", "running"].includes(status)) return "pending";
-  if (["done", "completed", "ready"].includes(status)) return "done";
+  if (["done", "completed", "ready", "analyzed"].includes(status)) return "done";
   if (["error", "failed"].includes(status)) return "error";
   return "";
 }
@@ -115,11 +115,22 @@ function updateViewerControls() {
   if (ui.btnZoomOut) ui.btnZoomOut.disabled = !hasStack;
 }
 
+function updateRunAiLabel(study) {
+  if (!ui.btnRunAI) return;
+  const status = String(study?.analysisStatus || "").toLowerCase();
+  ui.btnRunAI.textContent = status === "analyzed" ? "Re-run AI analysis" : "Run AI analysis";
+}
+
 function setRunAiBusy(busy) {
   state.runAiBusy = Boolean(busy);
   if (!ui.btnRunAI) return;
   ui.btnRunAI.disabled = Boolean(busy);
-  ui.btnRunAI.textContent = "Run AI analysis";
+  if (busy) {
+    ui.btnRunAI.textContent = "Running AI analysis...";
+    return;
+  }
+  const current = state.studies.find((item) => item.id === state.selectedStudyId);
+  updateRunAiLabel(current);
 }
 
 function updateStudyCount() {
@@ -138,37 +149,111 @@ function updateStudyStatusBadge(status) {
   if (variant) ui.studyStatusBadge.classList.add(variant);
 }
 
+function resolveSlices(study) {
+  if (Array.isArray(study?.slices)) return study.slices;
+  const legacy = [];
+  if (study && typeof study === "object") {
+    for (const [key, value] of Object.entries(study)) {
+      if (!/^\d+$/.test(key)) continue;
+      if (typeof value !== "number") continue;
+      legacy.push({ index: Number(key), file: "", prob_malignant: value });
+    }
+  }
+  if (legacy.length) {
+    legacy.sort((a, b) => a.index - b.index);
+    return legacy;
+  }
+  const rawSlices = study?.analysis?.result?.slice_scores;
+  if (Array.isArray(rawSlices)) {
+    return rawSlices.map((item) => ({
+      index: typeof item?.index === "number" ? item.index : null,
+      file: item?.file || "",
+      prob_malignant: item?.prob_malignant
+    }));
+  }
+  return [];
+}
+
+function formatSummaryValue(value) {
+  if (typeof value === "number") return formatProb(value);
+  if (value === null || value === undefined || value === "") return "-";
+  return String(value);
+}
+
+function formatResultSummary(summary, slices) {
+  if (!summary || typeof summary !== "object") return "";
+  const lines = [];
+  if ("prob_malignant" in summary) lines.push(`prob_malignant: ${formatSummaryValue(summary.prob_malignant)}`);
+  if ("max_prob" in summary) lines.push(`max_prob: ${formatSummaryValue(summary.max_prob)}`);
+  if ("avg_prob" in summary) lines.push(`avg_prob: ${formatSummaryValue(summary.avg_prob)}`);
+  if ("high_risk_slices" in summary) lines.push(`high_risk_slices: ${summary.high_risk_slices ?? "-"}`);
+  if (slices?.length) lines.push(`slices: ${slices.length}`);
+  return lines.join("\n");
+}
+
 function updateAnalysisPanel(study) {
   if (!ui.analysisStatusBadge || !ui.analysisResult || !ui.analysisMeta) return;
   const status = String(study?.analysisStatus || "").toLowerCase();
   const label = status ? formatStatus(status, "Not run") : "Not run";
   const isError = status === "error" || status === "failed";
   const analysisError = study?.analysisError;
-  const errorMessage =
-    analysisError && typeof analysisError === "object"
-      ? analysisError.message || JSON.stringify(analysisError)
-      : analysisError;
+  let errorMessage = "";
+  let errorDetail = "";
+  let errorHint = "";
+  if (analysisError && typeof analysisError === "object") {
+    errorMessage = analysisError.message || analysisError.error || analysisError.code || "";
+    errorDetail = analysisError.detail || analysisError.stack || "";
+    errorHint = analysisError.hint || "";
+    if (!errorMessage) {
+      try {
+        errorMessage = JSON.stringify(analysisError);
+      } catch (error) {
+        errorMessage = String(analysisError);
+      }
+    }
+  } else if (analysisError) {
+    errorMessage = String(analysisError);
+  }
+  if (!errorDetail && study?.analysisErrorDetail) {
+    errorDetail = String(study.analysisErrorDetail);
+  }
   ui.analysisStatusBadge.textContent = label;
   ui.analysisStatusBadge.classList.remove("pending", "done", "error");
   const variant = statusToVariant(status);
   if (variant) ui.analysisStatusBadge.classList.add(variant);
 
   const updatedAt = formatTimestamp(study?.analysisUpdatedAt);
-  if (isError && errorMessage) {
-    ui.analysisMeta.textContent = `Error: ${errorMessage}`;
+  if (isError) {
+    ui.analysisMeta.textContent = errorMessage ? `Error: ${errorMessage}` : "Analysis error.";
   } else if (status === "running") {
     ui.analysisMeta.textContent = "Analysis running...";
+  } else if (status === "analyzed") {
+    ui.analysisMeta.textContent =
+      updatedAt !== "-" ? `Analysis completed · ${updatedAt}` : "Analysis completed.";
   } else if (updatedAt !== "-") {
     ui.analysisMeta.textContent = `Last updated: ${updatedAt}`;
   } else {
     ui.analysisMeta.textContent = "Awaiting analysis.";
   }
 
+  const summary = study?.resultSummary;
+  const slices = resolveSlices(study);
   const result = study?.analysisResult;
   ui.analysisResult.classList.toggle("error", isError);
-  if (isError && errorMessage) {
-    ui.analysisResult.textContent = errorMessage;
+  if (isError) {
+    const parts = [];
+    if (errorMessage) parts.push(errorMessage);
+    if (errorDetail && errorDetail !== errorMessage) parts.push(errorDetail);
+    if (errorHint) parts.push(errorHint);
+    ui.analysisResult.textContent = parts.length ? parts.join("\n") : "Analysis failed.";
     return;
+  }
+  if (summary) {
+    const formatted = formatResultSummary(summary, slices);
+    if (formatted) {
+      ui.analysisResult.textContent = formatted;
+      return;
+    }
   }
   if (result === null || result === undefined || result === "") {
     ui.analysisResult.textContent = "No analysis result yet.";
@@ -200,6 +285,7 @@ function updateStudyDetails(study) {
     setText(ui.infoStoragePrefix, EMPTY_PLACEHOLDER);
     setText(ui.infoAnalysisUpdated, EMPTY_PLACEHOLDER);
     updateAnalysisPanel(null);
+    updateRunAiLabel(null);
     setRunAiBusy(false);
     return;
   }
@@ -212,6 +298,7 @@ function updateStudyDetails(study) {
   setText(ui.infoStoragePrefix, study.storagePrefix || "-");
   setText(ui.infoAnalysisUpdated, formatTimestamp(study.analysisUpdatedAt));
   updateAnalysisPanel(study);
+  updateRunAiLabel(study);
   setRunAiBusy(state.runAiBusy);
 }
 
@@ -765,11 +852,15 @@ function bindViewerEvents() {
   });
 }
 
-function setAnalysisError(message, study) {
+function setAnalysisError(message, detail, hint, study) {
   const update = {
-    analysisStatus: "error",
+    analysisStatus: "failed",
     analysisUpdatedAt: new Date().toISOString(),
-    analysisError: message || "Analysis failed.",
+    analysisError: {
+      message: message || "Analysis failed.",
+      detail: detail || "",
+      hint: hint || ""
+    },
     analysisResult: ""
   };
   if (study) {
@@ -780,15 +871,51 @@ function setAnalysisError(message, study) {
   }
 }
 
+function setAnalysisSuccess(message, study) {
+  const update = {
+    analysisStatus: "analyzed",
+    analysisUpdatedAt: new Date().toISOString(),
+    analysisError: null,
+    analysisResult: message || "Analysis completed."
+  };
+  if (study) {
+    Object.assign(study, update);
+    updateStudyDetails(study);
+  } else {
+    updateAnalysisPanel(update);
+  }
+}
+
+async function refreshSelectedStudy() {
+  if (!state.selectedStudyId) return;
+  try {
+    const snap = await getDoc(doc(db, "ctStudies", state.selectedStudyId));
+    if (!snap.exists()) return;
+    const data = {
+      id: snap.id,
+      ...(snap.data() || {})
+    };
+    const idx = state.studies.findIndex((item) => item.id === snap.id);
+    if (idx >= 0) {
+      state.studies[idx] = data;
+    } else {
+      state.studies.push(data);
+    }
+    updateStudyDetails(data);
+  } catch (error) {
+    console.warn("[CT] refresh selected study failed:", error);
+  }
+}
+
 async function runAnalysis() {
   if (state.runAiBusy) return;
   if (!state.selectedStudyId) {
-    setAnalysisError("Select a study first.");
+    setAnalysisError("Select a study first.", "", "", null);
     return;
   }
   const user = auth?.currentUser;
   if (!user) {
-    setAnalysisError("Please login.");
+    setAnalysisError("Please login.", "", "", null);
     return;
   }
 
@@ -803,7 +930,7 @@ async function runAnalysis() {
   if (study) {
     study.analysisStatus = "running";
     study.analysisUpdatedAt = nowIso;
-    study.analysisError = "";
+    study.analysisError = null;
     updateStudyDetails(study);
   }
 
@@ -819,17 +946,31 @@ async function runAnalysis() {
     });
     console.log("[CT] analyze status", response.status);
     if (response.status === 404 || response.status === 405) {
-      throw new Error("Backend route missing / wrong method");
+      setAnalysisError("Backend route missing / wrong method", "", "", study);
+      return;
     }
-    const data = await response.json().catch(() => null);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${data?.message || response.statusText}`);
+    const rawText = await response.text();
+    let data = null;
+    if (rawText) {
+      try {
+        data = JSON.parse(rawText);
+      } catch (error) {
+        data = null;
+      }
+    }
+    if (!response.ok || (data && data.ok === false)) {
+      const message = data?.message || data?.error || `HTTP ${response.status}`;
+      const detail = data?.detail || "";
+      const hint = data?.hint || "";
+      setAnalysisError(message, detail, hint, study);
+      return;
     }
     console.log("[CT] analyze response", data);
-    // Firestore updates will drive the analysis panel rendering.
+    setAnalysisSuccess("Analysis completed.", study);
+    await refreshSelectedStudy();
   } catch (error) {
     console.error("[CT] run analysis failed:", error);
-    setAnalysisError(error?.message || "Analysis failed.", study);
+    setAnalysisError(error?.message || "Analysis failed.", "", "", study);
   } finally {
     setRunAiBusy(false);
   }
