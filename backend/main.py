@@ -141,30 +141,36 @@ CT_MODEL = _load_ct_model()
 
 
 def _ensure_ct_admin_app() -> firebase_admin.App:
-    if firebase_admin._apps:
-        return firebase_admin.get_app()
+    try:
+        app = firebase_admin.get_app("ct-admin")
+        logger.info("[CT] reused firebase admin app: ct-admin")
+        return app
+    except ValueError:
+        pass
 
-    cred_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    cred_path = os.environ.get("CT_FIREBASE_SERVICE_ACCOUNT")
+    logger.info("[CT] admin cred path = %r", cred_path)
     if not cred_path:
-        raise RuntimeError("GOOGLE_APPLICATION_CREDENTIALS is required for CT Firestore.")
+        raise RuntimeError("CT_FIREBASE_SERVICE_ACCOUNT is not set")
 
     cred_file = Path(cred_path)
     if not cred_file.exists():
-        raise RuntimeError(f"Firebase service account not found: {cred_file}")
-
-    logger.info("[CT] firebase credentials path=%s", cred_file)
+        raise RuntimeError(f"Firebase service account not found at {cred_file}")
 
     service_data = json.loads(cred_file.read_text(encoding="utf-8"))
     project_id = service_data.get("project_id") or "feiai-7c59e"
     logger.info("[CT] firestore project_id=%s", project_id)
     cred = admin_credentials.Certificate(service_data)
-    return firebase_admin.initialize_app(
+    app = firebase_admin.initialize_app(
         cred,
         {
             "projectId": project_id,
             "storageBucket": CT_BUCKET_NAME,
         },
+        name="ct-admin",
     )
+    logger.info("[CT] initialized firebase admin app: ct-admin")
+    return app
 
 
 def _get_ct_firestore():
