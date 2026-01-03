@@ -1483,59 +1483,60 @@ def system_init() -> Flask:
         payload: Dict[str, Any] = {}
         doc_ref = None
         study_id = ""
+        def _ct_error(code: str, message: str, status: int, detail: str = "", hint: str = "") -> Response:
+            payload = {
+                "ok": False,
+                "error": code,
+                "message": message,
+                "detail": detail,
+                "hint": hint,
+            }
+            resp = jsonify(payload)
+            resp.status_code = status
+            return add_cors(resp)
         try:
             if not request.is_json:
-                resp = jsonify({"ok": False, "error": "Content-Type must be application/json"})
-                return add_cors(resp), 400
+                return _ct_error(
+                    "bad_request",
+                    "Content-Type must be application/json",
+                    400,
+                )
             payload = request.get_json(silent=True)
             if not isinstance(payload, dict):
-                resp = jsonify({"ok": False, "error": "Invalid JSON body"})
-                return add_cors(resp), 400
+                return _ct_error("bad_request", "Invalid JSON body", 400)
             t0 = time.time()
             logger.info("[CT] analyze start payload=%s", payload)
-            study_id = payload.get("studyId")
-            if not isinstance(study_id, str) or not study_id.strip():
-                resp = jsonify({"ok": False, "error": "studyId is required"})
-                return add_cors(resp), 400
-            study_id = study_id.strip()
+            study_id = str(payload.get("studyId") or "").strip()
+            patient_id = str(payload.get("patientId") or "").strip()
+            storage_prefix = str(payload.get("storagePrefix") or "").strip()
+            missing_fields = []
+            if not study_id:
+                missing_fields.append("studyId")
+            if not patient_id:
+                missing_fields.append("patientId")
+            if not storage_prefix:
+                missing_fields.append("storagePrefix")
+            if missing_fields:
+                missing_str = "/".join(missing_fields)
+                return _ct_error("bad_request", f"missing {missing_str}", 400)
 
             with _study_lock(study_id):
-                patient_id = payload.get("patientId")
-                if patient_id is not None and not isinstance(patient_id, str):
-                    patient_id = str(patient_id)
-                storage_prefix = payload.get("storagePrefix")
-                if storage_prefix is not None and not isinstance(storage_prefix, str):
-                    storage_prefix = str(storage_prefix)
-
                 if CT_MODEL is None:
-                    resp = jsonify({"ok": False, "error": "CT model not loaded at startup"})
-                    return add_cors(resp), 500
+                    return _ct_error("ct_model_unavailable", "CT model not loaded at startup", 500)
 
-                db = _get_ct_firestore()
+                try:
+                    db = _get_ct_firestore()
+                except RuntimeError as exc:
+                    return _ct_error(
+                        "firebase_admin_unavailable",
+                        "CT analysis backend is not properly configured",
+                        503,
+                        detail=str(exc),
+                        hint="Set CT_FIREBASE_SERVICE_ACCOUNT to a valid Firebase service account json file",
+                    )
 
                 doc_ref = db.collection("ctStudies").document(str(study_id))
                 logger.info("[CT] firestore doc path=ctStudies/%s", study_id)
-                doc_snap = doc_ref.get()
-                study_data = doc_snap.to_dict() or {}
-                if not storage_prefix:
-                    storage_prefix = study_data.get("storagePrefix")
-                if not patient_id:
-                    patient_id = study_data.get("patientId")
-
-                if not storage_prefix:
-                    error_payload = {
-                        "analysisStatus": "error",
-                        "analysisUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
-                        "analysisCompletedAt": admin_firestore.SERVER_TIMESTAMP,
-                        "analysisError": {
-                            "message": "storagePrefix is required",
-                            "stack": "",
-                        },
-                        "updatedAt": admin_firestore.SERVER_TIMESTAMP,
-                    }
-                    doc_ref.set(error_payload, merge=True)
-                    resp = jsonify({"ok": False, "error": "storagePrefix is required"})
-                    return add_cors(resp), 400
 
                 running_update = {
                     "analysisStatus": "running",
@@ -1665,13 +1666,9 @@ def system_init() -> Flask:
                 result = {
                     "ok": True,
                     "studyId": study_id,
-                    "patientId": patient_id,
-                    "storagePrefix": storage_prefix,
-                    "analysisResult": analysis_result,
-                    "analysis": inference,
-                    "result": inference,
-                    "device": device,
-                    "elapsedMs": elapsed_ms,
+                    "updatedAt": datetime.utcnow().isoformat() + "Z",
+                    "resultSummary": analysis_result,
+                    "resultSlicesCount": file_count,
                 }
                 logger.info("[CT] analyze ok elapsed=%.2fs", time.time() - t0)
                 return add_cors(jsonify(result)), 200
@@ -1701,14 +1698,8 @@ def system_init() -> Flask:
                     )
                 except Exception:  # noqa: BLE001
                     logger.exception("[CT] analyze failed to persist error state")
-            err = {
-                "ok": False,
-                "error": str(exc),
-                "studyId": study_id if isinstance(payload, dict) else "",
-            }
-            resp = jsonify(err)
-            resp.status_code = 500
-            return add_cors(resp)
+            detail = f"{type(exc).__name__}: {exc}"
+            return _ct_error("internal_error", "CT analysis failed", 500, detail=detail)
 
     def proxy_screen(path: str, method: str = "GET"):
         target_url = f"{SCREEN_BACKEND_URL}{path}"
