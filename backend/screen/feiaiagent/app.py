@@ -1873,6 +1873,31 @@ def download_report(filename):
         return jsonify({"error": f"Failed to download report: {str(e)}"}), 500
 
 
+@app.route("/api/reports/view/<path:filename>", methods=["GET"])
+def view_report(filename):
+    try:
+        reports_dir = str(report_manager.reports_dir)
+        resp = send_from_directory(
+            reports_dir,
+            filename,
+            as_attachment=False,
+            mimetype="application/pdf",
+        )
+        resp.headers["Content-Disposition"] = f'inline; filename="{filename}"'
+        return resp
+    except Exception as e:
+        logger.error(f"Failed to view report: {e}")
+        return jsonify({"error": f"Failed to view report: {str(e)}"}), 500
+
+
+@app.route("/api/reports/_routes", methods=["GET"])
+def report_routes():
+    routes = sorted(
+        {rule.rule for rule in app.url_map.iter_rules() if "/api/reports/" in rule.rule}
+    )
+    return jsonify(routes)
+
+
 @app.route("/api/reports/export_pdf/<path:filename>", methods=["GET"])
 def export_report_pdf(filename):
     """

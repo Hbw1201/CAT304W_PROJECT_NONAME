@@ -147,8 +147,16 @@
   </style>
 </head>
 <body class="dash-body">
-  <div class="page-layout">
-    <aside class="sidebar">
+  <div class="patient-shell">
+    <header class="patient-topbar">
+      <button class="burger-btn" id="burgerBtn" aria-label="Open menu" aria-expanded="false" aria-controls="patientDrawer">
+        <span class="burger-lines"></span>
+      </button>
+      <div class="topbar-title" id="topbarTitle">Dashboard</div>
+    </header>
+    <div class="drawer-overlay is-hidden" id="drawerOverlay"></div>
+    <div class="page-layout">
+    <aside class="sidebar patient-drawer" id="patientDrawer" aria-hidden="true">
       <div class="brand-row">
         <div class="brand-mark" id="brand-avatar">O</div>
         <span class="brand-name" id="brand-name">osler</span>
@@ -259,7 +267,7 @@
 
     </aside>
 
-    <main class="main-content main-panel">
+    <main class="main-content main-panel patient-main" id="patientMain">
       <section class="card hero overview-card">
         <div class="overview-top">
           <div>
@@ -682,6 +690,8 @@
       <div class="meta" id="kmBody"></div>
     </div>
   </div>
+  </div>
+  <script src="/patient/drawer.js"></script>
   <script>
     (function () {
       const profile = (() => {
@@ -727,6 +737,7 @@
       onSnapshot,
       orderBy,
       query,
+      runTransaction,
       serverTimestamp,
       setDoc,
       updateDoc,
@@ -738,7 +749,6 @@
     const scoreNumber = ring?.querySelector(".score-number");
     const scoreLabel = ring?.querySelector(".score-label");
     const riskClasses = ["risk-low", "risk-medium", "risk-high"];
-    const SF_ORDER = ["questionnaire", "appointment", "ct", "ai", "doctor", "followup"];
     const NEXT_STEP_MAP = {
       questionnaire: {
         main: "Update questionnaire",
@@ -771,6 +781,102 @@
         route: "screening.html"
       }
     };
+    const moduleStatus = {};
+    window.__dashboardModules = moduleStatus;
+
+    function runModule(name, fn){
+      moduleStatus[name] = { status: "starting" };
+      try{
+        const result = fn();
+        if(result && typeof result.then === "function"){
+          return result.then(()=>{
+            moduleStatus[name].status = "ok";
+          }).catch((error)=>{
+            moduleStatus[name].status = "failed";
+            console.error(`[module:${name}] init failed`, error);
+          });
+        }
+        moduleStatus[name].status = "ok";
+      }catch(error){
+        moduleStatus[name].status = "failed";
+        console.error(`[module:${name}] init failed`, error);
+      }
+      return Promise.resolve();
+    }
+
+    const flowState = {
+      api: null,
+      container: null,
+      badge: null,
+      lastDoc: null,
+      lastMeta: null,
+      unsub: null
+    };
+
+    async function loadFlowProgressModule(){
+      if(flowState.api) return flowState.api;
+      const url = new URL("../shared/flowProgress.js", import.meta.url);
+      const mod = await import(url.href);
+      if(!mod?.normalizeSteps || !mod?.computeProgress || !mod?.toUiModel || !mod?.renderFlow){
+        throw new Error("flowProgress module missing exports");
+      }
+      flowState.api = mod;
+      return mod;
+    }
+
+    function renderFlowFromDoc(userDoc){
+      flowState.lastDoc = userDoc || null;
+      if(!flowState.api || !flowState.container) return;
+      try{
+        const rawSteps = userDoc?.status?.steps;
+        const steps = flowState.api.normalizeSteps(rawSteps);
+        const meta = flowState.api.computeProgress(steps, userDoc?.status?.current);
+        const model = flowState.api.toUiModel(steps, meta.currentKey, rawSteps);
+        flowState.api.renderFlow(flowState.container, model, meta);
+        if(flowState.badge){
+          flowState.badge.textContent = `Progress ${meta.doneCount} / ${meta.totalCount}`;
+        }
+        flowState.lastMeta = meta;
+        renderNextStep(userDoc, meta);
+      }catch(error){
+        console.error("[SF] render error", error);
+      }
+    }
+
+    function subscribeScreeningFlow(user){
+      if(flowState.unsub){
+        flowState.unsub();
+        flowState.unsub = null;
+      }
+      if(!user){
+        renderFlowFromDoc(null);
+        renderLastQuestionnaire(null);
+        return;
+      }
+      const ref = doc(db, "users", user.uid);
+      flowState.unsub = onSnapshot(
+        ref,
+        (snap)=>{
+          const data = snap.exists() ? snap.data() : null;
+          renderFlowFromDoc(data);
+          renderLastQuestionnaire(data);
+        },
+        (error)=>{
+          console.error("[SF] snapshot error", error);
+        }
+      );
+    }
+
+    function initFlowProgress(){
+      flowState.container = document.getElementById("sfTrack");
+      flowState.badge = document.getElementById("sfProgressBadge");
+      onAuthStateChanged(auth, (user)=>{
+        subscribeScreeningFlow(user);
+      });
+      return loadFlowProgressModule().then(()=>{
+        if(flowState.lastDoc) renderFlowFromDoc(flowState.lastDoc);
+      });
+    }
 
     const normalizeRiskLevel = (value) => {
       const normalized = String(value ?? "low").toLowerCase().trim();
@@ -790,61 +896,22 @@
       if (scoreLabel) scoreLabel.textContent = "Risk level";
     };
 
-    onAuthStateChanged(auth, async (user) => {
-      try {
-        if (!user) {
+    function initRiskRing(){
+      onAuthStateChanged(auth, async (user) => {
+        try {
+          if (!user) {
+            setRiskRing("low");
+            return;
+          }
+          const snap = await getDoc(doc(db, "users", user.uid));
+          const data = snap.exists() ? snap.data() : null;
+          const level = data?.riskLevel ?? "low";
+          setRiskRing(level);
+        } catch (error) {
+          console.error("[dashboard] Failed to load risk level:", error);
           setRiskRing("low");
-          return;
-        }
-        const snap = await getDoc(doc(db, "users", user.uid));
-        const data = snap.exists() ? snap.data() : null;
-        const level = data?.riskLevel ?? "low";
-        setRiskRing(level);
-      } catch (error) {
-        console.error("[dashboard] Failed to load risk level:", error);
-        setRiskRing("low");
-      }
-    });
-
-    function sfDefaultStatus(){
-      const steps={};
-      SF_ORDER.forEach(k=>steps[k]={state:"todo",note:"—"});
-      return {current:null,steps};
-    }
-
-    function sfNormalize(raw){
-      const base = sfDefaultStatus();
-      if(!raw || typeof raw!=="object") return base;
-      const out = { current: raw.current ?? null, steps: {...base.steps} };
-      const rs = (raw.steps && typeof raw.steps==="object") ? raw.steps : {};
-      SF_ORDER.forEach(k=>{
-        if(rs[k]){
-          out.steps[k] = {
-            state: rs[k].state ?? out.steps[k].state,
-            date: rs[k].date,
-            note: rs[k].note ?? out.steps[k].note
-          };
         }
       });
-      return out;
-    }
-
-    function sfDoneCount(s){
-      return SF_ORDER.reduce((n,k)=>n + (s.steps[k]?.state==="done" ? 1 : 0), 0);
-    }
-
-    function sfSubText(step){
-      if(step?.date) return `Done · ${step.date}`;
-      if(step?.note) return step.note;
-      return "—";
-    }
-
-    function sfSetLine(doneCount){
-      const track = document.getElementById("sfTrack");
-      if(!track) return;
-      const pct = Math.max(0, Math.min(6, doneCount)) / 6 * 100;
-      track.style.setProperty("--sf-progress", pct + "%");
-      track.style.setProperty("--flow-progress", pct + "%");
     }
 
     function toMillis(value){
@@ -950,17 +1017,22 @@
       }
     }
 
-    let medState = { meds: [], log: null, dayKey: "", uid: "" };
+    let medState = { meds: [], log: null, dayKey: "", uid: "", medsReady: false, logReady: false };
     let medManageState = { editingId: null };
     let wbState = { uid: "", dayKey: "", ref: null, exists: false, createdAt: null };
     let medUnsub = null;
+    let medLogUnsub = null;
+
+    function getLocalDateKey(date){
+      const current = date instanceof Date ? date : new Date();
+      const year = current.getFullYear();
+      const month = String(current.getMonth() + 1).padStart(2, "0");
+      const day = String(current.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
 
     function formatTodayKey(){
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const day = String(now.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
+      return getLocalDateKey();
     }
 
     function listenMedications(uid, onUpdate){
@@ -981,24 +1053,53 @@
       );
     }
 
-    async function loadTodayLog(uid, dayKey){
+    function listenMedicationLog(uid, dayKey, onUpdate){
       const ref = doc(db, `users/${uid}/medicationLogs/${dayKey}`);
-      const snap = await getDoc(ref);
-      return snap.exists() ? snap.data() : null;
+      return onSnapshot(
+        ref,
+        (snap)=>{
+          onUpdate(snap.exists() ? snap.data() : null);
+        },
+        (error)=>{
+          console.error("[MED] log listen error", error);
+          onUpdate(null);
+        }
+      );
     }
 
-    async function markTaken(uid, medId, dayKey, nextCount){
+    async function markTaken(uid, medId, dayKey, total){
+      if(!uid || !medId) return;
       const ref = doc(db, `users/${uid}/medicationLogs/${dayKey}`);
-      await setDoc(
-        ref,
-        {
-          date: dayKey,
-          updatedAt: serverTimestamp(),
-          updatedBy: uid,
-          [`takenCount.${medId}`]: nextCount
-        },
-        { merge: true }
-      );
+      const cappedTotal = clampInt(total, 1, 24);
+      await runTransaction(db, async (tx)=>{
+        const snap = await tx.get(ref);
+        const data = snap.exists() ? snap.data() : {};
+        const takenMap = (data?.takenCount && typeof data.takenCount === "object")
+          ? data.takenCount
+          : {};
+        const current = getTakenCount(takenMap, medId, cappedTotal);
+        if(current >= cappedTotal) return;
+        const next = Math.min(current + 1, cappedTotal);
+        if(snap.exists()){
+          tx.update(ref, {
+            date: dayKey,
+            updatedAt: serverTimestamp(),
+            updatedBy: uid,
+            [`takenCount.${medId}`]: next
+          });
+          return;
+        }
+        tx.set(
+          ref,
+          {
+            date: dayKey,
+            updatedAt: serverTimestamp(),
+            updatedBy: uid,
+            takenCount: { [medId]: next }
+          },
+          { merge: true }
+        );
+      });
     }
 
     function openMedManageModal(){
@@ -1470,25 +1571,59 @@
       });
     }
 
+    function clampInt(value, min, max){
+      const num = Number(value);
+      if(!Number.isFinite(num)) return min;
+      const floored = Math.floor(num);
+      return Math.min(max, Math.max(min, floored));
+    }
+
+    function normalizeTimesPerDay(value){
+      return clampInt(value, 1, 24);
+    }
+
+    function getTakenCount(takenMap, medId, max){
+      const raw = Number(takenMap?.[medId] || 0);
+      if(!Number.isFinite(raw) || raw <= 0) return 0;
+      const floored = Math.floor(raw);
+      if(Number.isFinite(max)) return Math.min(floored, max);
+      return floored;
+    }
+
+    function canRenderMedications(){
+      return Boolean(medState.medsReady && medState.logReady);
+    }
+
     function renderMedications(uid){
+      if(!canRenderMedications()) return;
       const summaryEl = document.getElementById("medSummary");
       const listEl = document.getElementById("medList");
       if(!summaryEl || !listEl) return;
 
-      const meds = Array.isArray(medState.meds) ? medState.meds : [];
+      const meds = Array.isArray(medState.meds)
+        ? medState.meds.filter((med)=> med?.active !== false)
+        : [];
       const logData = medState.log || {};
       const takenMap = (logData?.takenCount && typeof logData.takenCount === "object")
         ? logData.takenCount
         : {};
+      console.log(
+        "[MED] dateKey",
+        medState.dayKey,
+        "log",
+        logData,
+        "medIds",
+        meds.map((med)=>med.id)
+      );
 
       let totalNeeded = 0;
       let totalTaken = 0;
 
       meds.forEach((med)=>{
-        const perDay = Math.max(0, Number(med.timesPerDay) || 0);
-        const taken = Math.max(0, Number(takenMap[med.id] || 0));
+        const perDay = normalizeTimesPerDay(med.timesPerDay);
+        const taken = getTakenCount(takenMap, med.id, perDay);
         totalNeeded += perDay;
-        totalTaken += Math.min(taken, perDay);
+        totalTaken += taken;
       });
 
       summaryEl.textContent = `Today ${totalTaken} / ${totalNeeded} done`;
@@ -1512,81 +1647,77 @@
       }
 
       meds.forEach((med)=>{
-        const perDay = Math.max(0, Number(med.timesPerDay) || 0);
-        const taken = Math.max(0, Number(takenMap[med.id] || 0));
-        const isDone = taken >= perDay;
-
-        const item = document.createElement("li");
-        item.className = `med-item ${isDone ? "done" : "pending"}`;
-
-        const icon = document.createElement("span");
-        icon.className = "med-check";
-        icon.setAttribute("aria-hidden", "true");
-        icon.innerHTML = isDone ? "&#10003;" : "&#9675;";
-
-        const body = document.createElement("div");
-        const title = document.createElement("p");
-        title.className = "flow-title";
+        const perDay = normalizeTimesPerDay(med.timesPerDay);
+        const taken = getTakenCount(takenMap, med.id, perDay);
         const name = String(med.name || "Medication").trim();
         const dose = String(med.dose || "").trim();
-        title.textContent = dose ? `${name} ${dose}` : name;
-
-        const meta = document.createElement("p");
-        meta.className = "meta";
         const notes = String(med.notes || "").trim();
-        meta.textContent = `Times/day: ${perDay}${notes ? ` · ${notes}` : ""}`;
+        const titleText = dose ? `${name} ${dose}` : name;
 
-        body.append(title, meta);
-        item.append(icon, body);
+        for(let slotIndex = 0; slotIndex < perDay; slotIndex += 1){
+          const isTaken = slotIndex < taken;
 
-        if(isDone){
-          const pill = document.createElement("span");
-          pill.className = "pill muted";
-          pill.textContent = "Taken";
-          item.appendChild(pill);
-        }else{
-          const btn = document.createElement("button");
-          btn.className = "pill plain";
-          btn.textContent = "Mark taken";
-          btn.addEventListener("click", async (e)=>{
-            e.preventDefault();
-            if(!uid || !medState.dayKey) return;
-            if(perDay <= 0) return;
-            const currentTaken = Math.max(0, Number((medState.log?.takenCount || {})[med.id] || 0));
-            const nextCount = Math.min(currentTaken + 1, perDay);
-            btn.disabled = true;
-            try{
-              await markTaken(uid, med.id, medState.dayKey, nextCount);
-              medState.log = {
-                ...(medState.log || {}),
-                date: medState.dayKey,
-                takenCount: {
-                  ...(medState.log?.takenCount || {}),
-                  [med.id]: nextCount
-                }
-              };
-              renderMedications(uid);
-            }catch(error){
-              console.error("[MED] mark taken error", error);
-              renderMedications(uid);
-            }
-          });
-          item.appendChild(btn);
+          const item = document.createElement("li");
+          item.className = `med-item ${isTaken ? "done" : "pending"}`;
+
+          const icon = document.createElement("span");
+          icon.className = "med-check";
+          icon.setAttribute("aria-hidden", "true");
+          icon.innerHTML = isTaken ? "&#10003;" : "&#9675;";
+
+          const body = document.createElement("div");
+          const title = document.createElement("p");
+          title.className = "flow-title";
+          title.textContent = titleText;
+
+          const meta = document.createElement("p");
+          meta.className = "meta";
+          const metaParts = [`Dose ${slotIndex + 1} of ${perDay}`];
+          if(notes) metaParts.push(notes);
+          meta.textContent = metaParts.join(" ? ");
+
+          body.append(title, meta);
+          item.append(icon, body);
+
+          if(isTaken){
+            const pill = document.createElement("span");
+            pill.className = "pill muted";
+            pill.textContent = "Taken";
+            item.appendChild(pill);
+          }else{
+            const btn = document.createElement("button");
+            btn.className = "pill plain";
+            btn.textContent = "Mark taken";
+            btn.addEventListener("click", async (e)=>{
+              e.preventDefault();
+              if(!uid || !medState.dayKey) return;
+              const currentTaken = getTakenCount(medState.log?.takenCount || {}, med.id, perDay);
+              if(currentTaken >= perDay) return;
+              btn.disabled = true;
+              try{
+                await markTaken(uid, med.id, medState.dayKey, perDay);
+              }catch(error){
+                console.error("[MED] mark taken error", error);
+                btn.disabled = false;
+              }
+            });
+            item.appendChild(btn);
+          }
+
+          listEl.appendChild(item);
         }
-
-        listEl.appendChild(item);
       });
     }
 
     function initMedications(user){
       if(!user) return;
       const uid = user.uid;
-      const dayKey = formatTodayKey();
-      medState = { meds: [], log: null, dayKey, uid };
+      const dayKey = getLocalDateKey();
+      medState = { meds: [], log: null, dayKey, uid, medsReady: false, logReady: false };
       medManageState.editingId = null;
       window.__medState = medState;
 
-      console.log("[MED] uid=", uid);
+      console.log("[MED] uid=", uid, "dayKey=", dayKey);
 
       bindMedManageUI();
 
@@ -1594,31 +1725,30 @@
         medUnsub();
         medUnsub = null;
       }
+      if(medLogUnsub){
+        medLogUnsub();
+        medLogUnsub = null;
+      }
 
       medUnsub = listenMedications(uid, (meds)=>{
         medState.meds = meds;
+        medState.medsReady = true;
         window.__medState = medState;
         console.log("[MED] meds=", meds);
         renderMedications(uid);
         renderMedManageModal();
       });
 
-      loadTodayLog(uid, dayKey)
-        .then((logData)=>{
-          medState.log = logData;
-          window.__medState = medState;
-          console.log("[MED] log=", logData);
-          renderMedications(uid);
-        })
-        .catch((error)=>{
-          console.error("[MED] log load error", error);
-          medState.log = null;
-          window.__medState = medState;
-          renderMedications(uid);
-        });
+      medLogUnsub = listenMedicationLog(uid, dayKey, (logData)=>{
+        medState.log = logData;
+        medState.logReady = true;
+        window.__medState = medState;
+        console.log("[MED] log=", logData);
+        renderMedications(uid);
+      });
     }
 
-    function renderNextStep(rawStatus){
+    function renderNextStep(userDoc, progressMeta){
       const card = document.getElementById("nextStepCard");
       const main = document.getElementById("nextStepMain");
       const sub = document.getElementById("nextStepSub");
@@ -1630,12 +1760,13 @@
         route: "question.html"
       };
 
-      if(rawStatus && typeof rawStatus === "object"){
-        const status = sfNormalize(rawStatus);
-        const currentKey = SF_ORDER.find((key)=>status.steps[key]?.state==="current");
-        const nextKey = currentKey ?? SF_ORDER.find((key)=>status.steps[key]?.state!=="done") ?? "questionnaire";
-        copy = NEXT_STEP_MAP[nextKey] || NEXT_STEP_MAP.questionnaire;
+      let currentKey = progressMeta?.currentKey || flowState.lastMeta?.currentKey || "";
+      if(!currentKey && flowState.api){
+        const steps = flowState.api.normalizeSteps(userDoc?.status?.steps);
+        currentKey = flowState.api.computeProgress(steps, userDoc?.status?.current).currentKey || "";
       }
+      if(!currentKey) currentKey = "questionnaire";
+      copy = NEXT_STEP_MAP[currentKey] || NEXT_STEP_MAP.questionnaire;
 
       main.textContent = copy.main;
       sub.textContent = copy.sub;
@@ -1663,68 +1794,36 @@
       subEl.textContent = subText;
     }
 
-    function sfRender(rawStatus){
-      const status = sfNormalize(rawStatus);
-      const doneCount = sfDoneCount(status);
-
-      const badge = document.getElementById("sfProgressBadge");
-      if(badge) badge.textContent = `Progress ${doneCount} / 6`;
-
-      sfSetLine(doneCount);
-
-      document.querySelectorAll(".flow-step[data-step]").forEach(el=>{
-        const key = el.getAttribute("data-step");
-        const st = status.steps[key] || {state:"todo"};
-        el.classList.remove("done","current","todo");
-        el.classList.add(st.state==="done" ? "done" : st.state==="current" ? "current" : "todo");
-
-        const sub = el.querySelector(`[data-sub="${key}"]`);
-        if(sub) sub.textContent = sfSubText(st);
+    function initAppointments(){
+      onAuthStateChanged(auth, (user)=>{
+        renderNextAppointment(user?.uid);
       });
-
-      renderNextStep(rawStatus);
     }
 
-    async function sfLoad(){
-      console.log("[SF] init");
-      const user = auth.currentUser;
-      console.log("[SF] uid=", user?.uid);
-      if(!user){
-        sfRender(null);
-        renderLastQuestionnaire(null);
-        return;
-      }
+    function initMedicationReminders(){
+      onAuthStateChanged(auth, (user)=>{
+        initMedications(user);
+      });
+    }
 
-      try{
-        const ref = doc(db,"users",user.uid);
-        const snap = await getDoc(ref);
-        console.log("[SF] doc exists=", snap.exists());
-        if(!snap.exists()){
-          sfRender(null);
-          renderLastQuestionnaire(null);
-          return;
-        }
-        const data = snap.data();
-        console.log("[SF] status=", data.status);
-        sfRender(data.status ?? null);
-        renderLastQuestionnaire(data);
-      }catch(e){
-        console.error("[SF] load error", e);
-        sfRender(null);
-        renderLastQuestionnaire(null);
-      }
+    function initSelfCheck(){
+      onAuthStateChanged(auth, (user)=>{
+        loadTodayWellbeing(user);
+      });
+    }
+
+    function initKnowledgeCards(){
+      bindKnowledgeModal();
+      bindStaticKnowledgeCards();
     }
 
     window.addEventListener("DOMContentLoaded", ()=>{
-      // 使用 auth.onAuthStateChanged 确保 uid 已就绪
-      auth.onAuthStateChanged((user)=>{
-        sfLoad();
-        renderNextAppointment(user?.uid);
-        initMedications(user);
-        loadTodayWellbeing(user);
-      });
-      bindKnowledgeModal();
-      bindStaticKnowledgeCards();
+      runModule("riskRing", initRiskRing);
+      runModule("flowProgress", initFlowProgress);
+      runModule("appointments", initAppointments);
+      runModule("medications", initMedicationReminders);
+      runModule("selfCheck", initSelfCheck);
+      runModule("knowledge", initKnowledgeCards);
     });
   </script>
 </body>

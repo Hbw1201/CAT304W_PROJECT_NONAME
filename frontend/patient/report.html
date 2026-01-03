@@ -12,8 +12,16 @@
 </head>
 
 <body class="dash-body">
-  <div class="page-layout">
-    <aside class="sidebar">
+  <div class="patient-shell">
+    <header class="patient-topbar">
+      <button class="burger-btn" id="burgerBtn" aria-label="Open menu" aria-expanded="false" aria-controls="patientDrawer">
+        <span class="burger-lines"></span>
+      </button>
+      <div class="topbar-title" id="topbarTitle">Report</div>
+    </header>
+    <div class="drawer-overlay is-hidden" id="drawerOverlay"></div>
+    <div class="page-layout">
+    <aside class="sidebar patient-drawer" id="patientDrawer" aria-hidden="true">
       <div class="brand-row">
         <div class="brand-mark" id="brand-avatar">O</div>
         <span class="brand-name" id="brand-name">osler</span>
@@ -128,7 +136,7 @@
       </div>
     </aside>
 
-    <main class="main-content main-panel">
+    <main class="main-content main-panel patient-main" id="patientMain">
       <section class="card hero">
         <div>
           <p class="eyebrow">Reports</p>
@@ -156,10 +164,6 @@
                 <p class="label">Latest first</p>
               </div>
               <span id="reportStatus" class="pill plain">Loading...</span>
-            </div>
-            <div id="indexNotice" class="dev-banner" hidden>
-              <span id="indexNoticeText">索引未就绪，请稍后重试/联系管理员</span>
-              <button id="indexRetry" type="button">重试</button>
             </div>
             <div id="reportError" class="error-banner" hidden>
               <span id="reportErrorText"></span>
@@ -363,30 +367,6 @@
       padding-left: 18px;
       color: #0f172a;
     }
-    .dev-banner {
-      background: #fff7ed;
-      color: #9a3412;
-      border: 1px solid #fdba74;
-      border-radius: 10px;
-      padding: 10px 12px;
-      margin-bottom: 10px;
-      font-size: 13px;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    .dev-banner button {
-      border: 1px solid #9a3412;
-      background: #9a3412;
-      color: #fff;
-      padding: 6px 10px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 600;
-    }
     .error-banner {
       background: #fef2f2;
       color: #991b1b;
@@ -403,6 +383,8 @@
       .report-preview iframe { min-height: 420px; }
     }
   </style>
+  </div>
+  <script src="/patient/drawer.js"></script>
 
   <script type="module">
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -425,9 +407,6 @@
       previewPlaceholder: document.getElementById("previewPlaceholder"),
       textPreview: document.getElementById("reportText"),
       summary: document.getElementById("reportSummary"),
-      indexNotice: document.getElementById("indexNotice"),
-      indexNoticeText: document.getElementById("indexNoticeText"),
-      indexRetry: document.getElementById("indexRetry"),
       error: document.getElementById("reportError"),
       errorText: document.getElementById("reportErrorText"),
       previewActions: null,
@@ -474,9 +453,38 @@
 
     const PDF_UNAUTHORIZED_MESSAGE =
       "PDF is not accessible due to permission settings. Please contact admin/doctor.";
-
+    const DEFAULT_PREVIEW_TEXT = "Select a report to preview";
+    const PREVIEW_UNAVAILABLE_MESSAGE =
+      "暂无可预览的 PDF，请下载 PDF。";
+    const PDF_PREVIEW_FAILED_MESSAGE = "预览失败，请下载 PDF。";
     function isStorageUnauthorized(error) {
       return String(error?.code || "").toLowerCase() === "storage/unauthorized";
+    }
+
+    function isDownloadOnlyUrl(url) {
+      return typeof url === "string" && url.includes("/api/reports/download/");
+    }
+
+    function normalizeUrl(value) {
+      if (!value || typeof value !== "string") return null;
+      const trimmed = value.trim();
+      return trimmed ? trimmed : null;
+    }
+
+    function setPreviewPlaceholder(text) {
+      if (!ui.previewPlaceholder) return;
+      ui.previewPlaceholder.textContent = text || DEFAULT_PREVIEW_TEXT;
+    }
+
+    function withCacheBuster(url) {
+      if (!url || typeof url !== "string") return url;
+      const [base, hash] = url.split("#");
+      if (/[?&](X-Goog-Signature|X-Amz-Signature|Signature)=/i.test(base)) {
+        return url;
+      }
+      const sep = base.includes("?") ? "&" : "?";
+      const stamped = `${base}${sep}t=${Date.now()}`;
+      return hash ? `${stamped}#${hash}` : stamped;
     }
 
     function truncateId(id = "") {
@@ -494,18 +502,6 @@
       }
     }
 
-    function showIndexNotice(show, message) {
-      if (!ui.indexNotice) return;
-      if (ui.indexNoticeText) {
-        if (show) {
-          ui.indexNoticeText.textContent = message || "索引未就绪，请稍后重试/联系管理员";
-        } else {
-          ui.indexNoticeText.textContent = "";
-        }
-      }
-      ui.indexNotice.hidden = !show;
-    }
-
     function showErrorNotice(show, message) {
       if (!ui.error) return;
       if (ui.errorText) {
@@ -519,7 +515,6 @@
     }
 
     function resetReportsUI() {
-      showIndexNotice(false);
       showErrorNotice(false);
       if (ui.empty) {
         ui.empty.hidden = true;
@@ -531,24 +526,8 @@
       }
     }
 
-    function showIndexNotReady(message) {
-      const text = message || "索引未就绪，请稍后重试/联系管理员";
-      showIndexNotice(true, text);
-      showErrorNotice(false);
-      if (ui.empty) {
-        ui.empty.hidden = true;
-        ui.empty.textContent = "";
-      }
-      if (ui.list) {
-        ui.list.style.display = "none";
-        ui.list.innerHTML = "";
-      }
-      setStatus(text);
-    }
-
     function showEmptyState(message) {
       const text = message || "No screening reports available yet.";
-      showIndexNotice(false);
       showErrorNotice(false);
       if (ui.list) {
         ui.list.style.display = "none";
@@ -562,7 +541,6 @@
     }
 
     function showList() {
-      showIndexNotice(false);
       showErrorNotice(false);
       if (ui.empty) {
         ui.empty.hidden = true;
@@ -573,7 +551,6 @@
 
     function showGenericError(message) {
       const text = message || "Failed to load reports";
-      showIndexNotice(false);
       showErrorNotice(true, text);
       if (ui.empty) {
         ui.empty.hidden = true;
@@ -586,24 +563,25 @@
       setStatus(text);
     }
 
-    function setPreview(url) {
+    function setPdfPreview(url) {
       if (!ui.previewFrame || !ui.previewPlaceholder) return;
-      if (ui.summary) {
-        ui.summary.hidden = true;
-        ui.summary.innerHTML = "";
-      }
       if (ui.textPreview) {
         ui.textPreview.hidden = true;
         ui.textPreview.textContent = "";
       }
       if (url) {
+        const previewUrl = withCacheBuster(url);
         ui.previewPlaceholder.hidden = true;
         ui.previewFrame.hidden = false;
-        ui.previewFrame.src = url;
+        ui.previewFrame.src = previewUrl;
+        ui.previewFrame.onload = () => {
+          ui.previewFrame.hidden = false;
+        };
         ui.previewFrame.onerror = () => {
           ui.previewFrame.hidden = true;
+          ui.previewFrame.removeAttribute("src");
           ui.previewPlaceholder.hidden = false;
-          ui.previewPlaceholder.textContent = "Preview unavailable. Try Open or Download.";
+          setPreviewPlaceholder(PDF_PREVIEW_FAILED_MESSAGE);
         };
       } else {
         ui.previewFrame.hidden = true;
@@ -660,9 +638,8 @@
         ui.summary.innerHTML = "";
         return;
       }
-      // Legacy fallbacks (risk_level/created_at/risk_score) are for older docs only.
+      // Legacy fallbacks (risk_level/created_at) are for older docs only.
       const riskLevel = report.riskLevel || report.risk_level || "-";
-      const riskScore = report.riskScore || report.risk_score || "-";
       const createdAt = report.createdAt || report.created_at || "-";
       const riskFactors = normalizeList(report.riskFactors || report.risk_factors).slice(0, 5);
       const recommendations = normalizeList(report.recommendations || report.recommendation).slice(0, 5);
@@ -674,7 +651,6 @@
       grid.className = "summary-grid";
       const fields = [
         { label: "Risk Level", value: riskLevel },
-        { label: "Risk Score", value: riskScore },
         { label: "Created", value: formatDate(createdAt) },
       ];
       fields.forEach((item) => {
@@ -727,95 +703,125 @@
         if (statusEl) statusEl.textContent = "Missing reportId";
         if (viewBtn) viewBtn.disabled = true;
         if (downloadBtn) downloadBtn.disabled = true;
-        return null;
+        return { viewUrl: null, textViewUrl: null, downloadUrl: null };
       }
 
       if (state.pdfCache.has(reportId)) {
-        const cached = state.pdfCache.get(reportId);
-        if (!cached) {
-          if (hasText) {
+        const cached = state.pdfCache.get(reportId) || {};
+        const viewUrl = normalizeUrl(cached.viewUrl);
+        const downloadUrl = normalizeUrl(cached.downloadUrl);
+        const textViewUrl = normalizeUrl(cached.textViewUrl);
+        const canView = Boolean(viewUrl || downloadUrl || textViewUrl);
+        const canDownload = Boolean(downloadUrl);
+
+        if (!viewUrl && !downloadUrl) {
+          if (textViewUrl) {
             if (statusEl) statusEl.textContent = "Text report available";
-            if (viewBtn) viewBtn.disabled = false;
-            if (downloadBtn) downloadBtn.disabled = true;
           } else {
             if (statusEl) statusEl.textContent = "PDF not uploaded";
-            if (viewBtn) viewBtn.disabled = true;
-            if (downloadBtn) downloadBtn.disabled = true;
           }
-        } else {
-          if (statusEl) statusEl.textContent = "";
-          if (viewBtn) viewBtn.disabled = false;
-          if (downloadBtn) downloadBtn.disabled = false;
+        } else if (statusEl) {
+          statusEl.textContent = "";
         }
-        return cached;
+
+        if (viewBtn) viewBtn.disabled = !canView;
+        if (downloadBtn) downloadBtn.disabled = !canDownload;
+        return { viewUrl, textViewUrl, downloadUrl };
       }
 
       if (statusEl) statusEl.textContent = "Checking PDF...";
       if (viewBtn) viewBtn.disabled = true;
       if (downloadBtn) downloadBtn.disabled = true;
 
-      let url = downloadUrlLocal || pdfUrl || null;
-      if (downloadUrlLocal) {
-        state.pdfCache.set(reportId, url);
-        if (statusEl) statusEl.textContent = "";
-        if (viewBtn) viewBtn.disabled = false;
-        if (downloadBtn) downloadBtn.disabled = false;
-        return url;
+      const downloadUrlLocalValue = normalizeUrl(downloadUrlLocal);
+      const pdfUrlValue = normalizeUrl(pdfUrl);
+      const textViewUrl = hasText ? "inline-text" : null;
+
+      let downloadUrl = downloadUrlLocalValue || pdfUrlValue || null;
+      let viewUrl = null;
+
+      if (downloadUrlLocalValue && downloadUrlLocalValue.includes("/api/reports/download/")) {
+        viewUrl = downloadUrlLocalValue.replace("/api/reports/download/", "/api/reports/view/");
+      } else if (pdfUrlValue && !isDownloadOnlyUrl(pdfUrlValue)) {
+        viewUrl = pdfUrlValue;
       }
-      if (!url) {
+
+      if (!viewUrl && !pdfUrlValue) {
         const defaultPath = state.patientId
           ? `reports/${state.patientId}/${reportId}.pdf`
           : `reports/${reportId}.pdf`;
         const path = pdfPath || defaultPath;
         try {
-          url = await getReportPdfUrl(reportId, path);
-          if (!url) {
-            url = await getDownloadURL(ref(storage, path));
+          viewUrl = await getReportPdfUrl(reportId, path);
+          if (!viewUrl) {
+            viewUrl = await getDownloadURL(ref(storage, path));
           }
         } catch (err) {
           if (isStorageUnauthorized(err)) {
             console.error("[report] pdf access denied", err);
-            if (statusEl) statusEl.textContent = PDF_UNAUTHORIZED_MESSAGE;
-            if (viewBtn) viewBtn.disabled = true;
-            if (downloadBtn) downloadBtn.disabled = true;
-            return null;
-          }
-          console.warn("[report] failed to get PDF URL, will fallback", err);
-          try {
-            url = await getDownloadURL(ref(storage, path));
-          } catch (err2) {
-            if (isStorageUnauthorized(err2)) {
-              console.error("[report] pdf access denied", err2);
+            if (!downloadUrl) {
               if (statusEl) statusEl.textContent = PDF_UNAUTHORIZED_MESSAGE;
               if (viewBtn) viewBtn.disabled = true;
               if (downloadBtn) downloadBtn.disabled = true;
-              return null;
+              state.pdfCache.set(reportId, { viewUrl: null, textViewUrl, downloadUrl: null });
+              return { viewUrl: null, textViewUrl, downloadUrl: null };
             }
-            console.error("[report] failed to get PDF URL from storage", err2);
-            url = null;
+            viewUrl = null;
+          } else {
+            console.warn("[report] failed to get PDF URL, will fallback", err);
+            try {
+              viewUrl = await getDownloadURL(ref(storage, path));
+            } catch (err2) {
+              if (isStorageUnauthorized(err2)) {
+                console.error("[report] pdf access denied", err2);
+                if (!downloadUrl) {
+                  if (statusEl) statusEl.textContent = PDF_UNAUTHORIZED_MESSAGE;
+                  if (viewBtn) viewBtn.disabled = true;
+                  if (downloadBtn) downloadBtn.disabled = true;
+                  state.pdfCache.set(reportId, { viewUrl: null, textViewUrl, downloadUrl: null });
+                  return { viewUrl: null, textViewUrl, downloadUrl: null };
+                }
+              } else {
+                console.error("[report] failed to get PDF URL from storage", err2);
+              }
+              viewUrl = null;
+            }
           }
         }
       }
-      console.log("[report] pdf url", url);
-      state.pdfCache.set(reportId, url || null);
 
-      if (!url) {
-        if (hasText) {
-          if (statusEl) statusEl.textContent = "Text report available";
-          if (viewBtn) viewBtn.disabled = false;
-          if (downloadBtn) downloadBtn.disabled = true;
-        } else {
-          if (statusEl) statusEl.textContent = "PDF not uploaded";
-          if (viewBtn) viewBtn.disabled = true;
-          if (downloadBtn) downloadBtn.disabled = true;
-        }
-      } else {
-        if (statusEl) statusEl.textContent = "";
-        if (viewBtn) viewBtn.disabled = false;
-        if (downloadBtn) downloadBtn.disabled = false;
+      if (viewUrl && isDownloadOnlyUrl(viewUrl)) {
+        viewUrl = null;
       }
 
-      return url;
+      if (!downloadUrl && viewUrl) {
+        downloadUrl = viewUrl;
+      }
+
+      console.log("[report] pdf urls", { viewUrl, downloadUrl });
+      state.pdfCache.set(reportId, {
+        viewUrl: viewUrl || null,
+        textViewUrl,
+        downloadUrl: downloadUrl || null,
+      });
+
+      const canView = Boolean(viewUrl || downloadUrl || textViewUrl);
+      const canDownload = Boolean(downloadUrl);
+
+      if (!viewUrl && !downloadUrl) {
+        if (textViewUrl) {
+          if (statusEl) statusEl.textContent = "Text report available";
+        } else {
+          if (statusEl) statusEl.textContent = "PDF not uploaded";
+        }
+      } else if (statusEl) {
+        statusEl.textContent = "";
+      }
+
+      if (viewBtn) viewBtn.disabled = !canView;
+      if (downloadBtn) downloadBtn.disabled = !canDownload;
+
+      return { viewUrl, textViewUrl, downloadUrl };
     }
 
     function setActiveItem(reportId) {
@@ -830,7 +836,7 @@
       const statusEl = document.querySelector(`[data-status="${reportId}"]`);
       const viewBtn = document.querySelector(`[data-view="${reportId}"]`);
       const downloadBtn = document.querySelector(`[data-download="${reportId}"]`);
-      const url = await ensurePdf(
+      const { viewUrl } = await ensurePdf(
         reportId,
         statusEl,
         viewBtn,
@@ -842,15 +848,15 @@
       );
       state.selectedId = reportId;
       renderSummary(report);
-      if (url) {
-        setPreview(url);
-      } else if (report.contentText) {
-        setTextPreview(report.contentText);
+      if (viewUrl) {
+        setPdfPreview(viewUrl);
+        setPreviewPlaceholder(DEFAULT_PREVIEW_TEXT);
       } else {
-        setPreview(null);
+        setPdfPreview(null);
+        setPreviewPlaceholder(PREVIEW_UNAVAILABLE_MESSAGE);
       }
       setActiveItem(reportId);
-      state.selectedUrl = url;
+      state.selectedUrl = viewUrl || null;
       const fallbackPath = state.patientId
         ? `reports/${state.patientId}/${reportId}.pdf`
         : `reports/${reportId}.pdf`;
@@ -862,7 +868,7 @@
       const statusEl = document.querySelector(`[data-status="${reportId}"]`);
       const viewBtn = document.querySelector(`[data-view="${reportId}"]`);
       const downloadBtn = document.querySelector(`[data-download="${reportId}"]`);
-      const url = await ensurePdf(
+      const { downloadUrl } = await ensurePdf(
         reportId,
         statusEl,
         viewBtn,
@@ -872,8 +878,8 @@
         report.downloadUrlLocal,
         Boolean(report.contentText)
       );
-      if (!url) return;
-      window.open(url, "_blank", "noopener");
+      if (!downloadUrl) return;
+      window.open(downloadUrl, "_blank", "noopener");
     }
 
     // Reports schema (source of truth):
@@ -886,7 +892,8 @@
       if (!reports.length) {
         showEmptyState("No screening reports available yet.");
         renderSummary(null);
-        setPreview(null);
+        setPdfPreview(null);
+        setPreviewPlaceholder(DEFAULT_PREVIEW_TEXT);
         return;
       }
 
@@ -976,7 +983,8 @@
       __loadingReports = true;
       state.patientId = patientId;
       setStatus("Loading...");
-      setPreview(null);
+      setPdfPreview(null);
+      setPreviewPlaceholder(DEFAULT_PREVIEW_TEXT);
       renderSummary(null);
       resetReportsUI();
 
@@ -1011,11 +1019,9 @@
           error?.code === "failed-precondition" || rawMessage.toLowerCase().includes("requires an index");
         if (isIndexError) {
           if (!indexErrorLogged) {
-            console.debug("[report] Firestore index not ready", error);
+            console.warn("[report] Firestore index required for reports query", error);
             indexErrorLogged = true;
           }
-          const friendly = "索引未就绪，请稍后重试/联系管理员";
-          showIndexNotReady(friendly);
         } else {
           console.error("[report] Failed to load reports", error);
           const message = rawMessage || "Failed to load reports";
@@ -1081,19 +1087,12 @@
       ui.search?.addEventListener("input", (e) => applySearch(e.target.value || ""));
     }
 
-    function attachRetry() {
-      ui.indexRetry?.addEventListener("click", () => {
-        if (!state.patientId) return;
-        loadReports(state.patientId);
-      });
-    }
-
     function init() {
       hydrateBrand();
       attachLogout();
       initSearch();
-      attachRetry();
-      setPreview(null);
+      setPdfPreview(null);
+      setPreviewPlaceholder(DEFAULT_PREVIEW_TEXT);
       renderSummary(null);
 
       onAuthStateChanged(auth, async (user) => {

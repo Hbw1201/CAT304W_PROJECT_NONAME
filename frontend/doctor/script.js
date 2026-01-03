@@ -12,6 +12,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
@@ -19,6 +20,7 @@ import {
   getDoctorPatients,
   getPatientsByIds,
 } from "./firestoreService.js";
+import { buildFlowModel, normalizeSteps, FLOW_ORDER } from "../shared/flowProgress.js";
 
 const doctorState = {
   patients: [],
@@ -31,6 +33,19 @@ const doctorState = {
     metaEl: null,
     currentChatId: null,
     unsubscribe: null,
+  },
+  flow: {
+    patientId: null,
+    unsub: null,
+    model: null,
+    normalizedSteps: null,
+    statusCurrent: "",
+    progressTrack: null,
+    progressBadge: null,
+    listEl: null,
+    statusEl: null,
+    autoCompleteToggle: null,
+    downgradeToggle: null,
   },
 };
 
@@ -144,6 +159,10 @@ function isDoctorChatPage() {
 function getCurrentTime() {
   const now = new Date();
   return now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+}
+
+function getPatientId(patient) {
+  return patient?.id || patient?.patientId || patient?.uid || "";
 }
 
 function updateSelectedPatientUI(patient) {
@@ -287,8 +306,8 @@ async function setActiveChatForPatient(patient) {
   detachDoctorChatListener();
   doctorState.chat.currentChatId = null;
 
-  if (!patient) return;
-  const patientId = patient.id || patient.patientId || patient.uid;
+  const patientId = getPatientId(patient);
+  subscribeFlowForPatient(patientId);
   if (!patientId) return;
 
   try {
@@ -354,6 +373,271 @@ function initDoctorChat() {
       sendDoctorMessage();
     }
   });
+}
+
+function initFlowControl() {
+  if (!isDoctorChatPage()) return;
+  doctorState.flow.progressTrack = document.getElementById("flowProgressTrack");
+  doctorState.flow.progressBadge = document.getElementById("flowProgressBadge");
+  doctorState.flow.listEl = document.getElementById("flowControlList");
+  doctorState.flow.statusEl = document.getElementById("flowControlStatus");
+  doctorState.flow.autoCompleteToggle = document.getElementById("flowAutoComplete");
+  doctorState.flow.downgradeToggle = document.getElementById("flowDowngradeFuture");
+  renderFlowEmpty();
+}
+
+function setFlowStatus(message) {
+  if (doctorState.flow.statusEl) {
+    doctorState.flow.statusEl.textContent = message || "";
+  }
+}
+
+function formatFlowDate(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number") {
+    const dt = new Date(value);
+    return Number.isNaN(dt.getTime()) ? "" : dt.toISOString().slice(0, 10);
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? "" : value.toISOString().slice(0, 10);
+  }
+  if (typeof value.toDate === "function") {
+    const dt = value.toDate();
+    return Number.isNaN(dt.getTime()) ? "" : dt.toISOString().slice(0, 10);
+  }
+  if (typeof value.seconds === "number") {
+    const dt = new Date(value.seconds * 1000);
+    return Number.isNaN(dt.getTime()) ? "" : dt.toISOString().slice(0, 10);
+  }
+  return "";
+}
+
+function formatDateInput(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value.trim().slice(0, 10);
+  return formatFlowDate(value);
+}
+
+function flowSubText(step, displayState) {
+  if (displayState === "done") {
+    const dateText = formatFlowDate(step?.date);
+    return dateText || "Done";
+  }
+  if (displayState === "current") {
+    const note = String(step?.note || "").trim();
+    return note || "In progress";
+  }
+  return "\u2014";
+}
+
+function renderFlowProgress(model) {
+  if (!model) return;
+  const { steps, progressMeta } = model;
+  const track = doctorState.flow.progressTrack;
+
+  if (doctorState.flow.progressBadge) {
+    doctorState.flow.progressBadge.textContent = `Progress ${progressMeta.doneCount} / ${progressMeta.totalCount}`;
+  }
+
+  if (track) {
+    const pct = Math.max(0, Math.min(100, Number(progressMeta.percent) || 0));
+    track.style.setProperty("--flow-progress", pct + "%");
+  }
+
+  steps.forEach((step) => {
+    const el = track?.querySelector(`.flow-step[data-step="${step.key}"]`);
+    if (!el) return;
+    el.classList.remove("done", "current", "todo", "active");
+    if (step.state === "done") {
+      el.classList.add("done");
+    } else if (step.state === "current") {
+      el.classList.add("current", "active");
+    } else {
+      el.classList.add("todo");
+    }
+
+    const sub = el.querySelector(`[data-sub="${step.key}"]`);
+    if (sub) sub.textContent = flowSubText(step, step.state);
+  });
+}
+
+async function saveFlowStep(stepKey, nextState, note, date, button) {
+  const patientId = doctorState.flow.patientId;
+  if (!patientId || !db) return;
+  const statusCurrent = doctorState.flow.statusCurrent || "";
+  const originalSteps = doctorState.flow.normalizedSteps || normalizeSteps(null);
+  const originalStates = {};
+  FLOW_ORDER.forEach((key) => {
+    originalStates[key] = originalSteps[key]?.state || "todo";
+  });
+
+  const updatedStates = { ...originalStates, [stepKey]: nextState };
+  const currentIndex = FLOW_ORDER.indexOf(stepKey);
+  const autoComplete = !!doctorState.flow.autoCompleteToggle?.checked;
+  const downgradeFuture = !!doctorState.flow.downgradeToggle?.checked;
+
+  if (nextState === "current" && currentIndex !== -1) {
+    if (autoComplete) {
+      for (let i = 0; i < currentIndex; i += 1) {
+        const key = FLOW_ORDER[i];
+        if (updatedStates[key] === "todo") updatedStates[key] = "done";
+      }
+    }
+    if (downgradeFuture) {
+      for (let i = currentIndex + 1; i < FLOW_ORDER.length; i += 1) {
+        const key = FLOW_ORDER[i];
+        if (updatedStates[key] === "done") updatedStates[key] = "todo";
+      }
+    }
+  }
+
+  let nextCurrent = statusCurrent;
+  if (nextState === "current") {
+    nextCurrent = stepKey;
+  } else if (nextState === "done" && statusCurrent === stepKey) {
+    nextCurrent = FLOW_ORDER.find((key) => updatedStates[key] !== "done") || FLOW_ORDER[FLOW_ORDER.length - 1];
+  }
+
+  const payload = {
+    [`status.steps.${stepKey}.state`]: nextState,
+    [`status.steps.${stepKey}.note`]: String(note || "").trim(),
+    [`status.steps.${stepKey}.date`]: String(date || "").trim(),
+  };
+
+  FLOW_ORDER.forEach((key) => {
+    if (updatedStates[key] !== originalStates[key]) {
+      payload[`status.steps.${key}.state`] = updatedStates[key];
+    }
+  });
+
+  if (nextState === "current") {
+    payload["status.current"] = stepKey;
+  } else if (nextCurrent && nextCurrent !== statusCurrent) {
+    payload["status.current"] = nextCurrent;
+  }
+
+  if (button) button.disabled = true;
+  setFlowStatus("Saving...");
+  try {
+    await updateDoc(doc(db, "users", patientId), payload);
+    setFlowStatus("Saved.");
+  } catch (error) {
+    console.error("[flow] save error", error);
+    setFlowStatus("Save failed.");
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+function renderFlowControls(model) {
+  const listEl = doctorState.flow.listEl;
+  if (!listEl) return;
+  listEl.innerHTML = "";
+
+  if (!doctorState.flow.patientId) {
+    setFlowStatus("Select a patient to edit flow.");
+    return;
+  }
+
+  setFlowStatus("");
+
+  model.steps.forEach((step) => {
+    const row = document.createElement("div");
+    row.className = "flow-step";
+    row.dataset.step = step.key;
+
+    const main = document.createElement("div");
+    main.className = "flow-step-main";
+    const title = document.createElement("p");
+    title.className = "flow-title";
+    title.textContent = step.label;
+    const text = document.createElement("p");
+    text.className = "flow-text";
+    text.textContent = flowSubText(step, step.state);
+    main.append(title, text);
+
+    const controls = document.createElement("div");
+    controls.className = "flow-step-controls";
+
+    const stateSelect = document.createElement("select");
+    ["todo", "current", "done"].forEach((option) => {
+      const opt = document.createElement("option");
+      opt.value = option;
+      opt.textContent = option;
+      stateSelect.appendChild(opt);
+    });
+    stateSelect.value = step.state;
+
+    const noteInput = document.createElement("input");
+    noteInput.type = "text";
+    noteInput.placeholder = "Note";
+    noteInput.value = step.note || "";
+
+    const dateInput = document.createElement("input");
+    dateInput.type = "date";
+    dateInput.value = formatDateInput(step.date);
+
+    const saveBtn = document.createElement("button");
+    saveBtn.type = "button";
+    saveBtn.className = "pill plain";
+    saveBtn.textContent = "Save";
+    saveBtn.addEventListener("click", async () => {
+      await saveFlowStep(step.key, stateSelect.value, noteInput.value, dateInput.value, saveBtn);
+    });
+
+    controls.append(stateSelect, noteInput, dateInput, saveBtn);
+    row.append(main, controls);
+    listEl.appendChild(row);
+  });
+}
+
+function renderFlowEmpty() {
+  doctorState.flow.model = buildFlowModel(null);
+  doctorState.flow.normalizedSteps = normalizeSteps(null);
+  doctorState.flow.statusCurrent = "";
+  renderFlowProgress(doctorState.flow.model);
+  if (doctorState.flow.listEl) doctorState.flow.listEl.innerHTML = "";
+  setFlowStatus("Select a patient to edit flow.");
+}
+
+function applyFlowSnapshot(userDoc) {
+  doctorState.flow.model = buildFlowModel(userDoc);
+  doctorState.flow.normalizedSteps = normalizeSteps(userDoc?.status?.steps);
+  doctorState.flow.statusCurrent = userDoc?.status?.current || "";
+  renderFlowProgress(doctorState.flow.model);
+  renderFlowControls(doctorState.flow.model);
+}
+
+function clearFlowSubscription() {
+  if (doctorState.flow.unsub) {
+    doctorState.flow.unsub();
+    doctorState.flow.unsub = null;
+  }
+}
+
+function subscribeFlowForPatient(patientId) {
+  if (!isDoctorChatPage()) return;
+  clearFlowSubscription();
+  doctorState.flow.patientId = patientId || null;
+
+  if (!patientId) {
+    renderFlowEmpty();
+    return;
+  }
+
+  const ref = doc(db, "users", patientId);
+  doctorState.flow.unsub = onSnapshot(
+    ref,
+    (snap) => {
+      const data = snap.exists() ? snap.data() : null;
+      applyFlowSnapshot(data);
+    },
+    (error) => {
+      console.error("[flow] snapshot error", error);
+      renderFlowEmpty();
+    }
+  );
 }
 
 function renderPatientList(patients) {
@@ -593,4 +877,5 @@ window.addEventListener("DOMContentLoaded", () => {
   initNavActiveState();
   attachLogout();
   initDoctorChat();
+  initFlowControl();
 });

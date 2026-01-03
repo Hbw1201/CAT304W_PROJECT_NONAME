@@ -17,10 +17,19 @@
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../dashboard.css">
   <link rel="stylesheet" href="../shared-layout.css">
+  <link rel="stylesheet" href="./profile.css">
 </head>
 <body class="dash-body">
-  <div class="page-layout">
-    <aside class="sidebar">
+  <div class="patient-shell">
+    <header class="patient-topbar">
+      <button class="burger-btn" id="burgerBtn" aria-label="Open menu" aria-expanded="false" aria-controls="patientDrawer">
+        <span class="burger-lines"></span>
+      </button>
+      <div class="topbar-title" id="topbarTitle">Profile</div>
+    </header>
+    <div class="drawer-overlay is-hidden" id="drawerOverlay"></div>
+    <div class="page-layout">
+    <aside class="sidebar patient-drawer" id="patientDrawer" aria-hidden="true">
       <div class="brand-row">
         <div class="brand-mark" id="brand-avatar">O</div>
         <span class="brand-name" id="brand-name">Profile</span>
@@ -131,73 +140,91 @@
 
     </aside>
 
-    <main class="main-content main-panel">
-      <section class="card hero">
-        <div>
-          <p class="eyebrow">Profile Settings</p>
-          <p class="lede">View and update user information.</p>
-        </div>
-        <div class="hero-pattern" aria-hidden="true"></div>
-      </section>
-
-      <section class="card profile-card" id="profile-card">
-        <div class="card-head spaced">
-          <div>
-            <p class="value">User Information</p>
-            <p class="label">Basic profile details</p>
+    <main class="main-content main-panel patient-main" id="patientMain">
+      <div class="page-wrap">
+        <div class="page-hero">
+          <div class="page-hero__title">
+            <div class="kicker">PROFILE</div>
+            <h1>Profile Settings</h1>
+            <p>View and update user information.</p>
           </div>
-          <div class="edit-buttons">
-            <button type="button" class="pill plain" id="edit-toggle">Edit</button>
-            <div class="edit-actions" id="edit-actions" hidden>
-              <button type="button" class="pill plain" id="edit-cancel">Cancel</button>
-              <button type="button" class="pill" id="edit-save">Save</button>
+          <div class="page-hero__actions" id="profileActions">
+            <div class="edit-buttons">
+              <button type="button" class="btn" id="edit-toggle">Edit</button>
+              <div class="edit-actions" id="edit-actions" hidden>
+                <button type="button" class="btn" id="edit-cancel">Cancel</button>
+                <button type="button" class="btn btn-primary" id="edit-save">Save</button>
+              </div>
             </div>
           </div>
         </div>
-        <div class="profile-grid">
-          <div class="field-row">
-            <strong>Name:</strong>
-            <span class="field-value" data-field="name">--</span>
-            <input class="field-input" data-input="name" type="text" value="" hidden>
+
+        <section class="profile-card" id="profile-card">
+          <div class="profile-card__header">
+            <div>
+              <h2>User Information</h2>
+              <p class="sub">Basic profile details</p>
+            </div>
           </div>
-          <div class="field-row">
-            <strong>Age:</strong>
-            <span class="field-value" data-field="age">--</span>
-            <input class="field-input" data-input="age" type="number" min="0" value="" hidden>
+          <div class="info-grid">
+            <div class="info-row">
+              <div class="info-label">Name</div>
+              <div class="info-value field-value is-empty" data-field="name">—</div>
+              <input class="field-input" data-input="name" type="text" value="" hidden>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Age</div>
+              <div class="info-value field-value is-empty" data-field="age">—</div>
+              <input class="field-input" data-input="age" type="number" min="0" value="" hidden>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Gender</div>
+              <div class="info-value field-value is-empty" data-field="gender">—</div>
+              <input class="field-input" data-input="gender" type="text" value="" hidden>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Email</div>
+              <div class="info-value field-value is-empty" data-field="email">—</div>
+              <input class="field-input" data-input="email" type="email" value="" hidden>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Risk Level</div>
+              <div class="info-value field-value is-empty" data-field="risk">—</div>
+              <input class="field-input" data-input="risk" type="text" value="" hidden>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Family Doctor</div>
+              <div class="info-value field-value is-empty" id="familyDoctorValue" data-field="doctor">—</div>
+              <input class="field-input" data-input="doctor" type="text" value="" hidden>
+            </div>
           </div>
-          <div class="field-row">
-            <strong>Gender:</strong>
-            <span class="field-value" data-field="gender">--</span>
-            <input class="field-input" data-input="gender" type="text" value="" hidden>
+          <div id="assignedDoctorCard" class="assigned-doctor-card is-hidden">
+            <div class="assigned-doctor-head">
+              <div>
+                <p class="assigned-doctor-title">Assigned doctor</p>
+                <p class="assigned-doctor-name" id="assignedDoctorName">—</p>
+                <div class="assigned-doctor-sub">
+                  <span id="assignedDoctorHospital" class="is-hidden">—</span>
+                  <span class="assigned-doctor-pill is-hidden" id="assignedDoctorSpecialty"></span>
+                </div>
+              </div>
+              <a class="assigned-doctor-link is-hidden" id="assignedDoctorMap" href="#" target="_blank" rel="noopener">
+                View on Map
+              </a>
+            </div>
+            <div class="assigned-doctor-grid">
+              <div>
+                <div class="assigned-doctor-label">Email</div>
+                <div class="assigned-doctor-value" id="assignedDoctorEmail">—</div>
+              </div>
+              <div>
+                <div class="assigned-doctor-label">Phone</div>
+                <div class="assigned-doctor-value" id="assignedDoctorPhone">—</div>
+              </div>
+            </div>
           </div>
-          <div class="field-row">
-            <strong>Email:</strong>
-            <span class="field-value" data-field="email">--</span>
-            <input class="field-input" data-input="email" type="email" value="" hidden>
-          </div>
-          <div class="field-row">
-            <strong>Password:</strong>
-            <span class="field-value" id="password-value" data-secret="Auth password (hidden)" data-field="password">********</span>
-            <button type="button" class="inline-btn" id="password-toggle">Show</button>
-            <input class="field-input" data-input="password" type="text" value="" hidden>
-          </div>
-          <div class="field-row">
-            <strong>Risk Level:</strong>
-            <span class="field-value" data-field="risk">--</span>
-            <input class="field-input" data-input="risk" type="text" value="" hidden>
-          </div>
-          <div class="field-row">
-            <strong>Last Screening:</strong>
-            <span class="field-value" data-field="lastScreening">--</span>
-            <input class="field-input" data-input="lastScreening" type="date" value="" hidden>
-          </div>
-          <div class="field-row">
-            <strong>Family Doctor:</strong>
-            <a href="#" class="doctor-link field-value" id="doctor-link" data-field="doctor">--</a>
-            <input class="field-input" data-input="doctor" type="text" value="" hidden>
-          </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
       <div class="modal-overlay" id="doctor-modal" hidden>
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="doctor-modal-title">
@@ -211,50 +238,32 @@
       </div>
     </main>
   </div>
+  </div>
+  <script src="/patient/drawer.js"></script>
 
   <script type="module">
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { auth, db } from "./firebase-config.js";
-    import { doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import {
+      doc,
+      getDoc,
+      updateDoc,
+      collection,
+      getDocs,
+      query,
+      where,
+      limit,
+      serverTimestamp,
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    const link = document.getElementById("doctor-link");
-    const modal = document.getElementById("doctor-modal");
-    const closeBtn = document.getElementById("doctor-close");
-
-    const open = (event) => {
-      event.preventDefault();
-      modal?.removeAttribute("hidden");
-    };
-
-    const close = () => {
-      modal?.setAttribute("hidden", "");
-    };
-
-    link?.addEventListener("click", open);
-    closeBtn?.addEventListener("click", close);
-    modal?.addEventListener("click", (event) => {
-      if (event.target === modal) close();
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && !modal?.hasAttribute("hidden")) close();
-    });
-
-    const passwordValue = document.getElementById("password-value");
-    const passwordToggle = document.getElementById("password-toggle");
-    let secret = passwordValue?.dataset.secret || "Auth password (hidden)";
-    let isMasked = true;
-
-    const renderPassword = () => {
-      if (!passwordValue || !passwordToggle) return;
-      passwordValue.textContent = isMasked ? "********" : secret;
-      passwordToggle.textContent = isMasked ? "Show" : "Hide";
-    };
-
-    passwordToggle?.addEventListener("click", () => {
-      isMasked = !isMasked;
-      renderPassword();
-    });
-
-    renderPassword();
+    const familyDoctorValue = document.getElementById("familyDoctorValue");
+    const assignedDoctorCard = document.getElementById("assignedDoctorCard");
+    const assignedDoctorName = document.getElementById("assignedDoctorName");
+    const assignedDoctorHospital = document.getElementById("assignedDoctorHospital");
+    const assignedDoctorSpecialty = document.getElementById("assignedDoctorSpecialty");
+    const assignedDoctorEmail = document.getElementById("assignedDoctorEmail");
+    const assignedDoctorPhone = document.getElementById("assignedDoctorPhone");
+    const assignedDoctorMap = document.getElementById("assignedDoctorMap");
 
     const card = document.getElementById("profile-card");
     const editToggle = document.getElementById("edit-toggle");
@@ -274,23 +283,51 @@
       if (brandName) brandName.textContent = name;
     };
 
+    const EMPTY_DISPLAY = "—";
+    const isEmptyValue = (value) => {
+      if (value === null || value === undefined) return true;
+      const text = String(value).trim();
+      return text === "" || text === "--" || text === EMPTY_DISPLAY;
+    };
+
+    const setValue = (el, value) => {
+      if (!el) return;
+      if (isEmptyValue(value)) {
+        el.textContent = EMPTY_DISPLAY;
+        el.classList.add("is-empty");
+        return;
+      }
+      el.textContent = String(value);
+      el.classList.remove("is-empty");
+    };
+
+    const setDoctorValue = (value) => {
+      if (!familyDoctorValue) return;
+      setValue(familyDoctorValue, value);
+    };
+
     const setFieldValue = (key, value) => {
-      const span = card?.querySelector(`[data-field="${key}"]`);
       const input = card?.querySelector(`[data-input="${key}"]`);
-      if (span) span.textContent = value ?? "--";
-      if (input) input.value = value ?? "";
+      if (key === "doctor") {
+        setDoctorValue(value);
+        if (input) input.value = isEmptyValue(value) ? "" : String(value);
+        return;
+      }
+      const span = card?.querySelector(`[data-field="${key}"]`);
+      setValue(span, value);
+      if (input) input.value = isEmptyValue(value) ? "" : String(value);
     };
 
     const loadInputsFromFields = () => {
       inputs?.forEach((input) => {
         const key = input.dataset.input;
-        if (key === "password") {
-          input.value = secret;
-        } else if (key === "doctor") {
-          input.value = link?.textContent?.trim() || "";
+        if (key === "doctor") {
+          const current = familyDoctorValue?.textContent?.trim() || "";
+          input.value = isEmptyValue(current) ? "" : current;
         } else {
           const field = card.querySelector(`[data-field="${key}"]`);
-          input.value = field?.textContent?.trim() || "";
+          const current = field?.textContent?.trim() || "";
+          input.value = isEmptyValue(current) ? "" : current;
         }
       });
     };
@@ -298,17 +335,8 @@
     const applyInputsToFields = () => {
       inputs?.forEach((input) => {
         const key = input.dataset.input;
-        if (key === "password") {
-          secret = input.value || "Auth password (hidden)";
-          passwordValue.dataset.secret = secret;
-        } else if (key === "doctor") {
-          link.textContent = input.value || "--";
-        } else {
-          const field = card.querySelector(`[data-field="${key}"]`);
-          if (field) field.textContent = input.value || "--";
-        }
+        setFieldValue(key, input.value);
       });
-      renderPassword();
     };
 
     const setEditMode = (on) => {
@@ -319,7 +347,6 @@
         editActions?.removeAttribute("hidden");
         inputs?.forEach((input) => input.removeAttribute("hidden"));
         values?.forEach((value) => value.setAttribute("hidden", ""));
-        passwordToggle?.setAttribute("hidden", "");
         loadInputsFromFields();
       } else {
         card.classList.remove("edit-mode");
@@ -327,8 +354,6 @@
         editActions?.setAttribute("hidden", "");
         inputs?.forEach((input) => input.setAttribute("hidden", ""));
         values?.forEach((value) => value.removeAttribute("hidden"));
-        passwordToggle?.removeAttribute("hidden");
-        renderPassword();
       }
     };
 
@@ -386,21 +411,155 @@
           return;
         }
         const data = snapshot.data() || {};
-        const nameVal = data.name || "--";
+        const nameVal = data.name || "";
         setFieldValue("name", nameVal);
-        setFieldValue("age", data.age ?? "--");
-        setFieldValue("gender", data.gender || "--");
-        setFieldValue("email", data.email || "--");
-        setFieldValue("risk", data.riskLevel || "--");
-        setFieldValue("lastScreening", data.lastScreening || "--");
-        const doctorVal = data.doctor || "--";
-        setFieldValue("doctor", doctorVal);
-        link.textContent = doctorVal;
+        setFieldValue("age", data.age);
+        setFieldValue("gender", data.gender);
+        setFieldValue("email", data.email);
+        setFieldValue("risk", data.riskLevel);
+        setFieldValue("lastScreening", data.lastScreening);
+        setFieldValue("doctor", data.doctor);
         setBrand(nameVal);
       } catch (error) {
         console.error(error);
         alert(error?.message || "Failed to load profile info");
       }
+    };
+
+    const pickValue = (data, keys) => {
+      for (const key of keys) {
+        const value = data?.[key];
+        if (value !== undefined && value !== null && String(value).trim() !== "") {
+          return String(value).trim();
+        }
+      }
+      return "";
+    };
+
+    const normalizeDoctor = (data = {}) => ({
+      name: pickValue(data, ["doctorName", "name", "displayName", "fullName"]),
+      hospital: pickValue(data, ["hospitalName", "hospital", "clinicName", "clinic"]),
+      email: pickValue(data, ["email", "contactEmail", "doctorEmail"]),
+      phone: pickValue(data, ["phone", "phoneNumber", "contactPhone", "doctorPhone"]),
+      specialty: pickValue(data, ["specialty", "doctorSpecialty"]),
+      mapUrl: pickValue(data, ["mapUrl", "clinicMapUrl", "hospitalMapUrl", "mapLink", "locationUrl"]),
+    });
+
+    const hasDoctorInfo = (info) =>
+      Boolean(
+        info &&
+          (info.name || info.hospital || info.email || info.phone || info.specialty || info.mapUrl)
+      );
+
+    const buildDoctorDisplay = (info) => {
+      if (!info) return "";
+      if (info.name) return info.hospital ? `${info.name} · ${info.hospital}` : info.name;
+      return info.email || info.phone || "";
+    };
+
+    const renderAssignedDoctorCard = (info) => {
+      if (!assignedDoctorCard) return;
+      const hasInfo = hasDoctorInfo(info);
+      assignedDoctorCard.classList.toggle("is-hidden", !hasInfo);
+      if (!hasInfo) return;
+
+      if (assignedDoctorName) assignedDoctorName.textContent = info.name || "—";
+      if (assignedDoctorHospital) {
+        const hasHospital = Boolean(info.hospital);
+        assignedDoctorHospital.textContent = info.hospital || "";
+        assignedDoctorHospital.classList.toggle("is-hidden", !hasHospital);
+      }
+      if (assignedDoctorSpecialty) {
+        const hasSpecialty = Boolean(info.specialty);
+        assignedDoctorSpecialty.textContent = info.specialty || "";
+        assignedDoctorSpecialty.classList.toggle("is-hidden", !hasSpecialty);
+      }
+      if (assignedDoctorEmail) assignedDoctorEmail.textContent = info.email || "—";
+      if (assignedDoctorPhone) assignedDoctorPhone.textContent = info.phone || "—";
+      if (assignedDoctorMap) {
+        const hasMap = Boolean(info.mapUrl);
+        assignedDoctorMap.classList.toggle("is-hidden", !hasMap);
+        if (hasMap) {
+          assignedDoctorMap.href = info.mapUrl;
+        } else {
+          assignedDoctorMap.removeAttribute("href");
+        }
+      }
+    };
+
+    const resolveAssignedDoctorId = async (uid) => {
+      if (!uid) return { doctorId: "", sourceData: null };
+
+      try {
+        const apptSnap = await getDoc(doc(db, "patientActiveAppointments", uid));
+        if (apptSnap.exists()) {
+          const apptData = apptSnap.data() || {};
+          const apptDoctorId = pickValue(apptData, [
+            "doctorId",
+            "doctorUid",
+            "doctorUserId",
+            "doctor",
+          ]);
+          if (apptDoctorId) return { doctorId: apptDoctorId, sourceData: apptData };
+          if (hasDoctorInfo(normalizeDoctor(apptData))) {
+            return { doctorId: "", sourceData: apptData };
+          }
+        }
+      } catch (error) {
+        console.warn("[profile] patientActiveAppointments lookup failed:", error);
+      }
+
+      try {
+        const snapshot = await getDocs(
+          query(
+            collection(db, "doctorPatients"),
+            where("patientId", "==", uid),
+            where("status", "==", "active"),
+            limit(1)
+          )
+        );
+        if (!snapshot.empty) {
+          const rel = snapshot.docs[0]?.data?.() || {};
+          const relDoctorId = pickValue(rel, ["doctorId", "doctorUid", "doctorUserId"]);
+          if (relDoctorId) return { doctorId: relDoctorId, sourceData: rel };
+          if (hasDoctorInfo(normalizeDoctor(rel))) {
+            return { doctorId: "", sourceData: rel };
+          }
+        }
+      } catch (error) {
+        console.warn("[profile] doctorPatients lookup failed:", error);
+      }
+
+      try {
+        const userSnap = await getDoc(doc(db, "users", uid));
+        if (userSnap.exists()) {
+          const userData = userSnap.data() || {};
+          const userDoctorId = pickValue(userData, ["doctorId"]);
+          if (userDoctorId) return { doctorId: userDoctorId, sourceData: null };
+        }
+      } catch (error) {
+        console.warn("[profile] users doctorId lookup failed:", error);
+      }
+
+      return { doctorId: "", sourceData: null };
+    };
+
+    const renderAssignedDoctor = async (doctorId, sourceData) => {
+      let doctorData = sourceData || null;
+      if (doctorId) {
+        try {
+          const doctorSnap = await getDoc(doc(db, "users", String(doctorId)));
+          if (doctorSnap.exists()) {
+            doctorData = { ...(sourceData || {}), ...(doctorSnap.data() || {}) };
+          }
+        } catch (error) {
+          console.warn("[profile] doctor profile lookup failed:", error);
+        }
+      }
+      const info = normalizeDoctor(doctorData || {});
+      const display = buildDoctorDisplay(info);
+      setDoctorValue(display);
+      renderAssignedDoctorCard(info);
     };
 
     const cachedProfile = (() => {
@@ -421,8 +580,13 @@
       window.location.href = "index.html";
     });
 
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
+      const { doctorId, sourceData } = await resolveAssignedDoctorId(user.uid);
+      await renderAssignedDoctor(doctorId, sourceData);
+    });
+
     hydrateProfile();
   </script>
 </body>
 </html>
-

@@ -275,20 +275,20 @@ class IntelligentQuestionnaireManager:
             self.basic_questions.append(question)
     
     def get_next_question(self, user_answer: Optional[str] = None) -> Dict[str, Any]:
-        """获取下一个问题（支持动态生成）"""
+        
         try:
-            # 处理用户回答
+        
             if user_answer and self.current_question_index > 0:
-                # 获取当前问题（索引已经递增，所以需要减1）
+                
                 current_question_index = self.current_question_index - 1
                 if current_question_index < len(self.basic_questions):
                     current_question = self.basic_questions[current_question_index]
                     self._process_user_answer(current_question.id, user_answer)
                     
-                    # 根据回答生成动态问题
+                    
                     self._generate_dynamic_questions(current_question.id, user_answer)
             
-            # 获取下一个问题
+            
             next_question = self._get_next_question()
             
             if next_question:
@@ -302,7 +302,7 @@ class IntelligentQuestionnaireManager:
                     "total_questions": len(self.basic_questions) + len(self.dynamic_questions)
                 }
             else:
-                # 问卷完成
+                
                 return self._complete_questionnaire()
                 
         except Exception as e:

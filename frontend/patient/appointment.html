@@ -25,10 +25,19 @@ Test steps:
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../dashboard.css">
   <link rel="stylesheet" href="../shared-layout.css">
+  <link rel="stylesheet" href="./appointment.css">
 </head>
-<body class="dash-body page-appointment">
-  <div class="page-layout">
-    <aside class="sidebar">
+<body class="dash-body page-appointment appt-page">
+  <div class="patient-shell">
+    <header class="patient-topbar">
+      <button class="burger-btn" id="burgerBtn" aria-label="Open menu" aria-expanded="false" aria-controls="patientDrawer">
+        <span class="burger-lines"></span>
+      </button>
+      <div class="topbar-title" id="topbarTitle">Appointment</div>
+    </header>
+    <div class="drawer-overlay is-hidden" id="drawerOverlay"></div>
+    <div class="page-layout">
+    <aside class="sidebar patient-drawer" id="patientDrawer" aria-hidden="true">
       <div class="brand-row">
         <div class="brand-mark" id="brand-avatar">O</div>
         <span class="brand-name" id="brand-name">osler</span>
@@ -139,7 +148,7 @@ Test steps:
 
     </aside>
 
-    <main class="main-content main-panel">
+    <main class="main-content main-panel patient-main" id="patientMain">
       <div class="page-main content-shell">
         <div class="page-scroll content-scroll">
       <section class="card hero">
@@ -157,7 +166,6 @@ Test steps:
               <p class="value">Fixed doctor scheduling</p>
               <p class="label">Doctor is bound to your profile. No doctor search needed.</p>
             </div>
-            <span id="appointmentStatus" class="pill plain">Loading...</span>
           </div>
 
           <div id="doctorDevNotice" class="dev-banner" hidden>
@@ -167,9 +175,9 @@ Test steps:
             This Firestore query needs a composite index. Open console for the index creation link. Required: patientId+status+scheduledAt (asc/desc), patientId+status+completedAt (desc).
           </div>
 
-          <div class="appointment-grid">
-            <div class="appointment-left">
-              <div class="list-group" id="upcoming">
+          <div class="appointment-grid appt-grid">
+            <div class="appointment-left appt-left">
+              <div class="list-group appt-panel" id="upcoming">
                 <div class="list-head">
                   <div>
                     <p class="eyebrow">Upcoming</p>
@@ -177,10 +185,9 @@ Test steps:
                   </div>
                 </div>
                 <div class="appointment-list" id="upcomingList"></div>
-                <div id="upcomingEmpty" class="empty-state" hidden>No upcoming appointments.</div>
               </div>
 
-              <div class="list-group">
+              <div class="list-group appt-panel">
                 <div class="list-head">
                   <div>
                     <p class="eyebrow">History</p>
@@ -188,12 +195,11 @@ Test steps:
                   </div>
                 </div>
                 <div class="appointment-list" id="historyList"></div>
-                <div id="historyEmpty" class="empty-state" hidden>No history yet.</div>
               </div>
             </div>
 
-            <div class="appointment-right">
-              <div class="sub-card doctor-card">
+            <div class="appointment-right appt-right">
+              <div class="sub-card doctor-card appt-panel">
                 <div class="doctor-head">
                   <div>
                     <p class="eyebrow">Assigned doctor</p>
@@ -220,33 +226,47 @@ Test steps:
                 </div>
               </div>
 
-              <div class="sub-card form-card">
+              <div class="sub-card form-card appt-panel">
                 <div class="list-head small">
                   <div>
                     <p class="eyebrow">Book appointment</p>
                     <p class="label">Select a date and time with your fixed doctor.</p>
+                    <p class="appt-hint">Pick a date and time slot, then submit.</p>
                   </div>
                 </div>
                 <form id="appointmentForm">
-                  <label for="appointmentDate" class="label">Appointment date & time</label>
-                  <input type="datetime-local" id="appointmentDate" required />
+                  <label for="appointmentDate" class="label">Appointment date</label>
+                  <input type="date" id="appointmentDate" required />
+                  <label for="appointmentTime" class="label">Time slot</label>
+                  <select id="appointmentTime" required></select>
                   <div class="form-actions" id="bookActions">
-                    <button type="submit" class="pill" id="bookBtn">Book Appointment</button>
-                    <button type="button" class="pill plain" id="bookAgainBtn">Book Again</button>
+                    <button type="submit" class="pill primary" id="bookBtn">Book Appointment</button>
+                    <button type="button" class="pill secondary" id="bookAgainBtn">Book Again</button>
+                  </div>
+                  <div class="cancel-block is-hidden" id="cancelBlock">
                     <button type="button" class="pill danger" id="cancelBtn">Cancel</button>
+                    <div id="cancelReasonWrap" hidden>
+                      <label for="cancelReason" class="label">Cancel reason</label>
+                      <textarea id="cancelReason" rows="2" placeholder="请填写取消原因（将记录在病历中）"></textarea>
+                    </div>
                   </div>
                   <div id="formMessage" class="label" aria-live="polite"></div>
                 </form>
               </div>
 
-              <div class="sub-card selection-card">
+              <div id="appointmentDetailsCard" class="sub-card selection-card appt-panel is-hidden">
                 <div class="list-head small">
                   <div>
                     <p class="eyebrow">Appointment details</p>
                     <p class="label">Details for the selected appointment.</p>
                   </div>
                 </div>
-                <div id="selectionEmpty" class="empty-state">Select an appointment from the left to view details.</div>
+                <div id="selectionEmpty" class="empty-state">
+                  <div class="empty-icon" aria-hidden="true"></div>
+                  <div class="empty-copy">
+                    <p class="empty-title">Select an appointment to view details.</p>
+                  </div>
+                </div>
                 <div id="selectionDetail" hidden>
                   <div class="detail-grid">
                     <div>
@@ -289,335 +309,77 @@ Test steps:
     </main>
   </div>
 
-  <style>
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-    }
-    html,
-    body {
-      height: 100%;
-    }
-    body.page-appointment {
-      min-height: 100vh;
-      overflow: hidden;
-    }
-    body {
-      overflow-x: hidden;
-    }
-    body.page-appointment .page-layout {
-      height: 100vh;
-      min-height: 100vh;
-      overflow: hidden;
-      align-items: stretch;
-    }
-    body.page-appointment .main-content {
-      height: 100%;
-      min-height: 0;
-      padding: 0;
-      background: transparent;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      border-radius: var(--main-radius);
-    }
-    .page-main,
-    .content-shell {
-      flex: 1;
-      height: 100%;
-      min-height: 100%;
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      background: linear-gradient(135deg, rgba(220, 235, 255, 0.9), rgba(245, 250, 255, 1));
-      border-radius: inherit;
-      box-sizing: border-box;
-      overflow: hidden;
-    }
-    .page-scroll,
-    .content-scroll {
-      flex: 1;
-      min-height: 0;
-      height: 100%;
-      overflow-y: auto;
-      overflow-x: hidden;
-      padding-right: 8px;
-      overscroll-behavior: contain;
-      box-sizing: border-box;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-    .page-scroll::-webkit-scrollbar {
-      width: 10px;
-    }
-    .page-scroll::-webkit-scrollbar-thumb {
-      border-radius: 12px;
-      background: rgba(15, 23, 42, 0.28);
-    }
-    .page-scroll::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    .appointment-shell {
-      background: transparent;
-      border: none;
-      padding: 0;
-    }
-    .appointment-shell .section-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .appointment-surface {
-      background: #ffffff;
-      border-radius: 20px;
-      padding: clamp(16px, 2.5vw, 28px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
-      width: 100%;
-      max-width: 100%;
-      box-sizing: border-box;
-    }
-    .appointment-surface > * + * {
-      margin-top: clamp(12px, 2vw, 20px);
-    }
-    .appointment-grid {
-      display: grid;
-      grid-template-columns: 0.35fr 0.65fr;
-      gap: 16px;
-      min-height: 70vh;
-      min-width: 0;
-    }
-    .appointment-left {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      max-height: 78vh;
-      min-width: 0;
-    }
-    .appointment-right {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-      align-content: start;
-      min-width: 0;
-    }
-    .list-group {
-      background: #f8fafc;
-      border: 1px solid #e5e7eb;
-      border-radius: 14px;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      flex: 1;
-      overflow: hidden;
-    }
-    .appointment-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      overflow-y: auto;
-      max-height: 32vh;
-      padding-right: 4px;
-    }
-    .appointment-item {
-      border: 1px solid #e2e8f0;
-      background: #fff;
-      border-radius: 12px;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      text-align: left;
-    }
-    .record-card {
-      cursor: pointer;
-      pointer-events: auto;
-      user-select: none;
-    }
-    .appointment-item.disabled {
-      pointer-events: none;
-      opacity: 0.55;
-      cursor: not-allowed;
-    }
-    .appointment-item:hover {
-      border-color: #cbd5e1;
-      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
-    }
-    .appointment-item:focus,
-    .appointment-item:focus-visible,
-    .appointment-item:active,
-    .record-card:focus,
-    .record-card:focus-visible,
-    .record-card:active {
-      outline: none !important;
-      box-shadow: none !important;
-    }
-    .appointment-item.active {
-      border-color: #2563eb;
-      background: #eff6ff;
-      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.15);
-    }
-    .appt-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-    }
-    .appt-time {
-      font-weight: 700;
-      color: #0f172a;
-    }
-    .appt-meta {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      font-size: 13px;
-      color: #475569;
-    }
-    .sub-card {
-      border: 1px solid #e5e7eb;
-      border-radius: 14px;
-      padding: 14px;
-      background: #fff;
-      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
-    }
-    .doctor-card .doctor-name {
-      font-size: 20px;
-      font-weight: 800;
-      margin: 4px 0;
-      color: #0f172a;
-    }
-    .clinic-name-line {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .map-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 2px 8px;
-      border-radius: 999px;
-      border: 1px solid #cbd5f5;
-      background: #eef2ff;
-      color: #3730a3;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-    .map-btn:hover {
-      border-color: #818cf8;
-      background: #e0e7ff;
-    }
-    .map-btn:disabled {
-      cursor: not-allowed;
-      opacity: 0.6;
-    }
-    .doctor-meta {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-      margin-top: 10px;
-      font-weight: 600;
-      color: #0f172a;
-    }
-    .doctor-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: flex-start;
-    }
-    .warning-box {
-      margin-top: 10px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid #facc15;
-      background: #fef9c3;
-      color: #854d0e;
-      font-weight: 600;
-    }
-    .form-card form {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-top: 8px;
-    }
-    .form-card input[type="datetime-local"] {
-      padding: 12px;
-      border: 1px solid #e5e7eb;
-      border-radius: 12px;
-      font-size: 14px;
-    }
-    .form-actions {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .pill.danger {
-      background: #fee2e2;
-      color: #b91c1c;
-      border: 1px solid #fecaca;
-    }
-    .pill.success {
-      background: #ecfdf3;
-      color: #16a34a;
-      border: 1px solid #bbf7d0;
-    }
-    .pill.warning {
-      background: #fef9c3;
-      color: #a16207;
-      border: 1px solid #fde68a;
-    }
-    .selection-card .detail-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 10px;
-    }
-    .detail-advice {
-      margin-top: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .advice-body {
-      background: #f8fafc;
-      border: 1px dashed #cbd5e1;
-      padding: 12px;
-      border-radius: 12px;
-      min-height: 64px;
-      white-space: pre-wrap;
-    }
-    .dev-banner {
-      background: #fff7ed;
-      color: #9a3412;
-      border: 1px solid #fdba74;
-      border-radius: 10px;
-      padding: 10px 12px;
-      margin-bottom: 10px;
-      font-size: 13px;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
-    }
-    @media (max-width: 1100px) {
-      .appointment-grid { grid-template-columns: 1fr; }
-      .appointment-left { max-height: none; }
-      .appointment-list { max-height: none; }
-      .doctor-head { flex-direction: column; }
-    }
-    @media (max-width: 768px) {
-      .appointment-surface {
-        border-radius: 16px;
-        padding: 16px;
-      }
-    }
-  </style>
+  <!-- Appointment Details Modal -->
+  <div id="apptModalOverlay" class="modal-overlay is-hidden" aria-hidden="true">
+    <div id="apptModal" class="modal" role="dialog" aria-modal="true" aria-label="Appointment details">
+      <div class="modal-header">
+        <div class="modal-title">Appointment details</div>
+        <button id="apptModalClose" class="modal-close" type="button" aria-label="Close">X</button>
+      </div>
+
+      <div id="apptModalContent" class="modal-body">
+        <div class="modal-row">
+          <span class="muted">Status</span>
+          <span id="mStatusBadge" class="badge"></span>
+        </div>
+
+        <div class="modal-grid">
+          <div class="modal-item">
+            <div class="muted">Scheduled for</div>
+            <div id="mScheduledAt" class="value"></div>
+          </div>
+          <div class="modal-item">
+            <div class="muted">Updated</div>
+            <div id="mUpdatedAt" class="value"></div>
+          </div>
+          <div class="modal-item">
+            <div class="muted">Doctor</div>
+            <div id="mDoctor" class="value"></div>
+          </div>
+          <div class="modal-item">
+            <div class="muted">Hospital</div>
+            <div id="mHospital" class="value"></div>
+          </div>
+        </div>
+
+        <div id="mCancelReasonRow" class="modal-row">
+          <span class="muted">Cancel reason</span>
+          <span id="mCancelReason" class="value"></span>
+        </div>
+
+        <div class="modal-section">
+          <div class="muted">Medical advice</div>
+          <div id="mAdvice" class="modal-advice"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cancel Reason Modal -->
+  <div id="cancelModalOverlay" class="modal-overlay is-hidden" aria-hidden="true">
+    <div id="cancelModal" class="modal" role="dialog" aria-modal="true" aria-label="Cancel appointment">
+      <div class="modal-header">
+        <div class="modal-title">Cancel appointment</div>
+        <button id="cancelModalClose" class="modal-close" type="button" aria-label="Close">X</button>
+      </div>
+
+      <div class="modal-body">
+        <label class="muted" for="cancelReasonInput">Cancel reason</label>
+        <textarea id="cancelReasonInput" class="modal-textarea" rows="4"
+          placeholder="Please enter the cancellation reason (it will be recorded)."></textarea>
+
+        <div class="modal-actions">
+          <button id="cancelModalBack" class="btn-secondary" type="button">Back</button>
+          <button id="cancelModalConfirm" class="btn-danger" type="button">Confirm cancel</button>
+        </div>
+
+        <div id="cancelModalError" class="form-message is-hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  </div>
+  <script src="/patient/drawer.js"></script>
 
   <script type="module">
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -639,7 +401,6 @@ Test steps:
       cancelAppointment,
       getUpcomingAppointments,
       getAppointmentHistory,
-      expirePastScheduledAppointments,
     } from "../firestoreService.js";
     console.log("[appointment] firestoreService loaded");
 
@@ -668,9 +429,13 @@ Test steps:
       doctorNotice: document.getElementById("doctorNotice"),
       form: document.getElementById("appointmentForm"),
       dateInput: document.getElementById("appointmentDate"),
+      timeSelect: document.getElementById("appointmentTime"),
       bookBtn: document.getElementById("bookBtn"),
       bookAgainBtn: document.getElementById("bookAgainBtn"),
+      cancelBlock: document.getElementById("cancelBlock"),
       cancelBtn: document.getElementById("cancelBtn"),
+      cancelReasonWrap: document.getElementById("cancelReasonWrap"),
+      cancelReason: document.getElementById("cancelReason"),
       formMessage: document.getElementById("formMessage"),
       selectionEmpty: document.getElementById("selectionEmpty"),
       selectionDetail: document.getElementById("selectionDetail"),
@@ -683,6 +448,23 @@ Test steps:
       detailCancelReason: document.getElementById("detailCancelReason"),
       detailAdviceSection: document.getElementById("detailAdviceSection"),
       detailAdviceBody: document.getElementById("detailAdviceBody"),
+      modalOverlay: document.getElementById("apptModalOverlay"),
+      modal: document.getElementById("apptModal"),
+      modalClose: document.getElementById("apptModalClose"),
+      modalStatusBadge: document.getElementById("mStatusBadge"),
+      modalScheduledAt: document.getElementById("mScheduledAt"),
+      modalUpdatedAt: document.getElementById("mUpdatedAt"),
+      modalDoctor: document.getElementById("mDoctor"),
+      modalHospital: document.getElementById("mHospital"),
+      modalCancelRow: document.getElementById("mCancelReasonRow"),
+      modalCancelReason: document.getElementById("mCancelReason"),
+      modalAdvice: document.getElementById("mAdvice"),
+      cancelModalOverlay: document.getElementById("cancelModalOverlay"),
+      cancelModalClose: document.getElementById("cancelModalClose"),
+      cancelModalBack: document.getElementById("cancelModalBack"),
+      cancelModalConfirm: document.getElementById("cancelModalConfirm"),
+      cancelModalError: document.getElementById("cancelModalError"),
+      cancelReasonInput: document.getElementById("cancelReasonInput"),
       logoutLink: document.getElementById("logout-link"),
     };
 
@@ -695,6 +477,7 @@ Test steps:
       historyList: [],
       selectedId: null,
       selectedAppointment: null,
+      selectedAppointmentId: null,
       doctorFieldRaw: "",
     };
 
@@ -740,9 +523,92 @@ Test steps:
       return Number.isNaN(d.getTime()) ? "-" : d.toLocaleString();
     }
 
+    const TIME_SLOT_START_MINUTES = 9 * 60 + 30;
+    const TIME_SLOT_END_MINUTES = 16 * 60;
+    const TIME_SLOT_STEP_MINUTES = 30;
+    const HOLIDAY_DATE_KEYS = new Set(Array.isArray(window.APP_HOLIDAYS) ? window.APP_HOLIDAYS : []);
+
+    function pad2(value) {
+      return String(value).padStart(2, "0");
+    }
+
+    function formatDateKey(date) {
+      if (!(date instanceof Date)) return "";
+      return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+    }
+
+    function buildTimeSlots() {
+      const slots = [];
+      for (
+        let minutes = TIME_SLOT_START_MINUTES;
+        minutes <= TIME_SLOT_END_MINUTES;
+        minutes += TIME_SLOT_STEP_MINUTES
+      ) {
+        const hh = pad2(Math.floor(minutes / 60));
+        const mm = pad2(minutes % 60);
+        slots.push(`${hh}:${mm}`);
+      }
+      return slots;
+    }
+
+    const TIME_SLOTS = buildTimeSlots();
+
+    function isWeekday(date) {
+      const day = date.getDay();
+      return day >= 1 && day <= 5;
+    }
+
+    function isHoliday(date) {
+      const key = formatDateKey(date);
+      return Boolean(key && HOLIDAY_DATE_KEYS.has(key));
+    }
+
+    function buildDateFromInputs(dateValue, timeValue) {
+      if (!dateValue || !timeValue) return null;
+      const dt = new Date(`${dateValue}T${timeValue}:00`);
+      return Number.isNaN(dt.getTime()) ? null : dt;
+    }
+
+    function validateBookingSelection() {
+      const dateValue = ui.dateInput?.value || "";
+      const timeValue = ui.timeSelect?.value || "";
+      if (!dateValue || !timeValue) return { ok: false, message: "" };
+
+      const dateOnly = new Date(`${dateValue}T00:00:00`);
+      if (Number.isNaN(dateOnly.getTime())) {
+        return { ok: false, message: "Please select a valid date." };
+      }
+      if (!isWeekday(dateOnly)) {
+        return { ok: false, message: "Appointments are only available on weekdays." };
+      }
+      if (isHoliday(dateOnly)) {
+        return { ok: false, message: "Selected date is not available." };
+      }
+      if (!TIME_SLOTS.includes(timeValue)) {
+        return { ok: false, message: "Please select a 30-minute time slot." };
+      }
+      const dateTime = buildDateFromInputs(dateValue, timeValue);
+      if (!dateTime) {
+        return { ok: false, message: "Please select a valid date and time." };
+      }
+      return { ok: true, dateTime };
+    }
+
+    function updateBookingState(showMessage = false) {
+      if (!ui.bookBtn || ui.bookBtn.dataset.busy === "1") return;
+      const validation = validateBookingSelection();
+      const canBook = Boolean(state.doctorId && validation.ok);
+      ui.bookBtn.disabled = !canBook;
+      if (showMessage && validation.message) {
+        setFormMessage(validation.message, "error");
+      } else if (ui.formMessage && ui.formMessage.classList.contains("error-text") && validation.ok) {
+        setFormMessage("");
+      }
+    }
+
     function statusClass(status) {
       const val = String(status || "").toLowerCase();
-      if (val === "scheduled") return "success";
+      if (val === "scheduled" || val === "active") return "success";
       if (val === "completed") return "plain";
       if (val === "cancelled") return "danger";
       return "warning";
@@ -770,6 +636,47 @@ Test steps:
       if (!ui.formMessage) return;
       ui.formMessage.textContent = message || "";
       ui.formMessage.className = `label ${tone === "error" ? "error-text" : ""}`;
+    }
+
+    function mapAppointmentError(error, fallback) {
+      const code = String(error?.code || error?.error || "").toUpperCase();
+      if (code === "NON_WORKING_DAY") return "Appointments are only available on weekdays.";
+      if (code === "INVALID_TIME_RANGE") return "Appointments are available 09:30–16:00 in 30-minute slots.";
+      if (code === "INVALID_TIME_SLOT") return "Please select a 30-minute time slot.";
+      if (code === "INVALID_SCHEDULED_AT") return "Invalid appointment time selected.";
+      if (code === "SLOT_TAKEN") return "That time slot is already booked.";
+      if (code === "PATIENT_HAS_ACTIVE_APPOINTMENT") return "You already have a scheduled appointment.";
+      if (code === "INVALID_STATUS") return "Only scheduled appointments can be cancelled.";
+      if (code === "NOT_FOUND") return "Appointment not found.";
+      if (code === "FORBIDDEN") return "You do not have permission to update this appointment.";
+      if (code === "CANCEL_WINDOW_CLOSED") return "Cancellations must be at least 24 hours before the appointment.";
+      if (code === "INVALID_REQUEST") return "Cancellation reason is required.";
+      return fallback || error?.message || "Request failed.";
+    }
+
+    function initDateTimeInputs() {
+      if (ui.timeSelect) {
+        ui.timeSelect.innerHTML = "";
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Select a time slot";
+        ui.timeSelect.appendChild(placeholder);
+        TIME_SLOTS.forEach((slot) => {
+          const opt = document.createElement("option");
+          opt.value = slot;
+          opt.textContent = slot;
+        ui.timeSelect.appendChild(opt);
+      });
+      }
+      if (ui.dateInput) {
+        ui.dateInput.min = formatDateKey(new Date());
+      }
+      if (ui.dateInput) ui.dateInput.disabled = !state.doctorId;
+      if (ui.timeSelect) ui.timeSelect.disabled = !state.doctorId;
+      const onInputChange = () => updateBookingState(true);
+      ui.dateInput?.addEventListener("change", onInputChange);
+      ui.timeSelect?.addEventListener("change", onInputChange);
+      updateBookingState();
     }
 
     function hydrateBrand(profile) {
@@ -865,6 +772,8 @@ Test steps:
         ui.bookAgainBtn.hidden = !hasDoctor;
       }
       if (ui.dateInput) ui.dateInput.disabled = !hasDoctor;
+      if (ui.timeSelect) ui.timeSelect.disabled = !hasDoctor;
+      updateBookingState();
     }
 
     function renderEmptyStates(upcoming, history) {
@@ -879,28 +788,74 @@ Test steps:
       container.innerHTML = "";
       items.forEach((appt) => {
         const item = document.createElement("div");
-        item.className = `appointment-item record-card ${state.selectedId === appt.id ? "active" : ""}`;
-        item.dataset.apptId = appt.id;
+        const isActive = state.selectedId === appt.id;
+        item.className = `appointment-item record-card ${isActive ? "active is-active" : ""}`;
+        item.dataset.apptId = appt.id || "";
 
+        const statusValue = String(appt.status || "scheduled").toLowerCase();
+        const statusText = statusValue.charAt(0).toUpperCase() + statusValue.slice(1);
         const pill = document.createElement("span");
-        pill.className = `pill plain ${statusClass(appt.status)}`;
-        pill.textContent = appt.status || "-";
+        pill.className = `pill plain ${statusClass(statusValue)} status-badge status-${statusValue}`;
+        pill.textContent = statusText;
 
-        const top = document.createElement("div");
-        top.className = "appt-top";
+        const ms = toMillis(appt.scheduledAt);
+        const dateObj = ms ? new Date(ms) : null;
+        const dayText = dateObj ? String(dateObj.getDate()).padStart(2, "0") : "--";
+        const monthText = dateObj
+          ? dateObj.toLocaleString("en-US", { month: "short" }).toUpperCase()
+          : "--";
+        const timeText = dateObj
+          ? dateObj.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          : "--";
+
+        const dateBlock = document.createElement("div");
+        dateBlock.className = "appt-date";
+        const dayEl = document.createElement("div");
+        dayEl.className = "appt-day";
+        dayEl.textContent = dayText;
+        const monthEl = document.createElement("div");
+        monthEl.className = "appt-month";
+        monthEl.textContent = monthText;
         const timeEl = document.createElement("div");
         timeEl.className = "appt-time";
-        timeEl.textContent = formatDateTime(appt.scheduledAt);
-        top.append(timeEl, pill);
+        timeEl.textContent = timeText;
+        dateBlock.append(dayEl, monthEl, timeEl);
 
+        const body = document.createElement("div");
+        body.className = "appt-body";
+        const title = document.createElement("div");
+        title.className = "appt-title";
+        title.textContent = appt.doctorName || "Doctor";
+        const sub = document.createElement("div");
+        sub.className = "appt-sub";
+        sub.textContent = appt.hospitalName || "Hospital";
         const meta = document.createElement("div");
         meta.className = "appt-meta";
-        meta.innerHTML = `
-          <span>${appt.doctorName || "Doctor"}</span>
-          <span>${appt.hospitalName || "Hospital"}</span>
-        `;
+        const metaSpan = document.createElement("span");
+        metaSpan.textContent = "Tap to view details";
+        meta.appendChild(metaSpan);
+        body.append(title, sub, meta);
 
-        item.append(top, meta);
+        const actions = document.createElement("div");
+        actions.className = "appt-actions";
+        actions.appendChild(pill);
+
+        const canCancel = ["scheduled", "pending", "upcoming", "active"].includes(statusValue);
+        if (canCancel) {
+          const cancelBtn = document.createElement("button");
+          cancelBtn.type = "button";
+          cancelBtn.className = "appt-cancel-btn";
+          cancelBtn.dataset.apptCancel = "1";
+          cancelBtn.textContent = "Cancel";
+          cancelBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            openCancelModal(appt);
+          });
+          actions.appendChild(cancelBtn);
+        }
+
+        item.append(dateBlock, body, actions);
         container.appendChild(item);
       });
     }
@@ -925,54 +880,210 @@ Test steps:
       containers.forEach((container) => {
         container.querySelectorAll(".record-card").forEach((card) => {
           card.classList.toggle("active", card.dataset.apptId === targetId);
+          card.classList.toggle("is-active", card.dataset.apptId === targetId);
         });
       });
     }
 
-    function renderAppointmentDetails(appt) {
+    function applySelectionState(appt) {
       const selected = appt || null;
-      const hasSelection = Boolean(selected);
-      if (ui.selectionEmpty) ui.selectionEmpty.hidden = hasSelection;
-      if (ui.selectionDetail) ui.selectionDetail.hidden = !hasSelection;
+      state.selectedAppointment = selected;
+      state.selectedId = selected?.id || null;
+      state.selectedAppointmentId = selected?.id || null;
 
-      if (!hasSelection || !selected) {
-        state.selectedAppointment = null;
-        state.selectedId = null;
-        if (ui.cancelBtn) ui.cancelBtn.style.display = "none";
+      if (ui.cancelBlock) ui.cancelBlock.classList.add("is-hidden");
+      if (ui.cancelBtn) {
+        ui.cancelBtn.style.display = "none";
+        ui.cancelBtn.disabled = true;
+      }
+      if (ui.cancelReasonWrap) ui.cancelReasonWrap.classList.add("is-hidden");
+      if (ui.cancelReason) {
+        ui.cancelReason.value = "";
+        ui.cancelReason.classList.remove("is-invalid");
+      }
+
+      if (!selected) {
         if (ui.bookAgainBtn) ui.bookAgainBtn.style.display = "none";
-        if (ui.detailCancelWrap) ui.detailCancelWrap.hidden = true;
-        if (ui.detailAdviceSection) ui.detailAdviceSection.hidden = true;
         return;
       }
 
-      state.selectedAppointment = selected;
-      state.selectedId = selected.id || null;
-
-      const status = selected.status || "-";
-      const statusValue = String(status || "").trim().toLowerCase();
-      if (ui.detailStatus) {
-        ui.detailStatus.textContent = status;
-        ui.detailStatus.className = `pill plain ${statusClass(statusValue)}`;
-      }
-      if (ui.detailWhen) ui.detailWhen.textContent = formatDateTime(selected.scheduledAt);
-      if (ui.detailDoctor) ui.detailDoctor.textContent = selected.doctorName || "Doctor";
-      if (ui.detailHospital) ui.detailHospital.textContent = selected.hospitalName || "Hospital";
-      if (ui.detailUpdated) ui.detailUpdated.textContent = formatDateTime(selected.updatedAt || selected.createdAt);
-
-      const showCancel = statusValue === "cancelled";
-      if (ui.detailCancelWrap) ui.detailCancelWrap.hidden = !showCancel;
-      if (ui.detailCancelReason) {
-        ui.detailCancelReason.textContent = showCancel ? selected.cancelReason || "-" : "-";
-      }
-
-      const adviceText = selected.advice || selected.medicalAdvice || "";
-      const showAdvice = statusValue === "completed" && String(adviceText || "").trim();
-      if (ui.detailAdviceSection) ui.detailAdviceSection.hidden = !showAdvice;
-      if (ui.detailAdviceBody) ui.detailAdviceBody.textContent = showAdvice ? adviceText : "";
-
-      const isScheduled = statusValue === "scheduled";
-      if (ui.cancelBtn) ui.cancelBtn.style.display = isScheduled ? "inline-flex" : "none";
+      const statusValue = String(selected?.status || "").trim().toLowerCase();
+      const isScheduled = ["scheduled", "pending", "upcoming", "active"].includes(statusValue);
       if (ui.bookAgainBtn) ui.bookAgainBtn.style.display = !isScheduled ? "inline-flex" : "none";
+    }
+
+    function renderAppointmentDetails(_) {
+      // Legacy details panel removed; keep for compatibility with older calls.
+      return;
+    }
+
+    let __selectedApptForCancel = null;
+
+    function pickField(appt, keys) {
+      for (const key of keys) {
+        const value = appt?.[key];
+        if (value !== undefined && value !== null && String(value).trim() !== "") return value;
+      }
+      return null;
+    }
+
+    function formatMaybeDate(value) {
+      if (!value) return "-";
+      try {
+        if (typeof value === "number") return new Date(value).toLocaleString();
+        if (typeof value === "string") return new Date(value).toLocaleString();
+        if (value?.toDate) return value.toDate().toLocaleString();
+        if (value?.seconds) return new Date(value.seconds * 1000).toLocaleString();
+      } catch (error) {
+        return String(value);
+      }
+      return String(value);
+    }
+
+    function setBadge(el, statusRaw) {
+      if (!el) return;
+      const status = String(statusRaw || "").toLowerCase();
+      el.textContent = status ? status.toUpperCase() : "-";
+      el.classList.remove("badge-green", "badge-red", "badge-yellow", "badge-gray");
+      if (["scheduled", "upcoming", "pending", "active"].includes(status)) {
+        el.classList.add("badge-green");
+      } else if (status === "cancelled") {
+        el.classList.add("badge-red");
+      } else if (status === "expired") {
+        el.classList.add("badge-yellow");
+      } else {
+        el.classList.add("badge-gray");
+      }
+    }
+
+    function openAppointmentModal(appt) {
+      if (!ui.modalOverlay || !appt) return;
+      const status = pickField(appt, ["status"]);
+      const scheduledAt = pickField(appt, ["scheduledAt", "slotStartAt", "startAt"]);
+      const updatedAt = pickField(appt, ["updatedAt", "cancelledAt", "createdAt"]);
+      const doctor = pickField(appt, ["doctorName", "doctor"]);
+      const hospital = pickField(appt, ["hospitalName", "hospital"]);
+      const cancelReason = pickField(appt, ["cancelReason", "reason", "cancel_reason"]);
+      const advice = pickField(appt, ["medicalAdvice", "advice", "doctorAdvice", "note"]);
+
+      setBadge(ui.modalStatusBadge, status);
+      if (ui.modalScheduledAt) ui.modalScheduledAt.textContent = formatMaybeDate(scheduledAt);
+      if (ui.modalUpdatedAt) ui.modalUpdatedAt.textContent = formatMaybeDate(updatedAt);
+      if (ui.modalDoctor) ui.modalDoctor.textContent = doctor || "-";
+      if (ui.modalHospital) ui.modalHospital.textContent = hospital || "-";
+
+      if (ui.modalCancelRow) ui.modalCancelRow.classList.toggle("is-hidden", !cancelReason);
+      if (ui.modalCancelReason) ui.modalCancelReason.textContent = cancelReason || "";
+
+      if (ui.modalAdvice) {
+        ui.modalAdvice.textContent =
+          advice || "No advice yet. The doctor may add notes after consultation.";
+      }
+
+      ui.modalOverlay.classList.remove("is-hidden");
+      ui.modalOverlay.setAttribute("aria-hidden", "false");
+      ui.modalClose?.focus?.();
+    }
+
+    function closeAppointmentModal() {
+      if (!ui.modalOverlay) return;
+      ui.modalOverlay.classList.add("is-hidden");
+      ui.modalOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    function openCancelModal(appt) {
+      if (!ui.cancelModalOverlay || !appt) return;
+      __selectedApptForCancel = appt;
+      if (ui.cancelModalError) {
+        ui.cancelModalError.classList.add("is-hidden");
+        ui.cancelModalError.textContent = "";
+      }
+      if (ui.cancelReasonInput) ui.cancelReasonInput.value = "";
+      ui.cancelModalOverlay.classList.remove("is-hidden");
+      ui.cancelModalOverlay.setAttribute("aria-hidden", "false");
+      ui.cancelReasonInput?.focus?.();
+    }
+
+    function closeCancelModal() {
+      if (!ui.cancelModalOverlay) return;
+      ui.cancelModalOverlay.classList.add("is-hidden");
+      ui.cancelModalOverlay.setAttribute("aria-hidden", "true");
+      __selectedApptForCancel = null;
+    }
+
+    async function confirmCancelFromModal() {
+      const appt = __selectedApptForCancel;
+      const errorEl = ui.cancelModalError;
+      const inputEl = ui.cancelReasonInput;
+      const btn = ui.cancelModalConfirm;
+
+      if (!appt) return;
+      const appointmentId = appt.appointmentId || appt.id;
+      const reason = String(inputEl?.value || "").trim();
+
+      if (!appointmentId) {
+        if (errorEl) {
+          errorEl.textContent = "Appointment id missing.";
+          errorEl.classList.remove("is-hidden");
+        }
+        return;
+      }
+
+      if (!reason) {
+        if (errorEl) {
+          errorEl.textContent = "Cancel reason is required.";
+          errorEl.classList.remove("is-hidden");
+        }
+        return;
+      }
+
+      if (errorEl) {
+        errorEl.textContent = "";
+        errorEl.classList.add("is-hidden");
+      }
+      if (btn) btn.disabled = true;
+      try {
+        await cancelAppointment(appointmentId, reason);
+        closeCancelModal();
+        if (typeof loadAppointments === "function") {
+          await loadAppointments(state.patientId, state.doctorId, appt.id);
+        }
+      } catch (error) {
+        if (errorEl) {
+          errorEl.textContent = mapAppointmentError(error, "Failed to cancel appointment.");
+          errorEl.classList.remove("is-hidden");
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    let modalReady = false;
+    function bindModalCloseOnce() {
+      if (modalReady) return;
+      modalReady = true;
+      ui.modalClose?.addEventListener("click", closeAppointmentModal);
+      ui.modalOverlay?.addEventListener("click", (event) => {
+        if (event.target === ui.modalOverlay) closeAppointmentModal();
+      });
+      ui.cancelModalClose?.addEventListener("click", closeCancelModal);
+      ui.cancelModalBack?.addEventListener("click", closeCancelModal);
+      ui.cancelModalConfirm?.addEventListener("click", confirmCancelFromModal);
+      ui.cancelReasonInput?.addEventListener("input", () => {
+        if (ui.cancelModalError) {
+          ui.cancelModalError.textContent = "";
+          ui.cancelModalError.classList.add("is-hidden");
+        }
+      });
+      ui.cancelModalOverlay?.addEventListener("click", (event) => {
+        if (event.target === ui.cancelModalOverlay) closeCancelModal();
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeAppointmentModal();
+          closeCancelModal();
+        }
+      });
     }
 
     function attachRecordCardHandlers(container) {
@@ -993,10 +1104,11 @@ Test steps:
             state.upcomingList.find((item) => item.id === id) ||
             state.historyList.find((item) => item.id === id);
           if (!appt) return;
-          state.selectedAppointment = appt;
-          state.selectedId = appt.id || null;
-          renderAppointmentDetails(appt);
+          console.log("[select] appt =", appt);
+          console.log("[select] appt.id =", appt?.id, "appt.appointmentId =", appt?.appointmentId);
+          applySelectionState(appt);
           updateRecordSelection(appt.id);
+          openAppointmentModal(appt);
         } catch (error) {
           console.error("[appointment] record click error", error);
         }
@@ -1030,7 +1142,7 @@ Test steps:
         renderHistoryList(state.historyList);
         renderEmptyStates(state.upcomingList, state.historyList);
         updateRecordSelection(state.selectedId);
-        renderAppointmentDetails(state.selectedAppointment);
+        applySelectionState(state.selectedAppointment);
         const total = state.upcomingList.length + state.historyList.length;
         setStatus(`${total} appointment${total === 1 ? "" : "s"}`);
       } catch (error) {
@@ -1048,7 +1160,7 @@ Test steps:
         renderHistoryList([]);
         renderEmptyStates([], []);
         updateRecordSelection(null);
-        renderAppointmentDetails(null);
+        applySelectionState(null);
         setStatus(error?.message || "Failed to load appointments");
       }
     }
@@ -1059,22 +1171,45 @@ Test steps:
         setFormMessage("No assigned doctor. Cannot create appointment.", "error");
         return;
       }
-      const value = ui.dateInput?.value || "";
-      const ms = Date.parse(value);
-      if (!Number.isFinite(ms)) {
+      const validation = validateBookingSelection();
+      if (!validation.ok) {
+        setFormMessage(validation.message || "Please select a valid date and time.", "error");
+        return;
+      }
+      const scheduledMs = validation.dateTime?.getTime?.();
+      if (!(validation.dateTime instanceof Date) || !Number.isFinite(scheduledMs)) {
         setFormMessage("Please select a valid date and time.", "error");
         return;
       }
+      const scheduledAt = new Date(scheduledMs).toISOString();
       if (ui.bookBtn) {
         ui.bookBtn.disabled = true;
         ui.bookBtn.textContent = "Booking...";
+        ui.bookBtn.dataset.busy = "1";
       }
       setFormMessage("");
       try {
+        const selectedDate = ui.dateInput?.value || "";
+        const selectedTime = ui.timeSelect?.value || "";
+        console.log("[booking] selectedDate =", selectedDate);
+        console.log("[booking] selectedTime =", selectedTime);
+        console.log("[booking] validation =", validation);
+        console.log("[booking] typeof validation.dateTime =", typeof validation.dateTime, validation.dateTime);
+        console.log("[booking] validation.dateTime.getTime() =", validation.dateTime?.getTime?.());
+        const doctorName = state.doctorProfile?.name || "Doctor";
+        const hospitalName = state.doctorProfile?.hospital || "Hospital";
+        const payload = {
+          patientId: state.patientId,
+          doctorId: state.doctorId,
+          doctorName,
+          hospitalName,
+          scheduledAt,
+        };
+        console.log("[booking] payload =", payload);
         const created = await createAppointment({
           patientId: state.patientId,
           doctorId: state.doctorId,
-          scheduledAt: new Date(ms),
+          scheduledAt,
         });
         setFormMessage("Appointment booked.", "success");
         await loadAppointments(state.patientId, state.doctorId, created?.id);
@@ -1084,33 +1219,58 @@ Test steps:
           logIndexHelp(error);
           showIndexNotice(true);
         }
-        setFormMessage(error?.message || "Failed to book appointment", "error");
+        setFormMessage(mapAppointmentError(error, "Failed to book appointment"), "error");
       } finally {
         if (ui.bookBtn) {
           ui.bookBtn.disabled = false;
           ui.bookBtn.textContent = "Book Appointment";
+          ui.bookBtn.dataset.busy = "0";
         }
+        updateBookingState();
       }
     }
 
     async function handleCancel() {
+      console.log("[cancel] selectedAppointment =", state.selectedAppointment);
+      console.log("[cancel] selectedAppointmentId =", state.selectedAppointmentId);
+      console.log("[cancel] typeof id =", typeof state.selectedAppointmentId);
+      if (!state.selectedAppointmentId || String(state.selectedAppointmentId).length < 10) {
+        console.error("[cancel] BAD appointmentId", state.selectedAppointmentId, state.selectedAppointment);
+        setFormMessage("Internal error: bad appointment id", "error");
+        return;
+      }
       const selected = state.appointments.find((a) => a.id === state.selectedId);
-      if (!selected || String(selected.status || "").toLowerCase() !== "scheduled") return;
+      const statusValue = String(selected?.status || "").toLowerCase();
+      if (!selected || (statusValue !== "scheduled" && statusValue !== "active")) return;
+      const appointmentId = state.selectedAppointmentId;
+      if (!appointmentId) {
+        setFormMessage("Appointment id missing. Please refresh and try again.", "error");
+        return;
+      }
+      const reason = String(ui.cancelReason?.value || "").trim();
+      if (!reason) {
+        setFormMessage("Please provide a cancellation reason.", "error");
+        ui.cancelReason?.classList.add("is-invalid");
+        ui.cancelReason?.focus();
+        return;
+      }
+      ui.cancelReason?.classList.remove("is-invalid");
       const confirmed = window.confirm("Cancel this appointment?");
       if (!confirmed) return;
       if (ui.cancelBtn) ui.cancelBtn.disabled = true;
       setFormMessage("");
       try {
-        await cancelAppointment(selected.id);
+        await cancelAppointment(appointmentId, reason);
         setFormMessage("Appointment cancelled.", "success");
         await loadAppointments(state.patientId, state.doctorId, selected.id);
+        if (ui.cancelReason) ui.cancelReason.value = "";
       } catch (error) {
         console.error("[appointment] cancel error", error);
         if (isIndexError(error)) {
           logIndexHelp(error);
           showIndexNotice(true);
         }
-        setFormMessage(error?.message || "Failed to cancel appointment", "error");
+        setFormMessage(mapAppointmentError(error, "Failed to cancel appointment"), "error");
       } finally {
         if (ui.cancelBtn) ui.cancelBtn.disabled = false;
       }
@@ -1122,6 +1282,8 @@ Test steps:
         ui.dateInput.value = "";
         ui.dateInput.focus();
       }
+      if (ui.timeSelect) ui.timeSelect.value = "";
+      updateBookingState();
       setFormMessage("Pick a new date/time to book again.", "info");
     }
 
@@ -1240,12 +1402,6 @@ Test steps:
       }
 
       renderDoctorCard();
-      try {
-        const r = await expirePastScheduledAppointments(user.uid);
-        console.log("[appointment] expired appointments:", r?.updated ?? 0);
-      } catch (error) {
-        console.error("[appointment] expire appointments error", error);
-      }
       await loadAppointments(state.patientId, state.doctorId);
     }
 
@@ -1264,10 +1420,15 @@ Test steps:
     function init() {
       hydrateBrand();
       attachLogout();
+      initDateTimeInputs();
+      bindModalCloseOnce();
       attachRecordCardHandlers(ui.upcomingList);
       attachRecordCardHandlers(ui.historyList);
       if (ui.form) ui.form.addEventListener("submit", handleBooking);
       ui.cancelBtn?.addEventListener("click", handleCancel);
+      ui.cancelReason?.addEventListener("input", () => {
+        ui.cancelReason.classList.remove("is-invalid");
+      });
       ui.bookAgainBtn?.addEventListener("click", handleBookAgain);
       initAuth();
     }
@@ -1276,3 +1437,4 @@ Test steps:
   </script>
 </body>
 </html>
+

@@ -122,3 +122,147 @@ body {
   color: var(--text-primary);
   box-shadow: var(--shadow-soft);
 }
+
+/* ===== Patient responsive shell ===== */
+.patient-shell {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.patient-topbar {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 1200;
+  height: 56px;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+}
+
+.topbar-title {
+  font-weight: 700;
+  font-size: 16px;
+  color: #111111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.burger-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.burger-btn:hover {
+  background: #f3f8ff;
+  border-color: rgba(0, 120, 255, 0.25);
+}
+
+.burger-btn:active {
+  transform: scale(0.96);
+}
+
+/* ===== Better Hamburger Button (Medical UI style) ===== */
+.burger-lines,
+.burger-lines::before,
+.burger-lines::after {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: #1f3a5f;
+  border-radius: 2px;
+}
+
+.burger-lines {
+  position: relative;
+}
+
+.burger-lines::before,
+.burger-lines::after {
+  content: "";
+  position: absolute;
+  left: 0;
+}
+
+.burger-lines::before {
+  top: -6px;
+}
+
+.burger-lines::after {
+  top: 6px;
+}
+
+.patient-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.patient-drawer {
+  width: var(--sidebar-width);
+  flex: 0 0 var(--sidebar-width);
+}
+
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 1300;
+}
+
+.is-hidden {
+  display: none !important;
+}
+
+@media (max-width: 1023px) {
+  .patient-shell {
+    display: block;
+  }
+
+  .patient-topbar {
+    display: flex;
+  }
+
+  .patient-main {
+    width: 100%;
+  }
+
+  .patient-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 82vw;
+    max-width: 320px;
+    z-index: 1400;
+    background: #ffffff;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+    transform: translateX(-105%);
+    transition: transform 220ms ease;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .patient-drawer.is-open {
+    transform: translateX(0);
+  }
+
+  .patient-drawer .sidebar {
+    width: 100%;
+  }
+
+  .sidebar {
+    max-width: none;
+  }
+}

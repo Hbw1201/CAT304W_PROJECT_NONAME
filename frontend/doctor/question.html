@@ -180,9 +180,59 @@
           </div>
         </section>
       </section>
+
+      <section class="card flow-card" id="flowControlCard">
+        <div class="card-head">
+          <p class="value">Flow control</p>
+          <span class="pill ghost small" id="flowProgressBadge">Progress 0 / 6</span>
+        </div>
+        <div class="flow-progress" id="flowProgressTrack" style="--flow-progress: 0%;">
+          <div class="flow-step todo" data-step="questionnaire">
+            <span class="flow-dot"></span>
+            <p class="flow-title">Questionnaire</p>
+            <p class="meta" data-sub="questionnaire">—</p>
+          </div>
+          <div class="flow-step todo" data-step="appointment">
+            <span class="flow-dot"></span>
+            <p class="flow-title">Appointment</p>
+            <p class="meta" data-sub="appointment">—</p>
+          </div>
+          <div class="flow-step todo" data-step="ct">
+            <span class="flow-dot"></span>
+            <p class="flow-title">CT scan</p>
+            <p class="meta" data-sub="ct">—</p>
+          </div>
+          <div class="flow-step todo" data-step="ai">
+            <span class="flow-dot"></span>
+            <p class="flow-title">AI analysis</p>
+            <p class="meta" data-sub="ai">—</p>
+          </div>
+          <div class="flow-step todo" data-step="doctor">
+            <span class="flow-dot"></span>
+            <p class="flow-title">Doctor review</p>
+            <p class="meta" data-sub="doctor">—</p>
+          </div>
+          <div class="flow-step todo" data-step="followup">
+            <span class="flow-dot"></span>
+            <p class="flow-title">Follow-up</p>
+            <p class="meta" data-sub="followup">—</p>
+          </div>
+        </div>
+        <div class="flow-control-meta">
+          <label class="flow-control-toggle">
+            <input type="checkbox" id="flowAutoComplete" checked>
+            Auto-complete previous steps
+          </label>
+          <label class="flow-control-toggle">
+            <input type="checkbox" id="flowDowngradeFuture">
+            Downgrade future done steps
+          </label>
+        </div>
+        <div class="flow-steps" id="flowControlList"></div>
+        <p class="meta" id="flowControlStatus">Select a patient to edit flow.</p>
+      </section>
     </main>
   </div>
   <script type="module" src="./script.js"></script>
 </body>
 </html>
-

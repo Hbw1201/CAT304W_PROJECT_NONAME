@@ -20,8 +20,16 @@
   <link rel="stylesheet" href="../shared-layout.css">
 </head>
 <body class="dash-body">
-  <div class="page-layout">
-    <aside class="sidebar">
+  <div class="patient-shell">
+    <header class="patient-topbar">
+      <button class="burger-btn" id="burgerBtn" aria-label="Open menu" aria-expanded="false" aria-controls="patientDrawer">
+        <span class="burger-lines"></span>
+      </button>
+      <div class="topbar-title" id="topbarTitle">Question</div>
+    </header>
+    <div class="drawer-overlay is-hidden" id="drawerOverlay"></div>
+    <div class="page-layout">
+    <aside class="sidebar patient-drawer" id="patientDrawer" aria-hidden="true">
       <div class="brand-row">
         <div class="brand-mark" id="brand-avatar">O</div>
         <span class="brand-name" id="brand-name">osler</span>
@@ -132,7 +140,7 @@
 
     </aside>
 
-    <main class="main-content main-panel">
+    <main class="main-content main-panel patient-main" id="patientMain">
       <section class="card hero">
         <div>
           <p class="value">Chat with Doctor</p>
@@ -163,6 +171,8 @@
       </section>
     </main>
   </div>
+  </div>
+  <script src="/patient/drawer.js"></script>
   <script>
     (function () {
       const profile = (() => {

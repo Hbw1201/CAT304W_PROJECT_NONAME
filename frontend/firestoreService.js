@@ -1,4 +1,5 @@
 ﻿import { auth, db, storage } from "./firebase-config.js";
+import { fetchWithAuth } from "./common/fetchWithAuth.js";
 import { getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   collection,
@@ -255,6 +256,8 @@ export async function getReportsByPatient(patientId) {
 
   async function runQuery() {
     logQueryConstraints();
+    // Firestore composite index required:
+    // collection: reports, fields: patientId (ASC), createdAt (DESC).
     const q = query(
       baseRef,
       where(whereField, "==", patientId),
@@ -422,7 +425,15 @@ export async function getAssignedDoctorForCurrentUser() {
 
 export async function createAppointment({ patientId, doctorId, scheduledAt }) {
   if (!patientId || !doctorId || !db) throw new Error("Missing patientId or doctorId");
-  const ts = toTimestamp(scheduledAt);
+  let scheduledAtMs;
+  if (scheduledAt instanceof Date) {
+    scheduledAtMs = scheduledAt.getTime();
+  } else if (typeof scheduledAt === "number") {
+    scheduledAtMs = scheduledAt;
+  } else if (typeof scheduledAt === "string") {
+    scheduledAtMs = new Date(scheduledAt).getTime();
+  }
+  if (!Number.isFinite(scheduledAtMs)) throw new Error("Invalid scheduledAt");
 
   let doctorName = "Doctor";
   let hospitalName = "Hospital";
@@ -437,21 +448,44 @@ export async function createAppointment({ patientId, doctorId, scheduledAt }) {
     /* ignore fetch failure */
   }
 
+  const scheduledAtIso = new Date(scheduledAtMs).toISOString();
   const payload = {
     patientId,
     doctorId,
     doctorName,
     hospitalName,
-    scheduledAt: ts,
-    status: "scheduled",
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    scheduledAt: scheduledAtIso,
   };
 
   try {
-    const ref = await addDoc(collection(db, "appointments"), payload);
-    const snap = await getDoc(ref);
-    return { id: ref.id, ...(snap.exists() ? snap.data() : payload) };
+    const response = await fetchWithAuth("/api/appointments", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    let data = null;
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+    if (!response.ok || !data?.ok) {
+      const err = new Error(data?.message || "Failed to book appointment");
+      err.code = data?.error || `HTTP_${response.status}`;
+      throw err;
+    }
+    return {
+      id: data.appointmentId,
+      appointmentId: data.appointmentId,
+      scheduledAt: scheduledAtIso,
+      slotStartAt: data.slotStartAt || scheduledAtIso,
+      status: "scheduled",
+      doctorId,
+      doctorName,
+      hospitalName,
+    };
   } catch (error) {
     console.error("[firestore] createAppointment error", error);
     throw error;
@@ -459,28 +493,38 @@ export async function createAppointment({ patientId, doctorId, scheduledAt }) {
 }
 
 export async function cancelAppointment(appointmentId, reason = "") {
-  const userId = auth?.currentUser?.uid || null;
   if (!appointmentId || !db) throw new Error("Missing appointmentId");
-
-  const ref = doc(db, "appointments", appointmentId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) throw new Error("Appointment not found");
-
-  const data = snap.data() || {};
-  if (userId && data.patientId && data.patientId !== userId) {
-    throw new Error("Forbidden");
-  }
-  if (data.status !== "scheduled") throw new Error("Only scheduled appointments can be cancelled");
+  const trimmedReason = String(reason || "").trim();
+  if (!trimmedReason) throw new Error("Cancellation reason is required");
 
   try {
-    await updateDoc(ref, {
-      status: "cancelled",
-      cancelReason: reason || "",
-      cancelledAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+    console.log("[api] cancel appointmentId =", appointmentId);
+    const url = `/api/appointments/${appointmentId}/cancel`;
+    console.log("[api] cancel url =", url);
+    const response = await fetchWithAuth(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ reason: trimmedReason }),
     });
-    const updated = await getDoc(ref);
-    return { id: ref.id, ...(updated.exists() ? updated.data() : {}) };
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("[api] cancel failed", response.status, text);
+      throw new Error(text || `HTTP ${response.status}`);
+    }
+    let data = null;
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+    if (!data?.ok) {
+      const err = new Error(data?.message || "Failed to cancel appointment");
+      err.code = data?.error || data?.code || `HTTP_${response.status}`;
+      throw err;
+    }
+    return { id: appointmentId };
   } catch (error) {
     console.error("[firestore] cancelAppointment error", error);
     throw error;
@@ -524,17 +568,30 @@ export async function expirePastScheduledAppointments(patientId) {
 export async function getUpcomingAppointments(patientId, doctorId) {
   if (!patientId || !db) return [];
   try {
-    const now = new Date();
-    const constraints = [
-      where("patientId", "==", patientId),
-      where("status", "==", "scheduled"),
-      where("scheduledAt", ">=", now),
-      orderBy("scheduledAt", "asc"),
-      limit(20),
-    ];
-    const q = query(collection(db, "appointments"), ...constraints);
-    const snap = await getDocs(q);
-    return snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+    const response = await fetchWithAuth("/api/appointments");
+    const data = await response.json();
+    const isIndexWarning = data?.code === "MISSING_INDEX" && (Array.isArray(data.upcoming) || Array.isArray(data.all));
+    if (!response.ok && !isIndexWarning) {
+      const err = new Error(data?.message || "Failed to load appointments");
+      err.code = data?.error || data?.code || `HTTP_${response.status}`;
+      throw err;
+    }
+    const upcoming = Array.isArray(data?.upcoming) ? data.upcoming : Array.isArray(data?.all) ? data.all : [];
+    const nowMs = Date.now();
+    return upcoming
+      .map((appt) => ({ ...appt, id: appt.id || "" }))
+      .filter((appt) => {
+        const status = String(appt.status || "").toLowerCase();
+        if (!["scheduled", "pending", "upcoming", "active"].includes(status)) return false;
+        const scheduledMs = toMillisValue(appt.scheduledAt);
+        return Number.isFinite(scheduledMs) && scheduledMs >= nowMs;
+      })
+      .sort((a, b) => {
+        const aMs = toMillisValue(a.scheduledAt) || 0;
+        const bMs = toMillisValue(b.scheduledAt) || 0;
+        return aMs - bMs;
+      })
+      .slice(0, 20);
   } catch (error) {
     console.error("[firestore] getUpcomingAppointments error", error);
     throw error;
@@ -544,20 +601,28 @@ export async function getUpcomingAppointments(patientId, doctorId) {
 export async function getAppointmentHistory(patientId, doctorId) {
   if (!patientId || !db) return [];
   try {
-    const constraints = [
-      where("patientId", "==", patientId),
-      where("status", "in", ["completed", "cancelled", "expired"]),
-      orderBy("scheduledAt", "desc"),
-      limit(50),
-    ];
-    const q = query(collection(db, "appointments"), ...constraints);
-    const snap = await getDocs(q);
-    return snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-  } catch (error) {
-    const msg = String(error?.message || "").toLowerCase();
-    if (error?.code === "failed-precondition" || msg.includes("requires an index")) {
-      console.error("[firestore] missing index: appointments: patientId+status+scheduledAt(desc)");
+    const response = await fetchWithAuth("/api/appointments");
+    const data = await response.json();
+    const isIndexWarning = data?.code === "MISSING_INDEX" && (Array.isArray(data.history) || Array.isArray(data.all));
+    if (!response.ok && !isIndexWarning) {
+      const err = new Error(data?.message || "Failed to load appointments");
+      err.code = data?.error || data?.code || `HTTP_${response.status}`;
+      throw err;
     }
+    const history = Array.isArray(data?.history) ? data.history : Array.isArray(data?.all) ? data.all : [];
+    return history
+      .map((appt) => ({ ...appt, id: appt.id || "" }))
+      .filter((appt) => {
+        const status = String(appt.status || "").toLowerCase();
+        return ["completed", "cancelled", "expired"].includes(status);
+      })
+      .sort((a, b) => {
+        const aMs = toMillisValue(a.scheduledAt) || 0;
+        const bMs = toMillisValue(b.scheduledAt) || 0;
+        return bMs - aMs;
+      })
+      .slice(0, 50);
+  } catch (error) {
     console.error("[firestore] getAppointmentHistory error", error);
     throw error;
   }

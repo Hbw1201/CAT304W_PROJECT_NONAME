@@ -562,6 +562,95 @@ body.doctor-theme {
   background: rgba(31, 157, 104, 0.12);
 }
 
+.doctor-theme .flow-progress {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 14px;
+  width: 100%;
+}
+
+.doctor-theme .flow-progress .flow-step {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  text-align: center;
+  padding-top: 18px;
+  border: none;
+  background: transparent;
+}
+
+.doctor-theme .flow-progress .flow-step .meta {
+  font-size: 12px;
+}
+
+.doctor-theme .flow-progress .flow-dot {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #dfe6dd;
+  border: 3px solid #ffffff;
+  box-shadow: 0 8px 14px rgba(0, 0, 0, 0.08);
+  z-index: 1;
+}
+
+.doctor-theme .flow-progress .flow-step.done .flow-dot {
+  background: var(--doctor-accent);
+  box-shadow: 0 0 0 6px rgba(31, 157, 104, 0.18);
+}
+
+.doctor-theme .flow-progress .flow-step.active .flow-dot {
+  background: #f6c542;
+  box-shadow: 0 0 0 6px rgba(246, 197, 66, 0.28);
+}
+
+.doctor-theme .flow-control-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.doctor-theme .flow-control-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--doctor-muted);
+}
+
+.doctor-theme .flow-step-main {
+  min-width: 180px;
+}
+
+.doctor-theme .flow-step-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  align-items: center;
+  flex: 1;
+}
+
+.doctor-theme .flow-step-controls select,
+.doctor-theme .flow-step-controls input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--doctor-border);
+  border-radius: 10px;
+  background: var(--doctor-surface);
+  color: var(--doctor-text);
+  font-size: 12px;
+}
+
+.doctor-theme .flow-step-controls input[type="date"] {
+  min-width: 140px;
+}
+
 .doctor-theme .advice-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -871,5 +960,9 @@ body.doctor-theme {
 
   .doctor-theme .question-chat-send-btn {
     width: 100%;
+  }
+
+  .doctor-theme .flow-step-controls {
+    grid-template-columns: 1fr;
   }
 }

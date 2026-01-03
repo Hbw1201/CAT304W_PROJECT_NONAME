@@ -21,7 +21,7 @@ import shutil
 import tempfile
 import uuid
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 from typing import Any, Dict, Optional, Callable
@@ -47,6 +47,15 @@ from firebase_admin_init import (
     get_user_role,
     verify_id_token as verify_firebase_id_token,
     get_storage_bucket,
+)
+from appointments import (
+    AppointmentError,
+    run_create_appointment,
+    run_cancel_appointment,
+    _get_appointment_by_id,
+    resolve_patient_id,
+    parse_scheduled_at,
+    serialize_datetime,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -657,6 +666,10 @@ def system_init() -> Flask:
     logger.info(f"[static] common marked = {marked_file}, exists: {marked_file.exists()}")
     if not marked_file.exists():
         logger.warning(f"[static] marked.min.js not found at {marked_file}, CDN fallback will be used")
+    dashboard_css = UI_DIR / "dashboard.css"
+    shared_flow = UI_DIR / "shared" / "flowProgress.js"
+    logger.info("[static] dashboard.css = %s, exists: %s", dashboard_css, dashboard_css.exists())
+    logger.info("[static] shared flowProgress.js = %s, exists: %s", shared_flow, shared_flow.exists())
 
     @app.after_request
     def add_permissions_policy(response: Response) -> Response:
@@ -676,6 +689,20 @@ def system_init() -> Flask:
             },
         }
         return jsonify(status)
+
+    @app.route("/health/static", methods=["GET"])
+    def health_static() -> Any:
+        files = {
+            "dashboard.css": UI_DIR / "dashboard.css",
+            "shared/flowProgress.js": UI_DIR / "shared" / "flowProgress.js",
+        }
+        result: Dict[str, Any] = {}
+        all_ok = True
+        for name, path in files.items():
+            exists = path.exists()
+            all_ok = all_ok and exists
+            result[name] = {"exists": exists, "path": str(path)}
+        return jsonify({"status": "ok" if all_ok else "degraded", "files": result})
 
     @app.route("/api/whoami", methods=["GET"])
     @require_firebase_auth()
@@ -885,6 +912,17 @@ def system_init() -> Flask:
     def report_download_proxy(filename: str) -> Any:
         return proxy_screen(f"/api/reports/download/{filename}", "GET")
 
+    @app.route("/api/reports/view/<path:filename>", methods=["GET"])
+    def report_view_proxy(filename: str) -> Any:
+        return proxy_screen(f"/api/reports/view/{filename}", "GET")
+
+    @app.route("/api/reports/_routes", methods=["GET"])
+    def report_routes() -> Any:
+        routes = sorted(
+            {rule.rule for rule in app.url_map.iter_rules() if "/api/reports/" in rule.rule}
+        )
+        return jsonify(routes), 200
+
     @app.route("/api/reports/export_pdf/<path:filename>", methods=["GET"])
     def report_export_pdf_proxy(filename: str) -> Any:
         return proxy_screen(f"/api/reports/export_pdf/{filename}", "GET")
@@ -1003,6 +1041,331 @@ def system_init() -> Flask:
                 "createdAt": admin_firestore.SERVER_TIMESTAMP,
             }
         )
+
+    def _appointment_error(code: str, message: str, status: int = 400, **extra: Any):
+        payload: Dict[str, Any] = {"ok": False, "error": code, "code": code, "message": message}
+        payload.update(extra or {})
+        return jsonify(payload), status
+
+    def _serialize_appointment_doc(doc: Any) -> Dict[str, Any]:
+        data = doc.to_dict() or {}
+        appointment_id = data.get("appointmentId") or doc.id
+        data["appointmentId"] = appointment_id
+        data["id"] = doc.id
+        if not data.get("doctorName"):
+            data["doctorName"] = "Doctor"
+        if not data.get("hospitalName"):
+            data["hospitalName"] = "Hospital"
+        if not data.get("endAt"):
+            slot_dt = parse_scheduled_at(data.get("slotStartAt") or data.get("scheduledAt"))
+            if slot_dt:
+                data["endAt"] = slot_dt + timedelta(minutes=30)
+        for key in ("scheduledAt", "slotStartAt", "endAt", "createdAt", "updatedAt", "cancelledAt"):
+            if key in data:
+                data[key] = serialize_datetime(data.get(key))
+        return data
+
+    # Appointment APIs
+    @app.route("/api/appointments", methods=["POST"])
+    @require_firebase_auth()
+    def create_appointment() -> Any:
+        payload = request.get_json(silent=True, force=True) or {}
+        if not isinstance(payload, dict):
+            logger.warning("[appointments] create failed code=INVALID_REQUEST")
+            return _appointment_error("INVALID_REQUEST", "Invalid JSON body", 400)
+
+        auth_uid = str(getattr(g, "firebase_uid", "") or "").strip()
+        role = str(getattr(g, "firebase_role", "") or "patient").lower()
+        doctor_id = str(payload.get("doctorId") or "").strip()
+
+        try:
+            patient_id = resolve_patient_id(payload.get("patientId"), auth_uid, role)
+        except AppointmentError as exc:
+            logger.warning(
+                "[appointments] create failed code=%s patientId=%s doctorId=%s",
+                exc.code,
+                payload.get("patientId"),
+                doctor_id,
+            )
+            return _appointment_error(exc.code, str(exc), exc.status)
+
+        payload["patientId"] = patient_id
+
+        if not patient_id or not doctor_id or payload.get("scheduledAt") is None:
+            logger.warning(
+                "[appointments] create failed code=INVALID_REQUEST patientId=%s doctorId=%s",
+                patient_id,
+                doctor_id,
+            )
+            return _appointment_error(
+                "INVALID_REQUEST",
+                "patientId, doctorId, and scheduledAt are required",
+                400,
+            )
+
+        try:
+            db = get_firestore_client()
+            result = run_create_appointment(db, payload)
+        except AppointmentError as exc:
+            logger.warning(
+                "[appointments] create failed code=%s patientId=%s doctorId=%s",
+                exc.code,
+                patient_id,
+                doctor_id,
+            )
+            return _appointment_error(exc.code, str(exc), exc.status)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception(
+                "[appointments] create failed code=INTERNAL_ERROR patientId=%s doctorId=%s error=%s",
+                patient_id,
+                doctor_id,
+                exc,
+            )
+            return _appointment_error("INTERNAL_ERROR", "Failed to create appointment", 500)
+
+        logger.info(
+            "[appointments] created appointmentId=%s patientId=%s doctorId=%s dateKey=%s slotKey=%s",
+            result.get("appointmentId"),
+            patient_id,
+            doctor_id,
+            result.get("dateKey"),
+            result.get("slotKey"),
+        )
+
+        return jsonify(
+            {
+                "ok": True,
+                "appointmentId": result.get("appointmentId"),
+                "slotKey": result.get("slotKey"),
+                "dateKey": result.get("dateKey"),
+                "slotStartAt": serialize_datetime(result.get("slotStartAt")),
+            }
+        )
+
+    @app.route("/api/appointments/<appointment_id>/cancel", methods=["POST"])
+    @require_firebase_auth()
+    def cancel_appointment(appointment_id: str) -> Any:
+        payload = request.get_json(silent=True, force=True) or {}
+        if not isinstance(payload, dict):
+            logger.warning("[appointments] cancel failed code=INVALID_REQUEST appointmentId=%s", appointment_id)
+            return _appointment_error("INVALID_REQUEST", "Invalid JSON body", 400)
+
+        auth_uid = str(getattr(g, "firebase_uid", "") or "").strip()
+        if not auth_uid:
+            logger.warning("[appointments] cancel failed code=UNAUTHORIZED appointmentId=%s", appointment_id)
+            return _appointment_error("UNAUTHORIZED", "Missing auth uid", 401)
+        patient_id = auth_uid
+        reason = str(payload.get("reason") or "").strip()
+
+        if not reason:
+            logger.warning(
+                "[appointments] cancel failed code=REASON_REQUIRED appointmentId=%s patientId=%s",
+                appointment_id,
+                patient_id,
+            )
+            return _appointment_error("REASON_REQUIRED", "Cancellation reason is required", 400)
+
+        try:
+            db = get_firestore_client()
+            resolved_id = str(appointment_id or "").strip()
+            appointment_data, _ref = _get_appointment_by_id(db, resolved_id)
+            if appointment_data is None:
+                try:
+                    matches = (
+                        db.collection("appointments")
+                        .where("appointmentId", "==", resolved_id)
+                        .limit(1)
+                        .get()
+                    )
+                    if len(matches) == 1:
+                        snap = matches[0]
+                        appointment_data = snap.to_dict() or {}
+                        appointment_data["id"] = snap.id
+                        resolved_id = snap.id
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "[appointments] cancel fallback lookup failed appointmentId=%s error=%s",
+                        resolved_id,
+                        exc,
+                    )
+
+            exists = appointment_data is not None
+            owner_id = str(appointment_data.get("patientId") or "").strip() if appointment_data else ""
+            print("[cancel] uid=", patient_id, "appointment_id=", appointment_id, "exists=", exists)
+            if appointment_data:
+                print("[cancel] appointment patientId =", owner_id, "match =", owner_id == patient_id)
+            if not appointment_data:
+                return _appointment_error("NOT_FOUND", "Appointment not found", 404)
+            if owner_id and owner_id != patient_id:
+                return _appointment_error("FORBIDDEN", "Not allowed to cancel this appointment", 403)
+
+            result = run_cancel_appointment(
+                db,
+                resolved_id,
+                patient_id,
+                reason,
+                allow_privileged=False,
+            )
+            return jsonify({"ok": True, **result}), 200
+        except AppointmentError as exc:
+            logger.warning(
+                "[appointments] cancel failed code=%s status=%s appt=%s uid=%s msg=%s",
+                exc.code,
+                exc.status,
+                resolved_id,
+                patient_id,
+                str(exc),
+            )
+            return jsonify({"ok": False, "code": exc.code, "error": exc.code, "message": str(exc)}), exc.status
+        except Exception as exc:  # noqa: BLE001
+            logger.exception(
+                "[appointments] cancel crashed appt=%s uid=%s",
+                resolved_id,
+                patient_id,
+            )
+            return jsonify(
+                {"ok": False, "code": "INTERNAL", "error": "INTERNAL", "message": "Internal server error"}
+            ), 500
+
+    @app.route("/api/appointments", methods=["GET"])
+    @require_firebase_auth()
+    def list_appointments() -> Any:
+        try:
+            auth_uid = str(getattr(g, "firebase_uid", "") or "").strip()
+            if not auth_uid:
+                logger.warning("[appointments] list failed code=UNAUTHORIZED")
+                return _appointment_error("UNAUTHORIZED", "Missing auth uid", 401)
+
+            patient_id = auth_uid
+
+            def is_missing_index_error(exc: Exception) -> bool:
+                message = str(exc or "").lower()
+                return "requires an index" in message or "failed precondition" in message or "failed-precondition" in message
+
+            def sort_key(appt: Dict[str, Any]) -> float:
+                dt = parse_scheduled_at(appt.get("scheduledAt") or appt.get("slotStartAt"))
+                if not dt:
+                    return 0.0
+                return dt.timestamp()
+
+            def split_appointments(items: list[Dict[str, Any]]) -> Dict[str, Any]:
+                upcoming = []
+                history = []
+                for item in items:
+                    status = str(item.get("status") or "").lower()
+                    if status in {"completed", "cancelled", "expired"}:
+                        history.append(item)
+                    else:
+                        upcoming.append(item)
+                upcoming.sort(key=sort_key)
+                history.sort(key=sort_key, reverse=True)
+                return {
+                    "upcoming": upcoming,
+                    "history": history,
+                    "all": items,
+                }
+
+            db = get_firestore_client()
+
+            try:
+                query = (
+                    db.collection("appointments")
+                    .where("patientId", "==", patient_id)
+                    .order_by("scheduledAt", direction=admin_firestore.Query.DESCENDING)
+                )
+                docs = query.stream()
+                appointments = [_serialize_appointment_doc(doc) for doc in docs]
+                payload = split_appointments(appointments)
+                logger.info(
+                    "[appointments] list patientId=%s count=%s",
+                    patient_id,
+                    len(appointments),
+                )
+                return jsonify({"ok": True, **payload})
+            except Exception as exc:  # noqa: BLE001
+                if is_missing_index_error(exc):
+                    logger.warning(
+                        "[appointments] list missing index patientId=%s error=%s",
+                        patient_id,
+                        exc,
+                    )
+                    docs = db.collection("appointments").where("patientId", "==", patient_id).stream()
+                    appointments = [_serialize_appointment_doc(doc) for doc in docs]
+                    payload = split_appointments(appointments)
+                    return jsonify(
+                        {
+                            "ok": True,
+                            "code": "MISSING_INDEX",
+                            "message": "Firestore index required",
+                            "detail": str(exc),
+                            **payload,
+                        }
+                    )
+                raise
+        except Exception as exc:  # noqa: BLE001
+            logger.exception(
+                "[appointments] list failed code=INTERNAL patientId=%s error=%s",
+                getattr(g, "firebase_uid", ""),
+                exc,
+            )
+            return _appointment_error("INTERNAL", "Failed to list appointments", 500, detail=str(exc))
+
+    @app.route("/api/doctor/appointments", methods=["GET"])
+    @require_firebase_auth()
+    def list_doctor_appointments() -> Any:
+        doctor_id = str(request.args.get("doctorId") or "").strip()
+        date_key = str(request.args.get("dateKey") or "").strip()
+        role = str(getattr(g, "firebase_role", "") or "patient").lower()
+        auth_uid = str(getattr(g, "firebase_uid", "") or "").strip()
+        allow_privileged = role in {"doctor", "admin"}
+
+        if not doctor_id or not date_key:
+            logger.warning(
+                "[appointments] doctor list failed code=INVALID_REQUEST doctorId=%s dateKey=%s",
+                doctor_id,
+                date_key,
+            )
+            return _appointment_error("INVALID_REQUEST", "doctorId and dateKey are required", 400)
+        if not date_key.isdigit() or len(date_key) != 8:
+            logger.warning(
+                "[appointments] doctor list failed code=INVALID_REQUEST doctorId=%s dateKey=%s",
+                doctor_id,
+                date_key,
+            )
+            return _appointment_error("INVALID_REQUEST", "dateKey must be YYYYMMDD", 400)
+        if not allow_privileged and doctor_id != auth_uid:
+            logger.warning(
+                "[appointments] doctor list failed code=FORBIDDEN doctorId=%s authUid=%s",
+                doctor_id,
+                auth_uid,
+            )
+            return _appointment_error("FORBIDDEN", "Not allowed to access doctor appointments", 403)
+
+        try:
+            db = get_firestore_client()
+            query = (
+                db.collection("appointments")
+                .where("doctorId", "==", doctor_id)
+                .where("dateKey", "==", date_key)
+                .order_by("slotKey", direction=admin_firestore.Query.ASCENDING)
+            )
+            docs = query.stream()
+            appointments = [_serialize_appointment_doc(doc) for doc in docs]
+            logger.info(
+                "[appointments] doctor list doctorId=%s dateKey=%s count=%s",
+                doctor_id,
+                date_key,
+                len(appointments),
+            )
+            return jsonify({"ok": True, "appointments": appointments})
+        except Exception as exc:  # noqa: BLE001
+            logger.exception(
+                "[appointments] doctor list failed code=INTERNAL_ERROR doctorId=%s dateKey=%s error=%s",
+                doctor_id,
+                date_key,
+                exc,
+            )
+            return _appointment_error("INTERNAL_ERROR", "Failed to list doctor appointments", 500)
 
     @app.route("/api/health/firebase", methods=["GET"])
     def health_firebase() -> Any:
@@ -1778,6 +2141,24 @@ def system_init() -> Flask:
             logger.warning(f"[static/common] File not found: {filename} in {common_dir}")
             abort(404)
         return send_from_directory(str(common_dir), filename)
+
+    @app.route("/shared/<path:filename>", methods=["GET"])
+    def serve_shared(filename: str) -> Any:
+        """
+        Serve shared assets like flowProgress.js from frontend/shared/*
+        This route must be defined BEFORE /patient/<path:patient_path> to avoid route conflicts.
+        """
+        shared_dir = UI_DIR / "shared"
+        file_path = shared_dir / filename
+        try:
+            file_path.resolve().relative_to(shared_dir.resolve())
+        except ValueError:
+            logger.warning("[static/shared] Path traversal attempt blocked: %s", filename)
+            abort(404)
+        if not file_path.exists() or not file_path.is_file():
+            logger.warning("[static/shared] File not found: %s in %s", filename, shared_dir)
+            abort(404)
+        return send_from_directory(str(shared_dir), filename)
 
     @app.route("/patient/<path:patient_path>", methods=["GET"])
     def serve_patient_assets(patient_path: str) -> Any:
