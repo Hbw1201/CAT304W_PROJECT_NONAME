@@ -43,10 +43,10 @@
       display: flex;
       flex-direction: column;
       gap: var(--ct-gap);
-      max-height: var(--ct-left-col-max);
+      max-height: none;
       position: sticky;
       top: var(--ct-sticky-top);
-      overflow: hidden;
+      overflow: visible;
       min-height: 0;
     }
 
@@ -89,6 +89,13 @@
     .ct-details-card {
       flex: 1 1 auto;
       min-height: 0;
+      max-height: none;
+    }
+
+    #ctDetailsScroll.ct-card-scroll {
+      flex: 0 0 auto;
+      overflow: visible;
+      padding-right: 0;
     }
 
     .ct-list-card .card-head {
@@ -592,10 +599,6 @@
                   <div class="info-row">
                     <span class="info-label">Status</span>
                     <span class="info-value" id="infoStatus">-</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Storage prefix</span>
-                    <span class="info-value" id="infoStoragePrefix">-</span>
                   </div>
                   <div class="info-row">
                     <span class="info-label">Analysis updated</span>

@@ -173,6 +173,77 @@
       gap: 10px;
     }
 
+    .dash-main [hidden] {
+      display: none !important;
+    }
+
+    .card-state {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px dashed var(--doctor-border);
+      background: var(--doctor-surface-2);
+      color: var(--doctor-muted);
+      display: grid;
+      gap: 6px;
+    }
+
+    .card-state .state-title {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--doctor-strong);
+    }
+
+    .card-state .state-subtitle {
+      margin: 0;
+      font-size: 13px;
+      color: var(--doctor-muted);
+    }
+
+    .card-state.card-error {
+      border-style: solid;
+    }
+
+    .dash-skeleton {
+      margin-top: 14px;
+    }
+
+    .dash-row.skeleton {
+      background: var(--doctor-surface-2);
+      border-color: transparent;
+      pointer-events: none;
+    }
+
+    .skeleton-line,
+    .skeleton-pill {
+      display: block;
+      background: linear-gradient(90deg, #e7edf7 25%, #f3f6fb 45%, #e7edf7 65%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s ease-in-out infinite;
+      border-radius: 999px;
+    }
+
+    .skeleton-line {
+      height: 12px;
+      width: 180px;
+    }
+
+    .skeleton-line.line-meta {
+      width: 220px;
+      height: 10px;
+    }
+
+    .skeleton-pill {
+      width: 56px;
+      height: 28px;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
     .dash-row {
       display: flex;
       align-items: center;
@@ -869,89 +940,6 @@
         </section>
 
         <section class="grid-2">
-          <div class="card" id="cardLdctQueue">
-            <div class="card-head stack">
-              <div>
-                <p class="card-title">LDCT Upload Queue</p>
-                <p class="card-subtitle">Patients who need LDCT uploads by doctor.</p>
-              </div>
-              <span class="pill small">Live</span>
-            </div>
-            <ul class="dash-list">
-              <li class="dash-row">
-                <div class="row-main">
-                  <p class="row-title">Ava Collins</p>
-                  <p class="row-meta">High risk follow-up</p>
-                </div>
-                <div class="row-actions">
-                  <a class="btn btn-primary" href="appointments.html">Upload</a>
-                </div>
-              </li>
-              <li class="dash-row">
-                <div class="row-main">
-                  <p class="row-title">Marcus Lee</p>
-                  <p class="row-meta">New screening intake</p>
-                </div>
-                <div class="row-actions">
-                  <a class="btn btn-primary" href="appointments.html">Upload</a>
-                </div>
-              </li>
-              <li class="dash-row">
-                <div class="row-main">
-                  <p class="row-title">Priya Nair</p>
-                  <p class="row-meta">Annual follow-up scan</p>
-                </div>
-                <div class="row-actions">
-                  <a class="btn btn-primary" href="appointments.html">Upload</a>
-                </div>
-              </li>
-            </ul>
-          </div>
-
-          <div class="card" id="cardImagingReview">
-            <div class="card-head stack">
-              <div>
-                <p class="card-title">Imaging Review Queue</p>
-                <p class="card-subtitle">AI results waiting for clinician review.</p>
-              </div>
-              <span class="pill small">Live</span>
-            </div>
-            <ul class="dash-list">
-              <li class="dash-row">
-                <div class="row-main">
-                  <p class="row-title">Lydia Chen</p>
-                  <p class="row-meta">AI summary ready for review</p>
-                </div>
-                <div class="row-actions">
-                  <span class="status-badge done">AI done</span>
-                  <a class="btn btn-ghost" href="report.html">Review</a>
-                </div>
-              </li>
-              <li class="dash-row">
-                <div class="row-main">
-                  <p class="row-title">Hannah Ortiz</p>
-                  <p class="row-meta">Nodule flagged for review</p>
-                </div>
-                <div class="row-actions">
-                  <span class="status-badge flagged">flagged</span>
-                  <a class="btn btn-ghost" href="report.html">Review</a>
-                </div>
-              </li>
-              <li class="dash-row">
-                <div class="row-main">
-                  <p class="row-title">Omar Patel</p>
-                  <p class="row-meta">AI processing pending</p>
-                </div>
-                <div class="row-actions">
-                  <span class="status-badge pending">pending</span>
-                  <a class="btn btn-ghost" href="report.html">Review</a>
-                </div>
-              </li>
-            </ul>
-          </div>
-        </section>
-
-        <section class="grid-2">
           <div class="card" id="cardTodaySchedule">
             <div class="card-head stack">
               <div>
@@ -959,26 +947,36 @@
                 <p class="card-subtitle">Upcoming visits and LDCT tasks.</p>
               </div>
             </div>
-            <ul class="dash-list">
-              <li class="dash-row">
+            <ul class="dash-list" id="todayScheduleList" hidden></ul>
+            <ul class="dash-list dash-skeleton" id="todayScheduleSkeleton" aria-hidden="true">
+              <li class="dash-row skeleton">
                 <div class="row-main">
-                  <p class="row-title"><span class="time-badge">09:30</span> Lydia Chen</p>
-                  <p class="row-meta">Clinic 2, LDCT follow-up</p>
+                  <span class="skeleton-line line-title"></span>
+                  <span class="skeleton-line line-meta"></span>
                 </div>
                 <div class="row-actions">
-                  <a class="btn btn-ghost" href="appointments.html">Open</a>
+                  <span class="skeleton-pill"></span>
                 </div>
               </li>
-              <li class="dash-row">
+              <li class="dash-row skeleton">
                 <div class="row-main">
-                  <p class="row-title"><span class="time-badge">14:15</span> Marcus Lee</p>
-                  <p class="row-meta">Room 5, imaging review consult</p>
+                  <span class="skeleton-line line-title"></span>
+                  <span class="skeleton-line line-meta"></span>
                 </div>
                 <div class="row-actions">
-                  <a class="btn btn-ghost" href="appointments.html">Open</a>
+                  <span class="skeleton-pill"></span>
                 </div>
               </li>
             </ul>
+            <div class="card-state" id="todayScheduleEmpty" hidden>
+              <p class="state-title">No appointments today.</p>
+              <p class="state-subtitle">New bookings will appear here.</p>
+            </div>
+            <div class="card-state card-error" id="todayScheduleError" hidden>
+              <p class="state-title">Failed to load.</p>
+              <p class="state-subtitle" id="todayScheduleErrorText">Please try again.</p>
+              <button class="btn btn-ghost" id="todayScheduleRetry" type="button">Retry</button>
+            </div>
           </div>
 
           <div class="card" id="cardUnreadChats">
@@ -988,68 +986,39 @@
                 <p class="card-subtitle">Messages requiring reply.</p>
               </div>
             </div>
-            <ul class="dash-list">
-              <li class="dash-row">
+            <ul class="dash-list" id="unreadChatsList" hidden></ul>
+            <ul class="dash-list dash-skeleton" id="unreadChatsSkeleton" aria-hidden="true">
+              <li class="dash-row skeleton">
                 <div class="row-main">
-                  <p class="row-title">Evelyn Carter</p>
-                  <p class="row-meta">Can we reschedule the scan? - 2m ago</p>
+                  <span class="skeleton-line line-title"></span>
+                  <span class="skeleton-line line-meta"></span>
                 </div>
                 <div class="row-actions">
-                  <a class="btn btn-ghost" href="question.html">Reply</a>
+                  <span class="skeleton-pill"></span>
                 </div>
               </li>
-              <li class="dash-row">
+              <li class="dash-row skeleton">
                 <div class="row-main">
-                  <p class="row-title">Jonas Reed</p>
-                  <p class="row-meta">Uploaded files are missing labels - 18m ago</p>
+                  <span class="skeleton-line line-title"></span>
+                  <span class="skeleton-line line-meta"></span>
                 </div>
                 <div class="row-actions">
-                  <a class="btn btn-ghost" href="question.html">Reply</a>
+                  <span class="skeleton-pill"></span>
                 </div>
               </li>
             </ul>
+            <div class="card-state" id="unreadChatsEmpty" hidden>
+              <p class="state-title">No unread messages.</p>
+              <p class="state-subtitle">You're all caught up.</p>
+            </div>
+            <div class="card-state card-error" id="unreadChatsError" hidden>
+              <p class="state-title">Failed to load.</p>
+              <p class="state-subtitle" id="unreadChatsErrorText">Please try again.</p>
+              <button class="btn btn-ghost" id="unreadChatsRetry" type="button">Retry</button>
+            </div>
           </div>
         </section>
 
-        <section class="grid-1">
-          <div class="card" id="cardReports">
-            <div class="card-head stack">
-              <div>
-                <p class="card-title">Reports to sign off</p>
-                <p class="card-subtitle">Drafts awaiting clinician approval.</p>
-              </div>
-            </div>
-            <ul class="dash-list">
-              <li class="dash-row">
-                <div class="row-main">
-                  <p class="row-title">CT follow-up summary</p>
-                  <p class="row-meta">Mia Simmons - Today 10:05</p>
-                </div>
-                <div class="row-actions">
-                  <a class="btn btn-primary" href="report.html">Review</a>
-                </div>
-              </li>
-              <li class="dash-row">
-                <div class="row-main">
-                  <p class="row-title">AI screening report</p>
-                  <p class="row-meta">Diego Alvarez - Today 08:40</p>
-                </div>
-                <div class="row-actions">
-                  <a class="btn btn-primary" href="report.html">Review</a>
-                </div>
-              </li>
-              <li class="dash-row">
-                <div class="row-main">
-                  <p class="row-title">Annual LDCT assessment</p>
-                  <p class="row-meta">Sarah Park - Yesterday 16:20</p>
-                </div>
-                <div class="row-actions">
-                  <a class="btn btn-primary" href="report.html">Review</a>
-                </div>
-              </li>
-            </ul>
-          </div>
-        </section>
       </div>
     </main>
   </div>
@@ -1103,8 +1072,11 @@
       deleteDoc,
       doc,
       getDoc,
+      getDocs,
       onSnapshot,
+      orderBy,
       query,
+      limit,
       serverTimestamp,
       where
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -1149,6 +1121,9 @@
 
     function extractTime(value) {
       if (!value) return "";
+      if (typeof value.toDate === "function") {
+        return extractTime(value.toDate());
+      }
       if (value instanceof Date) {
         return `${pad2(value.getHours())}:${pad2(value.getMinutes())}`;
       }
@@ -1159,8 +1134,12 @@
 
     function extractDateKey(value) {
       if (!value) return "";
+      if (typeof value.toDate === "function") return formatDateKey(value.toDate());
       if (value instanceof Date) return formatDateKey(value);
       const raw = String(value);
+      if (/^\d{8}$/.test(raw)) {
+        return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+      }
       const match = raw.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
       if (match) {
         return `${match[1]}-${pad2(match[2])}-${pad2(match[3])}`;
@@ -1629,6 +1608,536 @@
       });
     }
 
+    const scheduleUI = {
+      list: document.getElementById("todayScheduleList"),
+      skeleton: document.getElementById("todayScheduleSkeleton"),
+      empty: document.getElementById("todayScheduleEmpty"),
+      error: document.getElementById("todayScheduleError"),
+      errorText: document.getElementById("todayScheduleErrorText"),
+      retry: document.getElementById("todayScheduleRetry")
+    };
+
+    const unreadUI = {
+      list: document.getElementById("unreadChatsList"),
+      skeleton: document.getElementById("unreadChatsSkeleton"),
+      empty: document.getElementById("unreadChatsEmpty"),
+      error: document.getElementById("unreadChatsError"),
+      errorText: document.getElementById("unreadChatsErrorText"),
+      retry: document.getElementById("unreadChatsRetry")
+    };
+
+    const scheduleState = {
+      uid: "",
+      unsub: null
+    };
+
+    const unreadState = {
+      uid: "",
+      unsub: null
+    };
+
+    const userNameCache = new Map();
+    const userNamePending = new Map();
+    const lastMessageCache = new Map();
+
+    function isPermissionDenied(error) {
+      return String(error?.code || "").toLowerCase() === "permission-denied";
+    }
+
+    function toDate(value) {
+      if (!value) return null;
+      if (value instanceof Date) return value;
+      if (typeof value.toDate === "function") return value.toDate();
+      if (typeof value === "number") return new Date(value);
+      if (typeof value === "string") {
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+      return null;
+    }
+
+    function formatRelativeTime(value) {
+      const date = value instanceof Date ? value : toDate(value);
+      if (!date) return "";
+      const diff = Math.max(0, Date.now() - date.getTime());
+      const seconds = Math.floor(diff / 1000);
+      if (seconds < 60) return `${seconds || 1}s ago`;
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}h ago`;
+      const days = Math.floor(hours / 24);
+      return `${days}d ago`;
+    }
+
+    async function resolveUserName(uid) {
+      if (!uid || !db) return "";
+      if (userNameCache.has(uid)) return userNameCache.get(uid);
+      if (userNamePending.has(uid)) return userNamePending.get(uid);
+
+      const lookup = (async () => {
+        try {
+          const snap = await getDoc(doc(db, "users", uid));
+          if (!snap.exists()) return "";
+          const data = snap.data() || {};
+          return String(data.fullName || data.name || data.email || "").trim();
+        } catch (error) {
+          console.warn("[dashboard] user lookup failed", error);
+          return "";
+        }
+      })();
+
+      userNamePending.set(uid, lookup);
+      const name = await lookup;
+      userNamePending.delete(uid);
+      if (name) userNameCache.set(uid, name);
+      return name;
+    }
+
+    function getAppointmentDateKey(data) {
+      if (!data) return "";
+      if (data.dateKey) return extractDateKey(data.dateKey);
+      const scheduledAt = toDate(data.scheduledAt || data.startAt);
+      if (scheduledAt) return formatDateKey(scheduledAt);
+      if (data.scheduledDate) return extractDateKey(data.scheduledDate);
+      if (data.date) return extractDateKey(data.date);
+      return "";
+    }
+
+    function getAppointmentTimeLabel(data) {
+      if (!data) return "--:--";
+      if (data.scheduledAt?.toDate) return extractTime(data.scheduledAt.toDate());
+      if (data.startAt?.toDate) return extractTime(data.startAt.toDate());
+      const scheduledAt = toDate(data.scheduledAt || data.startAt);
+      if (scheduledAt) return extractTime(scheduledAt);
+      if (data.scheduledTime) return extractTime(data.scheduledTime);
+      if (data.timeRange) return extractTime(data.timeRange);
+      if (data.start) return extractTime(data.start);
+      return "--:--";
+    }
+
+    function getAppointmentSubtitle(data) {
+      const location = String(data?.hospitalName || data?.hospital || data?.location || data?.clinic || "").trim();
+      const note = String(data?.note || data?.notes || data?.reason || "").trim();
+      if (location && note) return `${location} · ${note}`;
+      if (location) return location;
+      if (note) return note;
+      return "Appointment";
+    }
+
+    function showScheduleSkeleton() {
+      if (scheduleUI.skeleton) scheduleUI.skeleton.hidden = false;
+      if (scheduleUI.list) scheduleUI.list.hidden = true;
+      if (scheduleUI.empty) scheduleUI.empty.hidden = true;
+      if (scheduleUI.error) scheduleUI.error.hidden = true;
+    }
+
+    function showScheduleEmpty(title, subtitle) {
+      if (scheduleUI.skeleton) scheduleUI.skeleton.hidden = true;
+      if (scheduleUI.list) {
+        scheduleUI.list.hidden = true;
+        scheduleUI.list.innerHTML = "";
+      }
+      if (scheduleUI.error) scheduleUI.error.hidden = true;
+      if (scheduleUI.empty) {
+        const titleEl = scheduleUI.empty.querySelector(".state-title");
+        const subtitleEl = scheduleUI.empty.querySelector(".state-subtitle");
+        if (titleEl) titleEl.textContent = title || "No appointments today.";
+        if (subtitleEl) subtitleEl.textContent = subtitle || "New bookings will appear here.";
+        scheduleUI.empty.hidden = false;
+      }
+    }
+
+    function showScheduleError(message) {
+      if (scheduleUI.skeleton) scheduleUI.skeleton.hidden = true;
+      if (scheduleUI.list) {
+        scheduleUI.list.hidden = true;
+        scheduleUI.list.innerHTML = "";
+      }
+      if (scheduleUI.empty) scheduleUI.empty.hidden = true;
+      if (scheduleUI.errorText) {
+        scheduleUI.errorText.textContent = message || "Please try again.";
+      }
+      if (scheduleUI.error) scheduleUI.error.hidden = false;
+    }
+
+    function renderScheduleList(items) {
+      if (!scheduleUI.list) return;
+      scheduleUI.list.innerHTML = "";
+
+      const fragment = document.createDocumentFragment();
+      items.forEach((item) => {
+        const row = document.createElement("li");
+        row.className = "dash-row";
+
+        const main = document.createElement("div");
+        main.className = "row-main";
+
+        const title = document.createElement("p");
+        title.className = "row-title";
+        const time = document.createElement("span");
+        time.className = "time-badge";
+        time.textContent = item.timeLabel || "--:--";
+        title.append(time, document.createTextNode(` ${item.patientName || "Patient"}`));
+
+        const meta = document.createElement("p");
+        meta.className = "row-meta";
+        meta.textContent = item.subtitle || "Appointment";
+
+        main.append(title, meta);
+
+        const actions = document.createElement("div");
+        actions.className = "row-actions";
+        const link = document.createElement("a");
+        link.className = "btn btn-ghost";
+        link.href = `appointments.html?date=${encodeURIComponent(item.dateKey || formatDateKey(new Date()))}&apptId=${encodeURIComponent(item.id)}`;
+        link.textContent = "Open";
+        actions.appendChild(link);
+
+        row.append(main, actions);
+        fragment.appendChild(row);
+      });
+
+      scheduleUI.list.appendChild(fragment);
+      scheduleUI.list.hidden = false;
+      if (scheduleUI.skeleton) scheduleUI.skeleton.hidden = true;
+      if (scheduleUI.empty) scheduleUI.empty.hidden = true;
+      if (scheduleUI.error) scheduleUI.error.hidden = true;
+    }
+
+    async function handleScheduleSnapshot(snapshot) {
+      const todayKey = formatDateKey(new Date());
+      const items = [];
+
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data() || {};
+        const status = String(data.status || "scheduled").toLowerCase();
+        if (status && !["scheduled", "booked", "confirmed"].includes(status)) return;
+
+        const dateKey = getAppointmentDateKey(data);
+        if (!dateKey || dateKey !== todayKey) return;
+
+        const timeLabel = getAppointmentTimeLabel(data);
+        const sortValue = timeToMinutes(timeLabel);
+        const patientName = getAppointmentPatient(data);
+        const patientId = String(data.patientId || data.patientUid || "").trim();
+        const subtitle = getAppointmentSubtitle(data);
+
+        items.push({
+          id: docSnap.id,
+          timeLabel,
+          patientName,
+          patientId,
+          subtitle,
+          dateKey: dateKey || todayKey,
+          sortKey: Number.isFinite(sortValue) ? sortValue : 9999
+        });
+      });
+
+      items.sort((a, b) => a.sortKey - b.sortKey);
+      const trimmed = items.slice(0, 5);
+
+      await Promise.all(
+        trimmed.map(async (item) => {
+          if (!item.patientName && item.patientId) {
+            item.patientName = await resolveUserName(item.patientId);
+          }
+        })
+      );
+
+      if (!trimmed.length) {
+        showScheduleEmpty("No appointments today.", "New bookings will appear here.");
+        return;
+      }
+
+      renderScheduleList(trimmed);
+    }
+
+    function clearScheduleSubscription() {
+      if (scheduleState.unsub) scheduleState.unsub();
+      scheduleState.unsub = null;
+      scheduleState.uid = "";
+    }
+
+    function subscribeTodaySchedule(uid) {
+      if (!uid || !db || !scheduleUI.list) return;
+      clearScheduleSubscription();
+      scheduleState.uid = uid;
+      showScheduleSkeleton();
+
+      const apptQuery = query(
+        collection(db, "appointments"),
+        where("doctorId", "==", uid)
+      );
+      scheduleState.unsub = onSnapshot(
+        apptQuery,
+        (snapshot) => {
+          handleScheduleSnapshot(snapshot).catch((error) => {
+            console.error("[dashboard] schedule render failed", error);
+            showScheduleError("Failed to load schedule.");
+          });
+        },
+        (error) => {
+          console.error("[dashboard] schedule error", error);
+          if (isPermissionDenied(error)) {
+            showScheduleError("No permission to read data.");
+          } else {
+            showScheduleError("Failed to load. Retry");
+          }
+        }
+      );
+    }
+
+    function showUnreadSkeleton() {
+      if (unreadUI.skeleton) unreadUI.skeleton.hidden = false;
+      if (unreadUI.list) unreadUI.list.hidden = true;
+      if (unreadUI.empty) unreadUI.empty.hidden = true;
+      if (unreadUI.error) unreadUI.error.hidden = true;
+    }
+
+    function showUnreadEmpty(title, subtitle) {
+      if (unreadUI.skeleton) unreadUI.skeleton.hidden = true;
+      if (unreadUI.list) {
+        unreadUI.list.hidden = true;
+        unreadUI.list.innerHTML = "";
+      }
+      if (unreadUI.error) unreadUI.error.hidden = true;
+      if (unreadUI.empty) {
+        const titleEl = unreadUI.empty.querySelector(".state-title");
+        const subtitleEl = unreadUI.empty.querySelector(".state-subtitle");
+        if (titleEl) titleEl.textContent = title || "No unread messages.";
+        if (subtitleEl) subtitleEl.textContent = subtitle || "You're all caught up.";
+        unreadUI.empty.hidden = false;
+      }
+    }
+
+    function showUnreadError(message) {
+      if (unreadUI.skeleton) unreadUI.skeleton.hidden = true;
+      if (unreadUI.list) {
+        unreadUI.list.hidden = true;
+        unreadUI.list.innerHTML = "";
+      }
+      if (unreadUI.empty) unreadUI.empty.hidden = true;
+      if (unreadUI.errorText) {
+        unreadUI.errorText.textContent = message || "Please try again.";
+      }
+      if (unreadUI.error) unreadUI.error.hidden = false;
+    }
+
+    async function fetchLastMessage(chatId, lastMessageAt) {
+      if (!chatId || !db) return null;
+      const cached = lastMessageCache.get(chatId);
+      if (cached?.createdAt && lastMessageAt && cached.createdAt >= lastMessageAt) {
+        return cached;
+      }
+      try {
+        const q = query(
+          collection(db, "chats", chatId, "messages"),
+          orderBy("createdAt", "desc"),
+          limit(1)
+        );
+        const snap = await getDocs(q);
+        if (snap.empty) return cached || null;
+        const docSnap = snap.docs[0];
+        const data = docSnap.data() || {};
+        const message = {
+          text: String(data.text || "").trim(),
+          createdAt: toDate(data.createdAt),
+          senderRole: String(data.senderRole || "").toLowerCase()
+        };
+        lastMessageCache.set(chatId, message);
+        return message;
+      } catch (error) {
+        console.warn("[dashboard] last message lookup failed", error);
+        return cached || null;
+      }
+    }
+
+    function getUnreadValue(data) {
+      const candidates = [
+        data.unreadCountForDoctor,
+        data.unreadCountDoctor,
+        data.unreadForDoctor
+      ];
+      for (const value of candidates) {
+        const num = Number(value);
+        if (Number.isFinite(num)) return num;
+      }
+      return null;
+    }
+
+    async function buildChatItems(snapshot) {
+      const docs = [...snapshot.docs];
+      docs.sort((a, b) => {
+        const aTime = toDate(a.data()?.lastMessageAt || a.data()?.updatedAt || a.data()?.createdAt);
+        const bTime = toDate(b.data()?.lastMessageAt || b.data()?.updatedAt || b.data()?.createdAt);
+        const aVal = aTime ? aTime.getTime() : 0;
+        const bVal = bTime ? bTime.getTime() : 0;
+        return bVal - aVal;
+      });
+
+      const items = [];
+      for (const docSnap of docs.slice(0, 10)) {
+        const data = docSnap.data() || {};
+        const chatId = docSnap.id;
+
+        let patientName = String(data.patientName || data.patientFullName || data.patient || "").trim();
+        const patientId = String(data.patientId || data.patientUid || "").trim();
+        if (!patientName && patientId) {
+          patientName = await resolveUserName(patientId);
+        }
+
+        let lastMessageText = String(data.lastMessageText || data.lastMessage || "").trim();
+        let lastMessageAt = toDate(data.lastMessageAt || data.updatedAt || data.createdAt);
+        let lastSenderRole = String(data.lastSenderRole || "").toLowerCase();
+
+        if (!lastMessageText || !lastMessageAt) {
+          const last = await fetchLastMessage(chatId, lastMessageAt);
+          if (last) {
+            if (!lastMessageText && last.text) lastMessageText = last.text;
+            if (!lastMessageAt && last.createdAt) lastMessageAt = last.createdAt;
+            if (!lastSenderRole && last.senderRole) lastSenderRole = last.senderRole;
+          }
+        }
+
+        const unreadValue = getUnreadValue(data);
+        let isUnread = false;
+        if (Number.isFinite(unreadValue)) {
+          isUnread = unreadValue > 0;
+        } else if (typeof data.doctorUnread === "boolean") {
+          isUnread = data.doctorUnread;
+        } else {
+          const lastRead = toDate(data.lastReadAtDoctor || data.lastReadAt);
+          if (lastMessageAt && lastRead) {
+            isUnread = lastMessageAt > lastRead;
+          } else if (lastMessageAt) {
+            isUnread = lastSenderRole ? lastSenderRole !== "doctor" : true;
+          }
+        }
+
+        if (!isUnread) continue;
+
+        const relative = formatRelativeTime(lastMessageAt);
+        let meta = lastMessageText || "New message";
+        if (relative) meta = `${meta} · ${relative}`;
+
+        items.push({
+          id: chatId,
+          patientName: patientName || "Patient",
+          meta,
+          lastMessageAt: lastMessageAt ? lastMessageAt.getTime() : 0,
+          patientId
+        });
+      }
+
+      items.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+      return items.slice(0, 5);
+    }
+
+    function renderUnreadChats(items) {
+      if (!unreadUI.list) return;
+      unreadUI.list.innerHTML = "";
+
+      const fragment = document.createDocumentFragment();
+      items.forEach((item) => {
+        const row = document.createElement("li");
+        row.className = "dash-row";
+
+        const main = document.createElement("div");
+        main.className = "row-main";
+        const title = document.createElement("p");
+        title.className = "row-title";
+        title.textContent = item.patientName;
+        const meta = document.createElement("p");
+        meta.className = "row-meta";
+        meta.textContent = item.meta;
+        main.append(title, meta);
+
+        const actions = document.createElement("div");
+        actions.className = "row-actions";
+        const reply = document.createElement("a");
+        reply.className = "btn btn-ghost";
+        reply.href = item.patientId
+          ? `question.html?patientId=${encodeURIComponent(item.patientId)}`
+          : `question.html?chatId=${encodeURIComponent(item.id)}`;
+        reply.textContent = "Reply";
+        actions.appendChild(reply);
+
+        row.append(main, actions);
+        fragment.appendChild(row);
+      });
+
+      unreadUI.list.appendChild(fragment);
+      unreadUI.list.hidden = false;
+      if (unreadUI.skeleton) unreadUI.skeleton.hidden = true;
+      if (unreadUI.empty) unreadUI.empty.hidden = true;
+      if (unreadUI.error) unreadUI.error.hidden = true;
+    }
+
+    function clearUnreadSubscription() {
+      if (unreadState.unsub) unreadState.unsub();
+      unreadState.unsub = null;
+      unreadState.uid = "";
+    }
+
+    function subscribeUnreadChats(uid) {
+      if (!uid || !db || !unreadUI.list) return;
+      clearUnreadSubscription();
+      unreadState.uid = uid;
+      showUnreadSkeleton();
+
+      const chatsQuery = query(
+        collection(db, "chats"),
+        where("doctorId", "==", uid)
+      );
+      unreadState.unsub = onSnapshot(
+        chatsQuery,
+        (snapshot) => {
+          buildChatItems(snapshot)
+            .then((items) => {
+              if (!items.length) {
+                showUnreadEmpty("No unread messages.", "You're all caught up.");
+                return;
+              }
+              renderUnreadChats(items);
+            })
+            .catch((error) => {
+              console.error("[dashboard] unread render failed", error);
+              showUnreadError("Failed to load messages.");
+            });
+        },
+        (error) => {
+          console.error("[dashboard] unread chats error", error);
+          if (isPermissionDenied(error)) {
+            showUnreadError("No permission to read data.");
+          } else {
+            showUnreadError("Failed to load. Retry");
+          }
+        }
+      );
+    }
+
+    function initDashboardQueues(user) {
+      if (!user || !user.uid) {
+        clearScheduleSubscription();
+        clearUnreadSubscription();
+        showScheduleEmpty("Please log in", "Sign in to view today's appointments.");
+        showUnreadEmpty("Please log in", "Sign in to view unread messages.");
+        return;
+      }
+      subscribeTodaySchedule(user.uid);
+      subscribeUnreadChats(user.uid);
+    }
+
+    function bindDashboardRetry() {
+      scheduleUI.retry?.addEventListener("click", () => {
+        if (scheduleState.uid) subscribeTodaySchedule(scheduleState.uid);
+      });
+      unreadUI.retry?.addEventListener("click", () => {
+        if (unreadState.uid) subscribeUnreadChats(unreadState.uid);
+      });
+    }
+
     const doctorMetricsState = {
       uid: "",
       todayKey: "",
@@ -1804,11 +2313,13 @@
     window.addEventListener("DOMContentLoaded", () => {
       bindDatePicker();
       bindModal();
+      bindDashboardRetry();
 
       onAuthStateChanged(auth, async (user) => {
         if (!user) {
           setEmptyMessage("Not logged in.");
           initDoctorMetrics(null);
+          initDashboardQueues(null);
           return;
         }
         calendarState.uid = user.uid;
@@ -1818,7 +2329,13 @@
         }
         subscribeCalendar();
         initDoctorMetrics(user);
+        initDashboardQueues(user);
       });
+    });
+
+    window.addEventListener("beforeunload", () => {
+      clearScheduleSubscription();
+      clearUnreadSubscription();
     });
   </script>
 </body>

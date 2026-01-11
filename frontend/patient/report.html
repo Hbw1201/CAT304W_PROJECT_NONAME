@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Osler Report</title>
+  <title>aegis Report</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -136,8 +136,8 @@
       </div>
     </aside>
 
-    <main class="main-content main-panel patient-main" id="patientMain">
-      <section class="card hero">
+    <main class="main-content main-panel patient-main report-main" id="patientMain">
+      <section class="card hero report-hero">
         <div>
           <p class="eyebrow">Reports</p>
           <p class="lede">View and manage analytics reports in one place.</p>
@@ -145,14 +145,20 @@
         <div class="hero-pattern" aria-hidden="true"></div>
       </section>
 
-      <section class="card">
+      <section class="card report-workspace">
         <div class="section-head">
           <div>
             <p class="value">Report workspace</p>
             <p class="label">Your screening reports, downloads, and PDF previews.</p>
           </div>
           <div class="search-wrap">
-            <input id="reportSearch" type="search" placeholder="Search by reportId or screeningId" />
+            <span class="search-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7" />
+                <path d="M20 20l-3.5-3.5" />
+              </svg>
+            </span>
+            <input id="reportSearch" class="search-input" type="search" placeholder="Search by reportId or screeningId" />
           </div>
         </div>
 
@@ -169,7 +175,18 @@
               <span id="reportErrorText"></span>
             </div>
             <div id="reportList" class="report-items"></div>
-            <div id="reportEmpty" class="empty-state" hidden>No screening reports available yet.</div>
+            <div id="reportEmpty" class="empty-state empty-state--list" hidden>
+              <div class="empty-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+                  <path d="M14 3v5h5" />
+                  <path d="M8 12h8M8 16h5" />
+                </svg>
+              </div>
+              <p class="empty-title" data-empty-title>No reports yet</p>
+              <p class="empty-subtitle" data-empty-subtitle>Complete a screening to generate your first report.</p>
+              <a class="empty-link" href="screening.html">Start Screening</a>
+            </div>
           </div>
 
           <div class="report-preview">
@@ -180,9 +197,27 @@
               </div>
             </div>
             <div id="reportSummary" class="report-summary" hidden></div>
-            <div id="previewPlaceholder" class="empty-state">Select a report to preview</div>
-            <div id="reportText" class="preview-fallback" hidden></div>
-            <iframe id="reportPreview" title="Report preview" hidden></iframe>
+            <div class="preview-stage">
+              <div id="previewPlaceholder" class="empty-state empty-state--preview">
+                <div class="empty-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+                    <path d="M14 3v5h5" />
+                    <path d="M8 12h8M8 16h5" />
+                  </svg>
+                </div>
+                <p class="empty-title" data-preview-title>Select a report to preview</p>
+                <p class="empty-subtitle" data-preview-subtitle>Your PDF preview will appear here.</p>
+              </div>
+              <div id="previewSkeleton" class="preview-skeleton" hidden>
+                <span class="skeleton-line"></span>
+                <span class="skeleton-line"></span>
+                <span class="skeleton-line"></span>
+                <span class="skeleton-line"></span>
+              </div>
+              <div id="reportText" class="preview-fallback" hidden></div>
+              <iframe id="reportPreview" title="Report preview" hidden></iframe>
+            </div>
           </div>
         </div>
       </section>
@@ -190,158 +225,441 @@
   </div>
 
   <style>
+    .report-main {
+      max-width: 1240px;
+      width: 100%;
+      margin: 0 auto;
+      gap: 18px;
+    }
+
+    .report-main [hidden] {
+      display: none !important;
+    }
+
+    .report-hero {
+      position: relative;
+      overflow: hidden;
+      padding: 24px 26px;
+      border-radius: 22px;
+      border: 1px solid #e8f0ff;
+      background: linear-gradient(135deg, #eef4ff 0%, #f7faff 100%);
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+    }
+
+    .report-hero .eyebrow {
+      margin: 0;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: #0f172a;
+      text-transform: none;
+    }
+
+    .report-hero .lede {
+      margin: 6px 0 0;
+      color: #6b7280;
+      font-size: 15px;
+    }
+
+    .report-hero .hero-pattern {
+      opacity: 0.5;
+      background: radial-gradient(circle at 85% 20%, rgba(47, 107, 255, 0.18), transparent 60%);
+    }
+
+    .report-workspace {
+      border-radius: 20px;
+      border: 1px solid #eef2f7;
+      background: #ffffff;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+      padding: 20px 22px 22px;
+    }
+
     .section-head {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
-      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #eef2f7;
+      margin-bottom: 16px;
     }
-    .search-wrap input {
-      padding: 10px 12px;
-      border: 1px solid #e5e7eb;
-      border-radius: 12px;
+
+    .section-head .value {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .section-head .label {
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    .search-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
       min-width: 240px;
-      font-size: 14px;
     }
+
+    .search-icon {
+      position: absolute;
+      left: 14px;
+      width: 16px;
+      height: 16px;
+      color: #94a3b8;
+      display: inline-flex;
+    }
+
+    .search-icon svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 42px;
+      padding: 0 14px 0 40px;
+      border: 1px solid #dbe7ff;
+      border-radius: 999px;
+      font-size: 14px;
+      background: #f4f7ff;
+      color: #0f172a;
+      transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+    }
+
+    .search-input::placeholder {
+      color: #9aa3b2;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: #2f6bff;
+      box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.18);
+      background: #ffffff;
+    }
+
     .report-grid {
       display: grid;
-      grid-template-columns: 0.35fr 0.65fr;
-      gap: 16px;
-      margin-top: 8px;
-      min-height: 70vh;
+      grid-template-columns: minmax(0, 0.4fr) minmax(0, 0.6fr);
+      gap: 18px;
+      margin-top: 4px;
+      min-height: 68vh;
     }
+
     .report-list,
     .report-preview {
-      border: 1px solid #e5e7eb;
-      border-radius: 16px;
-      padding: 16px;
-      background: #fff;
-      box-shadow: 0 10px 30px rgba(2, 6, 23, 0.06);
+      border: 1px solid #eef2f7;
+      border-radius: 18px;
+      padding: 16px 16px 18px;
+      background: #ffffff;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
     }
+
     .report-list {
       overflow-y: auto;
-      max-height: 75vh;
+      max-height: 76vh;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
     }
+
+    .report-preview {
+      display: grid;
+      gap: 12px;
+      min-height: 76vh;
+    }
+
     .list-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eef2f7;
     }
-    .report-items {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .report-item {
-      border: 1px solid #eef0f4;
-      border-radius: 12px;
-      padding: 12px;
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 8px;
-      background: #fafbfc;
-    }
-    .report-item.active {
-      outline: 2px solid #2563eb;
-      background: #eef2ff;
-    }
-    .report-meta {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 6px 12px;
-      font-size: 13px;
-    }
-    .report-actions {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    .report-actions button {
-      border: 1px solid #2563eb;
-      background: #2563eb;
-      color: #ffffff;
-      padding: 8px 12px;
-      border-radius: 10px;
-      cursor: pointer;
+
+    .list-head .eyebrow {
+      margin: 0;
+      font-size: 16px;
       font-weight: 600;
-      box-shadow: 0 10px 30px rgba(37, 99, 235, 0.2);
+      color: #0f172a;
+      text-transform: none;
     }
-    .report-actions button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
+
+    .list-head .label {
+      margin: 4px 0 0;
+      font-size: 12px;
+      color: #6b7280;
     }
+
     .pill {
       border-radius: 999px;
       padding: 4px 10px;
       font-size: 12px;
       background: #f1f5f9;
       color: #475569;
+      border: 1px solid #e2e8f0;
     }
+
+    .pill.plain {
+      background: #f8fafc;
+    }
+
     .pill.risk-high { background: #FEE2E2; color: #991B1B; border: 1px solid #FECACA; }
     .pill.risk-medium { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
     .pill.risk-low { background: #DCFCE7; color: #166534; border: 1px solid #BBF7D0; }
-    .empty-state {
-      padding: 16px;
-      border: 1px dashed #e5e7eb;
-      border-radius: 12px;
-      text-align: center;
+
+    .report-items {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .report-item {
+      position: relative;
+      border: 1px solid #eef2f7;
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px 16px;
+      background: #fbfdff;
+      cursor: pointer;
+      transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+    }
+
+    .report-item::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 12px;
+      bottom: 12px;
+      width: 3px;
+      border-radius: 999px;
+      background: transparent;
+    }
+
+    .report-item:hover {
+      background: #f1f6ff;
+      border-color: #dbe7ff;
+    }
+
+    .report-item.active {
+      border-color: #c7dbff;
+      background: #eef4ff;
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+    }
+
+    .report-item.active::before {
+      background: #2f6bff;
+    }
+
+    .report-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 6px 12px;
+      font-size: 13px;
+      color: #0f172a;
+    }
+
+    .report-meta strong {
+      color: #6b7280;
+      font-weight: 600;
+    }
+
+    .report-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .report-actions .label {
+      font-size: 12px;
       color: #6b7280;
     }
+
+    .report-actions button {
+      border: 1px solid #2f6bff;
+      background: #2f6bff;
+      color: #ffffff;
+      padding: 7px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 12px;
+      height: 34px;
+      box-shadow: 0 10px 20px rgba(47, 107, 255, 0.18);
+    }
+
+    .report-actions button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .empty-state {
+      padding: 20px;
+      border: 1px dashed #e5e7eb;
+      border-radius: 16px;
+      text-align: center;
+      color: #6b7280;
+      background: #f8fafc;
+      display: grid;
+      gap: 8px;
+      justify-items: center;
+    }
+
+    .empty-state--preview {
+      min-height: 320px;
+      margin: auto;
+    }
+
+    .empty-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: #eef4ff;
+      color: #2f6bff;
+      display: grid;
+      place-items: center;
+    }
+
+    .empty-icon svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .empty-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .empty-subtitle {
+      margin: 0;
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    .empty-link {
+      text-decoration: none;
+      color: #2f6bff;
+      font-weight: 600;
+      font-size: 13px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid #dbe7ff;
+      background: #ffffff;
+      transition: background 120ms ease, border-color 120ms ease;
+    }
+
+    .empty-link:hover {
+      background: #eff5ff;
+      border-color: #c7dbff;
+    }
+
+    .preview-stage {
+      border: 1px solid #eef2f7;
+      border-radius: 16px;
+      padding: 16px;
+      background: #f8fafc;
+      display: grid;
+      gap: 12px;
+      min-height: 62vh;
+    }
+
+    .preview-skeleton {
+      display: grid;
+      gap: 12px;
+      width: 100%;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .skeleton-line {
+      height: 12px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #e8eefb 25%, #f4f7ff 45%, #e8eefb 65%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s ease-in-out infinite;
+    }
+
+    .skeleton-line:nth-child(2) { width: 90%; }
+    .skeleton-line:nth-child(3) { width: 75%; }
+    .skeleton-line:nth-child(4) { width: 60%; }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
     .report-preview iframe {
       width: 100%;
-      min-height: 70vh;
+      min-height: 60vh;
       border: 1px solid #e5e7eb;
-      border-radius: 12px;
-      background: #fff;
+      border-radius: 14px;
+      background: #ffffff;
     }
+
     .preview-actions {
       display: flex;
       gap: 8px;
       margin-bottom: 10px;
       flex-wrap: wrap;
     }
+
     .preview-actions button {
-      border: 1px solid #2563eb;
-      background: #2563eb;
+      border: 1px solid #2f6bff;
+      background: #2f6bff;
       color: #ffffff;
-      padding: 8px 12px;
+      padding: 7px 12px;
       border-radius: 10px;
       cursor: pointer;
       font-weight: 600;
-      box-shadow: 0 10px 30px rgba(37, 99, 235, 0.2);
+      font-size: 12px;
+      height: 34px;
+      box-shadow: 0 10px 20px rgba(47, 107, 255, 0.18);
     }
+
     .preview-actions button:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+      box-shadow: none;
     }
+
     .preview-fallback {
       border: 1px dashed #e5e7eb;
       border-radius: 12px;
       padding: 14px;
       color: #475569;
-      background: #f8fafc;
+      background: #ffffff;
     }
+
     .report-summary {
-      border: 1px solid #e5e7eb;
-      border-radius: 12px;
-      padding: 12px;
+      border: 1px solid #eef2f7;
+      border-radius: 14px;
+      padding: 12px 14px;
       background: #f8fafc;
-      margin-bottom: 12px;
       color: #334155;
       font-size: 13px;
       display: grid;
       gap: 10px;
     }
+
     .summary-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
       gap: 8px 12px;
     }
+
     .summary-item strong {
       display: block;
       font-size: 11px;
@@ -349,38 +667,83 @@
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
+
     .summary-item span {
       font-size: 14px;
       font-weight: 600;
       color: #0f172a;
     }
+
     .summary-list {
       display: grid;
       gap: 6px;
     }
+
     .summary-list .label {
       font-size: 12px;
       color: #64748b;
     }
+
     .summary-list ul {
       margin: 0;
       padding-left: 18px;
       color: #0f172a;
     }
+
     .error-banner {
       background: #fef2f2;
       color: #991b1b;
       border: 1px solid #fecaca;
-      border-radius: 10px;
+      border-radius: 12px;
       padding: 10px 12px;
-      margin-bottom: 10px;
       font-size: 13px;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
     }
+
+    .sidebar .nav-item {
+      border-radius: 12px;
+    }
+
+    .sidebar .nav-item:hover {
+      background: #f5f9ff;
+      color: #0f172a;
+      transform: none;
+    }
+
+    .sidebar .nav-item.active {
+      background: #eef4ff;
+      border: 1px solid #dbe7ff;
+      color: #2f6bff;
+    }
+
+    .sidebar .nav-item.active .nav-icon,
+    .sidebar .nav-item:hover .nav-icon {
+      color: currentColor;
+    }
+
+    .sidebar .nav-group {
+      border-top: 1px solid #eef2f7;
+    }
+
+    .sidebar .brand-mark {
+      width: 48px;
+      height: 48px;
+      border-radius: 999px;
+      background: #eef4ff;
+      color: #2f6bff;
+    }
+
+    .sidebar .brand-name {
+      font-weight: 700;
+      color: #0f172a;
+    }
+
     @media (max-width: 960px) {
       .report-grid { grid-template-columns: 1fr; }
       .report-item { grid-template-columns: 1fr; }
-      .report-preview iframe { min-height: 420px; }
+      .report-preview { min-height: auto; }
+      .preview-stage { min-height: 420px; }
+      .search-wrap { width: 100%; }
     }
   </style>
   </div>
@@ -393,9 +756,8 @@
     import {
       getCurrentUserProfile,
       getReportsByPatient,
-      getReportPdfUrl,
     } from "../firestoreService.js";
-    import { getStorage, ref, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+    import { ref, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
     import { storage } from "../firebase-config.js";
 
     const ui = {
@@ -405,6 +767,7 @@
       search: document.getElementById("reportSearch"),
       previewFrame: document.getElementById("reportPreview"),
       previewPlaceholder: document.getElementById("previewPlaceholder"),
+      previewSkeleton: document.getElementById("previewSkeleton"),
       textPreview: document.getElementById("reportText"),
       summary: document.getElementById("reportSummary"),
       error: document.getElementById("reportError"),
@@ -422,6 +785,16 @@
     };
     let __loadingReports = false;
     let indexErrorLogged = false;
+
+    const isDev =
+      location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "" ||
+      location.hostname.endsWith(".local");
+
+    function devLog(...args) {
+      if (isDev) console.log(...args);
+    }
 
     function toMillis(v) {
       if (!v) return 0;
@@ -453,6 +826,10 @@
 
     const PDF_UNAUTHORIZED_MESSAGE =
       "PDF is not accessible due to permission settings. Please contact admin/doctor.";
+    const PDF_NOT_READY_MESSAGE = "PDF not ready";
+    const PDF_NOT_UPLOADED_MESSAGE = "PDF not uploaded";
+    const PDF_PENDING_MESSAGE = "PDF pending";
+    const PDF_FAILED_MESSAGE = "PDF failed";
     const DEFAULT_PREVIEW_TEXT = "Select a report to preview";
     const PREVIEW_UNAVAILABLE_MESSAGE =
       "暂无可预览的 PDF，请下载 PDF。";
@@ -471,9 +848,97 @@
       return trimmed ? trimmed : null;
     }
 
+    function normalizeReportId(report) {
+      return String(report?.reportId || report?.report_id || report?.id || "").trim();
+    }
+
+    function normalizePatientId(report) {
+      return String(
+        report?.patientId || report?.patientUid || report?.patient_id || state.patientId || ""
+      ).trim();
+    }
+
+    function normalizeStoragePath(value) {
+      if (!value || typeof value !== "string") return "";
+      return value.trim();
+    }
+
+    function getReportStoragePath(report) {
+      return normalizeStoragePath(report?.storagePath || report?.pdfPath || report?.pdf?.storagePath);
+    }
+
+    function getReportPdfStatus(report) {
+      const raw =
+        report?.pdfStatus ?? report?.pdf_status ?? report?.status ?? report?.pdf?.status ?? "";
+      if (raw === null || raw === undefined) return "";
+      return String(raw).trim().toLowerCase();
+    }
+
+    function isPdfStatusReady(status) {
+      return status === "ready" || status === "" || status === "null" || status === "undefined";
+    }
+
+    function getPdfStatusMessage(storagePath, pdfStatus) {
+      if (!storagePath) return PDF_NOT_UPLOADED_MESSAGE;
+      if (isPdfStatusReady(pdfStatus)) return "";
+      if (pdfStatus === "pending") return PDF_PENDING_MESSAGE;
+      if (pdfStatus === "failed" || pdfStatus === "error") return PDF_FAILED_MESSAGE;
+      return PDF_NOT_READY_MESSAGE;
+    }
+
+    function isStorageNotFound(error) {
+      return String(error?.code || "").toLowerCase() === "storage/object-not-found";
+    }
+
+    function logStorageContext(storagePath) {
+      const bucket = storage?.app?.options?.storageBucket || "(unknown)";
+      const projectId = storage?.app?.options?.projectId || "(unknown)";
+      console.log("[report] storage context", { bucket, projectId, storagePath });
+    }
+
     function setPreviewPlaceholder(text) {
       if (!ui.previewPlaceholder) return;
-      ui.previewPlaceholder.textContent = text || DEFAULT_PREVIEW_TEXT;
+      const content = text || DEFAULT_PREVIEW_TEXT;
+      const titleEl = ui.previewPlaceholder.querySelector("[data-preview-title]");
+      const subtitleEl = ui.previewPlaceholder.querySelector("[data-preview-subtitle]");
+
+      if (titleEl) {
+        titleEl.textContent = content;
+      } else {
+        ui.previewPlaceholder.textContent = content;
+      }
+
+      if (subtitleEl) {
+        if (content === DEFAULT_PREVIEW_TEXT) {
+          subtitleEl.hidden = false;
+          subtitleEl.textContent = "Your PDF preview will appear here.";
+        } else {
+          subtitleEl.hidden = true;
+        }
+      }
+    }
+
+    function setPreviewSelection(hasSelected) {
+      if (!ui.previewPlaceholder) return;
+      if (!hasSelected) {
+        if (ui.summary) {
+          ui.summary.hidden = true;
+          ui.summary.innerHTML = "";
+        }
+        if (ui.textPreview) {
+          ui.textPreview.hidden = true;
+          ui.textPreview.textContent = "";
+        }
+        if (ui.previewSkeleton) ui.previewSkeleton.hidden = true;
+        if (ui.previewFrame) {
+          ui.previewFrame.hidden = true;
+          ui.previewFrame.removeAttribute("src");
+        }
+        ui.previewPlaceholder.hidden = false;
+        setPreviewPlaceholder(DEFAULT_PREVIEW_TEXT);
+        return;
+      }
+      ui.previewPlaceholder.hidden = true;
     }
 
     function withCacheBuster(url) {
@@ -514,50 +979,46 @@
       ui.error.hidden = !show;
     }
 
+    function setReportsVisibility(hasReports) {
+      if (ui.list) ui.list.style.display = hasReports ? "flex" : "none";
+      if (ui.empty) ui.empty.hidden = hasReports;
+    }
+
     function resetReportsUI() {
       showErrorNotice(false);
-      if (ui.empty) {
-        ui.empty.hidden = true;
-        ui.empty.textContent = "";
-      }
+      setReportsVisibility(true);
       if (ui.list) {
         ui.list.innerHTML = "";
-        ui.list.style.display = "flex";
       }
     }
 
     function showEmptyState(message) {
-      const text = message || "No screening reports available yet.";
+      const text = message || "No reports yet";
       showErrorNotice(false);
-      if (ui.list) {
-        ui.list.style.display = "none";
-        ui.list.innerHTML = "";
-      }
+      setReportsVisibility(false);
+      if (ui.list) ui.list.innerHTML = "";
       if (ui.empty) {
         ui.empty.hidden = false;
-        ui.empty.textContent = text;
+        const titleEl = ui.empty.querySelector("[data-empty-title]");
+        if (titleEl) {
+          titleEl.textContent = text;
+        } else {
+          ui.empty.textContent = text;
+        }
       }
       setStatus(text);
     }
 
     function showList() {
       showErrorNotice(false);
-      if (ui.empty) {
-        ui.empty.hidden = true;
-        ui.empty.textContent = "";
-      }
-      if (ui.list) ui.list.style.display = "flex";
+      setReportsVisibility(true);
     }
 
     function showGenericError(message) {
       const text = message || "Failed to load reports";
       showErrorNotice(true, text);
-      if (ui.empty) {
-        ui.empty.hidden = true;
-        ui.empty.textContent = "";
-      }
+      setReportsVisibility(false);
       if (ui.list) {
-        ui.list.style.display = "none";
         ui.list.innerHTML = "";
       }
       setStatus(text);
@@ -569,21 +1030,25 @@
         ui.textPreview.hidden = true;
         ui.textPreview.textContent = "";
       }
+      if (ui.previewSkeleton) ui.previewSkeleton.hidden = true;
       if (url) {
         const previewUrl = withCacheBuster(url);
         ui.previewPlaceholder.hidden = true;
-        ui.previewFrame.hidden = false;
+        if (ui.previewSkeleton) ui.previewSkeleton.hidden = false;
+        ui.previewFrame.hidden = true;
         ui.previewFrame.src = previewUrl;
         ui.previewFrame.onload = () => {
+          if (ui.previewSkeleton) ui.previewSkeleton.hidden = true;
           ui.previewFrame.hidden = false;
         };
         ui.previewFrame.onerror = () => {
+          if (ui.previewSkeleton) ui.previewSkeleton.hidden = true;
           ui.previewFrame.hidden = true;
           ui.previewFrame.removeAttribute("src");
-          ui.previewPlaceholder.hidden = false;
-          setPreviewPlaceholder(PDF_PREVIEW_FAILED_MESSAGE);
+          setTextPreview(PDF_PREVIEW_FAILED_MESSAGE);
         };
       } else {
+        if (ui.previewSkeleton) ui.previewSkeleton.hidden = true;
         ui.previewFrame.hidden = true;
         ui.previewFrame.removeAttribute("src");
         ui.previewPlaceholder.hidden = false;
@@ -601,10 +1066,12 @@
         ui.textPreview.hidden = true;
         ui.textPreview.textContent = "";
         ui.previewPlaceholder.hidden = false;
+        if (ui.previewSkeleton) ui.previewSkeleton.hidden = true;
         ui.previewFrame.hidden = true;
         ui.previewFrame.removeAttribute("src");
         return;
       }
+      if (ui.previewSkeleton) ui.previewSkeleton.hidden = true;
       ui.previewFrame.hidden = true;
       ui.previewFrame.removeAttribute("src");
       ui.previewPlaceholder.hidden = true;
@@ -698,95 +1165,81 @@
       }
     }
 
-    async function ensurePdf(reportId, statusEl, viewBtn, downloadBtn, pdfPath, pdfUrl, downloadUrlLocal, hasText) {
+    async function ensurePdf(report, statusEl, viewBtn, downloadBtn) {
+      const reportId = normalizeReportId(report);
+      const storagePath = getReportStoragePath(report);
+      const patientId = normalizePatientId(report);
+      const pdfStatus = getReportPdfStatus(report);
+      const hasText = Boolean(report?.contentText);
+      const textViewUrl = hasText ? "inline-text" : null;
+      const isPdfReady = Boolean(storagePath && isPdfStatusReady(pdfStatus));
+      const statusLabel = getPdfStatusMessage(storagePath, pdfStatus);
+
+      devLog("[report] storage path", { reportId, patientId, storagePath, pdfStatus });
+
       if (!reportId) {
         if (statusEl) statusEl.textContent = "Missing reportId";
         if (viewBtn) viewBtn.disabled = true;
         if (downloadBtn) downloadBtn.disabled = true;
-        return { viewUrl: null, textViewUrl: null, downloadUrl: null };
+        return { viewUrl: null, textViewUrl, downloadUrl: null, storagePath };
       }
 
-      if (state.pdfCache.has(reportId)) {
-        const cached = state.pdfCache.get(reportId) || {};
+      const cached = state.pdfCache.get(reportId);
+      if (cached && cached.storagePath === storagePath && cached.pdfStatus === pdfStatus) {
         const viewUrl = normalizeUrl(cached.viewUrl);
         const downloadUrl = normalizeUrl(cached.downloadUrl);
-        const textViewUrl = normalizeUrl(cached.textViewUrl);
-        const canView = Boolean(viewUrl || downloadUrl || textViewUrl);
+        const cachedTextViewUrl = normalizeUrl(cached.textViewUrl);
+        const canView = Boolean(viewUrl || downloadUrl || cachedTextViewUrl);
         const canDownload = Boolean(downloadUrl);
 
         if (!viewUrl && !downloadUrl) {
-          if (textViewUrl) {
-            if (statusEl) statusEl.textContent = "Text report available";
-          } else {
-            if (statusEl) statusEl.textContent = "PDF not uploaded";
-          }
+          const message = statusLabel || PDF_NOT_READY_MESSAGE;
+          if (statusEl) statusEl.textContent = message;
         } else if (statusEl) {
           statusEl.textContent = "";
         }
 
         if (viewBtn) viewBtn.disabled = !canView;
         if (downloadBtn) downloadBtn.disabled = !canDownload;
-        return { viewUrl, textViewUrl, downloadUrl };
+        return { viewUrl, textViewUrl: cachedTextViewUrl, downloadUrl, storagePath };
+      }
+
+      if (cached && cached.storagePath !== storagePath) {
+        state.pdfCache.delete(reportId);
       }
 
       if (statusEl) statusEl.textContent = "Checking PDF...";
       if (viewBtn) viewBtn.disabled = true;
       if (downloadBtn) downloadBtn.disabled = true;
 
-      const downloadUrlLocalValue = normalizeUrl(downloadUrlLocal);
-      const pdfUrlValue = normalizeUrl(pdfUrl);
-      const textViewUrl = hasText ? "inline-text" : null;
-
-      let downloadUrl = downloadUrlLocalValue || pdfUrlValue || null;
+      let downloadUrl = null;
       let viewUrl = null;
+      let statusMessage = "";
 
-      if (downloadUrlLocalValue && downloadUrlLocalValue.includes("/api/reports/download/")) {
-        viewUrl = downloadUrlLocalValue.replace("/api/reports/download/", "/api/reports/view/");
-      } else if (pdfUrlValue && !isDownloadOnlyUrl(pdfUrlValue)) {
-        viewUrl = pdfUrlValue;
+      if (!isPdfReady || !storage) {
+        statusMessage = statusLabel || PDF_NOT_READY_MESSAGE;
+        const result = { viewUrl: null, textViewUrl, downloadUrl: null, storagePath };
+        state.pdfCache.set(reportId, { ...result, pdfStatus });
+        if (statusEl) statusEl.textContent = statusMessage;
+        if (viewBtn) viewBtn.disabled = !textViewUrl;
+        if (downloadBtn) downloadBtn.disabled = true;
+        return result;
       }
 
-      if (!viewUrl && !pdfUrlValue) {
-        const defaultPath = state.patientId
-          ? `reports/${state.patientId}/${reportId}.pdf`
-          : `reports/${reportId}.pdf`;
-        const path = pdfPath || defaultPath;
-        try {
-          viewUrl = await getReportPdfUrl(reportId, path);
-          if (!viewUrl) {
-            viewUrl = await getDownloadURL(ref(storage, path));
-          }
-        } catch (err) {
-          if (isStorageUnauthorized(err)) {
-            console.error("[report] pdf access denied", err);
-            if (!downloadUrl) {
-              if (statusEl) statusEl.textContent = PDF_UNAUTHORIZED_MESSAGE;
-              if (viewBtn) viewBtn.disabled = true;
-              if (downloadBtn) downloadBtn.disabled = true;
-              state.pdfCache.set(reportId, { viewUrl: null, textViewUrl, downloadUrl: null });
-              return { viewUrl: null, textViewUrl, downloadUrl: null };
-            }
-            viewUrl = null;
-          } else {
-            console.warn("[report] failed to get PDF URL, will fallback", err);
-            try {
-              viewUrl = await getDownloadURL(ref(storage, path));
-            } catch (err2) {
-              if (isStorageUnauthorized(err2)) {
-                console.error("[report] pdf access denied", err2);
-                if (!downloadUrl) {
-                  if (statusEl) statusEl.textContent = PDF_UNAUTHORIZED_MESSAGE;
-                  if (viewBtn) viewBtn.disabled = true;
-                  if (downloadBtn) downloadBtn.disabled = true;
-                  state.pdfCache.set(reportId, { viewUrl: null, textViewUrl, downloadUrl: null });
-                  return { viewUrl: null, textViewUrl, downloadUrl: null };
-                }
-              } else {
-                console.error("[report] failed to get PDF URL from storage", err2);
-              }
-              viewUrl = null;
-            }
-          }
+      try {
+        logStorageContext(storagePath);
+        const url = await getDownloadURL(ref(storage, storagePath));
+        viewUrl = url;
+        downloadUrl = url;
+      } catch (err) {
+        if (isStorageUnauthorized(err)) {
+          console.error("[report] pdf access denied", err);
+          statusMessage = PDF_UNAUTHORIZED_MESSAGE;
+        } else if (isStorageNotFound(err)) {
+          console.warn("[report] pdf not found", err);
+          statusMessage = PDF_NOT_READY_MESSAGE;
+        } else {
+          console.error("[report] failed to get PDF URL from storage", err);
         }
       }
 
@@ -803,25 +1256,26 @@
         viewUrl: viewUrl || null,
         textViewUrl,
         downloadUrl: downloadUrl || null,
+        storagePath,
+        pdfStatus,
       });
 
       const canView = Boolean(viewUrl || downloadUrl || textViewUrl);
       const canDownload = Boolean(downloadUrl);
 
       if (!viewUrl && !downloadUrl) {
-        if (textViewUrl) {
-          if (statusEl) statusEl.textContent = "Text report available";
-        } else {
-          if (statusEl) statusEl.textContent = "PDF not uploaded";
+        if (!statusMessage) {
+          statusMessage = PDF_NOT_READY_MESSAGE;
         }
-      } else if (statusEl) {
-        statusEl.textContent = "";
+      } else {
+        statusMessage = "";
       }
 
+      if (statusEl) statusEl.textContent = statusMessage;
       if (viewBtn) viewBtn.disabled = !canView;
       if (downloadBtn) downloadBtn.disabled = !canDownload;
 
-      return { viewUrl, textViewUrl, downloadUrl };
+      return { viewUrl, textViewUrl, downloadUrl, storagePath };
     }
 
     function setActiveItem(reportId) {
@@ -832,75 +1286,65 @@
     }
 
     async function handleView(report) {
-      const reportId = report.reportId || report.report_id || report.id || "";
+      const reportId = normalizeReportId(report);
       const statusEl = document.querySelector(`[data-status="${reportId}"]`);
       const viewBtn = document.querySelector(`[data-view="${reportId}"]`);
       const downloadBtn = document.querySelector(`[data-download="${reportId}"]`);
-      const { viewUrl } = await ensurePdf(
-        reportId,
-        statusEl,
-        viewBtn,
-        downloadBtn,
-        report.pdfPath || report.storagePath,
-        report.pdfUrl || report.downloadUrl,
-        report.downloadUrlLocal,
-        Boolean(report.contentText)
-      );
+      const { viewUrl, storagePath } = await ensurePdf(report, statusEl, viewBtn, downloadBtn);
       state.selectedId = reportId;
+      setPreviewSelection(true);
       renderSummary(report);
       if (viewUrl) {
         setPdfPreview(viewUrl);
-        setPreviewPlaceholder(DEFAULT_PREVIEW_TEXT);
       } else {
-        setPdfPreview(null);
-        setPreviewPlaceholder(PREVIEW_UNAVAILABLE_MESSAGE);
+        if (report.contentText) {
+          setTextPreview(report.contentText);
+        } else {
+          setTextPreview(PREVIEW_UNAVAILABLE_MESSAGE);
+        }
       }
       setActiveItem(reportId);
       state.selectedUrl = viewUrl || null;
-      const fallbackPath = state.patientId
-        ? `reports/${state.patientId}/${reportId}.pdf`
-        : `reports/${reportId}.pdf`;
-      state.selectedPdfPath = report.pdfPath || report.storagePath || fallbackPath;
+      state.selectedPdfPath = storagePath || "";
     }
 
     async function handleDownload(report) {
-      const reportId = report.reportId || report.report_id || report.id || "";
+      const reportId = normalizeReportId(report);
       const statusEl = document.querySelector(`[data-status="${reportId}"]`);
       const viewBtn = document.querySelector(`[data-view="${reportId}"]`);
       const downloadBtn = document.querySelector(`[data-download="${reportId}"]`);
-      const { downloadUrl } = await ensurePdf(
-        reportId,
-        statusEl,
-        viewBtn,
-        downloadBtn,
-        report.pdfPath || report.storagePath,
-        report.pdfUrl || report.downloadUrl,
-        report.downloadUrlLocal,
-        Boolean(report.contentText)
-      );
+      const { downloadUrl } = await ensurePdf(report, statusEl, viewBtn, downloadBtn);
       if (!downloadUrl) return;
       window.open(downloadUrl, "_blank", "noopener");
     }
 
     // Reports schema (source of truth):
     // reports/{reportId}: patientId, doctorId, reportId, screeningId, riskLevel, createdAt.
-    // Optional: pdfPath, contentText, updatedAt.
+    // Optional: storagePath, contentText, updatedAt.
     function renderList(reports) {
       if (!ui.list) return;
       ui.list.innerHTML = "";
 
-      if (!reports.length) {
-        showEmptyState("No screening reports available yet.");
-        renderSummary(null);
-        setPdfPreview(null);
-        setPreviewPlaceholder(DEFAULT_PREVIEW_TEXT);
+      const hasReports = Array.isArray(reports) && reports.length > 0;
+      if (!hasReports) {
+        showEmptyState("No reports yet");
+        setPreviewSelection(false);
         return;
       }
 
       showList();
+      const hasSelected = Boolean(
+        state.selectedId &&
+          state.reports.some((report) => normalizeReportId(report) === state.selectedId)
+      );
+      if (!hasSelected) {
+        setPreviewSelection(false);
+      } else {
+        setPreviewSelection(true);
+      }
 
       reports.forEach((report) => {
-        const reportId = report.reportId || report.report_id || report.id || "";
+        const reportId = normalizeReportId(report);
         const displayName = report.summaryUserInfo?.name || report.patientName || report.patient_name || "-";
         const riskLevel = report.riskLevel || report.risk_level || "-";
         const createdAt = report.createdAt || report.created_at;
@@ -940,22 +1384,17 @@
         actions.append(viewBtn, downloadBtn, status);
 
         item.append(meta, actions);
+        item.addEventListener("click", (event) => {
+          if (event.target.closest("button")) return;
+          handleView(report);
+        });
         ui.list.appendChild(item);
 
         if (state.selectedId === reportId) item.classList.add("active");
 
         if (reportId) {
           report.reportId = reportId;
-          ensurePdf(
-            reportId,
-            status,
-            viewBtn,
-            downloadBtn,
-            report.pdfPath || report.storagePath,
-            report.pdfUrl || report.downloadUrl,
-            report.downloadUrlLocal,
-            Boolean(report.contentText)
-          );
+          ensurePdf(report, status, viewBtn, downloadBtn);
         } else {
           status.textContent = "Missing reportId";
           viewBtn.disabled = true;
@@ -970,7 +1409,7 @@
         state.filtered = [...state.reports];
       } else {
         state.filtered = state.reports.filter((r) => {
-          const reportId = (r.reportId || r.report_id || r.id || "").toLowerCase();
+          const reportId = normalizeReportId(r).toLowerCase();
           const screeningId = (r.screeningId || r.screening_id || "").toLowerCase();
           return reportId.includes(q) || screeningId.includes(q);
         });
@@ -986,6 +1425,8 @@
       setPdfPreview(null);
       setPreviewPlaceholder(DEFAULT_PREVIEW_TEXT);
       renderSummary(null);
+      state.selectedId = null;
+      setPreviewSelection(false);
       resetReportsUI();
 
       try {
@@ -1006,7 +1447,7 @@
         state.filtered = [...state.reports];
 
         if (!state.reports.length) {
-          showEmptyState("No screening reports available yet.");
+          showEmptyState("No reports yet");
           return;
         }
 
@@ -1094,6 +1535,7 @@
       setPdfPreview(null);
       setPreviewPlaceholder(DEFAULT_PREVIEW_TEXT);
       renderSummary(null);
+      setPreviewSelection(false);
 
       onAuthStateChanged(auth, async (user) => {
         try {

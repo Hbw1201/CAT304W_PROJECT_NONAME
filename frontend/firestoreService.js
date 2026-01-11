@@ -286,10 +286,9 @@ export async function getReportsByPatient(patientId) {
 }
 
 export async function getReportPdfUrl(reportId, pdfPath) {
-  if ((!reportId && !pdfPath) || !storage) return null;
+  if (!pdfPath || !storage) return null;
   try {
-    const path = pdfPath || `reports/${reportId}.pdf`;
-    const pdfRef = storageRef(storage, path);
+    const pdfRef = storageRef(storage, pdfPath);
     return await getDownloadURL(pdfRef);
   } catch (error) {
     console.error("[storage] getReportPdfUrl error", error);

@@ -6,6 +6,7 @@ const ui = {
   sendBtn: document.getElementById("screeningSend"),
   micBtn: document.getElementById("screeningMic"),
   messagesEl: document.getElementById("screeningMessages"),
+  hint: document.getElementById("screeningHint"),
   statusPill: document.getElementById("screenStatusPill"),
   statusDetail: document.getElementById("screenStatusDetail"),
   errorBanner: document.getElementById("screenError"),
@@ -29,10 +30,17 @@ const state = {
   ttsCache: new Map(),
   playingMessageId: null,
   playingButton: null,
+  voiceBaseText: "",
+  voiceTranscript: "",
 };
 
 let currentAudio = null;
 let currentSpeech = null;
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const speechSupported = Boolean(SpeechRecognition);
+const DEFAULT_PLACEHOLDER = "Type your answer...";
+const LISTENING_PLACEHOLDER = "Listening... speak now";
+let recognition = null;
 
 function buildMessageId(prefix = "msg") {
   state.messageCounter += 1;
@@ -42,6 +50,26 @@ function buildMessageId(prefix = "msg") {
 function scrollToBottom() {
   if (!ui.messagesEl) return;
   ui.messagesEl.scrollTop = ui.messagesEl.scrollHeight;
+}
+
+function updateChatHint() {
+  if (!ui.messagesEl || !ui.hint) return;
+  const count = ui.messagesEl.querySelectorAll(".chat-row").length;
+  ui.hint.hidden = count > 1;
+}
+
+function setInputValue(value) {
+  if (!ui.input) return;
+  ui.input.value = value;
+  autoResize();
+  const len = ui.input.value.length;
+  if (typeof ui.input.setSelectionRange === "function") {
+    try {
+      ui.input.setSelectionRange(len, len);
+    } catch {
+      // ignore selection errors
+    }
+  }
 }
 
 function setStatus(stateLabel, detail = "") {
@@ -84,11 +112,6 @@ function setProgress(step, total) {
 
 function setMetaBusy(isBusy) {
   state.metaBusy = Boolean(isBusy);
-  updateActionState();
-}
-
-function setRecording(isRecording) {
-  state.recording = Boolean(isRecording);
   updateActionState();
 }
 
@@ -186,6 +209,7 @@ function appendSystemMessage(text) {
   row.appendChild(content);
   ui.messagesEl.appendChild(row);
   scrollToBottom();
+  updateChatHint();
 }
 
 function appendAIMessage(text, options = {}) {
@@ -219,7 +243,7 @@ function appendAIMessage(text, options = {}) {
   const playBtn = document.createElement("button");
   playBtn.type = "button";
   playBtn.className = "play-btn";
-  playBtn.textContent = "🔊 Play";
+  setPlayButtonState(playBtn, false);
   playBtn.dataset.messageId = messageId;
   playBtn.addEventListener("click", () => {
     void speakMessage(messageId, text, playBtn);
@@ -232,6 +256,7 @@ function appendAIMessage(text, options = {}) {
   row.appendChild(content);
   ui.messagesEl.appendChild(row);
   scrollToBottom();
+  updateChatHint();
   setCurrentQuestion(text);
   return messageId;
 }
@@ -257,12 +282,16 @@ function appendUserMessage(text) {
   row.appendChild(avatar);
   ui.messagesEl.appendChild(row);
   scrollToBottom();
+  updateChatHint();
 }
 
 function setPlayButtonState(button, playing) {
   if (!button) return;
   button.classList.toggle("playing", playing);
-  button.textContent = playing ? "⏸ Stop" : "🔊 Play";
+  button.setAttribute("aria-pressed", playing ? "true" : "false");
+  const icon = playing ? "&#9632;" : "&#9654;";
+  const label = playing ? "Stop" : "Play";
+  button.innerHTML = `<span class="play-icon" aria-hidden="true">${icon}</span><span>${label}</span>`;
 }
 
 function stopCurrentAudio() {
@@ -362,172 +391,117 @@ async function speakMessage(messageId, text, button) {
   }
 }
 
-async function requestJson(path, payload) {
-  const resp = await fetchWithAuth(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload || {}),
-  });
-  debugLog(`[screening voice] url=${path} status=${resp.status}`);
-  if (resp.status === 401 || resp.status === 403) {
-    const authError = new Error("auth_expired");
-    authError.status = resp.status;
-    authError.authExpired = true;
-    throw authError;
+function resolveSpeechError(event) {
+  const code = String(event?.error || "");
+  if (code === "not-allowed" || code === "service-not-allowed") {
+    return "Microphone access was blocked. Please enable it and try again.";
   }
-  let data = {};
-  try {
-    data = await resp.json();
-  } catch {
-    data = {};
+  if (code === "no-speech") {
+    return "No speech detected. Please try again.";
   }
-  if (!resp.ok || data?.ok === false) {
-    const msg = data?.error || data?.message || `Request failed (${resp.status})`;
-    const error = new Error(msg);
-    error.status = resp.status;
-    error.data = data;
-    throw error;
+  if (code === "audio-capture") {
+    return "No microphone was found. Please check your device.";
   }
-  return data;
+  if (code === "network") {
+    return "Network error. Please check your connection.";
+  }
+  return "Speech recognition failed. Please try again.";
 }
 
-async function requestForm(path, formData) {
-  const resp = await fetchWithAuth(path, {
-    method: "POST",
-    body: formData,
-  });
-  debugLog(`[screening voice] url=${path} status=${resp.status}`);
-  if (resp.status === 401 || resp.status === 403) {
-    const authError = new Error("auth_expired");
-    authError.status = resp.status;
-    authError.authExpired = true;
-    throw authError;
+function setListening(isListening) {
+  state.recording = Boolean(isListening);
+  updateActionState();
+  if (ui.micBtn) {
+    ui.micBtn.classList.toggle("mic--listening", state.recording);
+    ui.micBtn.textContent = state.recording ? "Listening..." : "Mic";
+    ui.micBtn.setAttribute("aria-pressed", state.recording ? "true" : "false");
   }
-  let data = {};
-  try {
-    data = await resp.json();
-  } catch {
-    data = {};
-  }
-  if (!resp.ok || data?.ok === false) {
-    const msg = data?.error || data?.message || `Request failed (${resp.status})`;
-    const error = new Error(msg);
-    error.status = resp.status;
-    error.data = data;
-    throw error;
-  }
-  return data;
-}
-
-async function ensureMediaStream() {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error("Microphone access is not supported in this browser.");
-  }
-  if (!state.mediaStream) {
-    state.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  if (ui.input) {
+    ui.input.placeholder = state.recording ? LISTENING_PLACEHOLDER : DEFAULT_PLACEHOLDER;
   }
 }
 
-async function beginVoiceRecording() {
-  if (state.recording || !ui.micBtn) return;
-  ui.micBtn.disabled = true;
-  clearError();
-  setStatus("Processing", "Starting voice capture...");
-  try {
-    await ensureMediaStream();
-    const startResp = await requestJson("/api/screen/voice/start", {
-      session_id: state.voiceSessionId,
-      language: "en",
-    });
-    state.voiceSessionId = startResp.session_id;
+function initSpeechRecognition() {
+  if (!speechSupported || recognition) return;
+  recognition = new SpeechRecognition();
+  recognition.lang = "en-US";
+  recognition.interimResults = true;
+  recognition.continuous = false;
 
-    state.chunks = [];
-    state.mediaRecorder = new MediaRecorder(state.mediaStream, { mimeType: "audio/webm" });
-    state.mediaRecorder.ondataavailable = (evt) => {
-      if (evt.data && evt.data.size) state.chunks.push(evt.data);
-    };
-    state.mediaRecorder.onstop = handleRecordingStop;
-    state.mediaRecorder.start();
-    setRecording(true);
-    ui.micBtn.classList.add("recording");
-    ui.micBtn.textContent = "Stop";
-    setStatus("Recording", "Recording...");
-  } catch (err) {
-    if (err?.authExpired || err?.status === 401 || err?.status === 403) {
-      return;
-    }
-    console.warn("voice start error", err);
-    appendSystemMessage(err.message || "Unable to start recording.");
-    setError(err.message || "Unable to start recording");
-    setRecording(false);
-  } finally {
-    ui.micBtn.disabled = false;
-  }
-}
+  recognition.onstart = () => {
+    setListening(true);
+  };
 
-async function handleRecordingStop() {
-  if (!ui.micBtn) return;
-  setRecording(false);
-  ui.micBtn.classList.remove("recording");
-  ui.micBtn.textContent = "Mic";
-  setStatus("Processing", "Transcribing...");
-  if (!state.chunks.length) {
-    appendSystemMessage("No audio captured. Please try again.");
-    setError("No audio captured");
-    return;
-  }
-  const blob = new Blob(state.chunks, { type: "audio/webm" });
-  const form = new FormData();
-  if (state.voiceSessionId) form.append("session_id", state.voiceSessionId);
-  form.append("audio", blob, "answer.webm");
-  try {
-    const data = await requestForm("/api/screen/voice/stop", form);
-    const transcript = data.text?.trim() || "";
-    if (transcript) {
-      if (ui.input) {
-        ui.input.value = transcript;
-        autoResize();
+  recognition.onresult = (event) => {
+    let finalText = "";
+    let interimText = "";
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      const result = event.results[i];
+      const transcript = result[0]?.transcript || "";
+      if (result.isFinal) {
+        finalText += transcript;
+      } else {
+        interimText += transcript;
       }
-      setStatus("Idle", "Transcription complete");
+    }
+
+    const base = state.voiceBaseText ? `${state.voiceBaseText} ` : "";
+    const combined = `${base}${finalText}${interimText}`.trim();
+    if (combined) {
+      setInputValue(combined);
+    }
+    if (combined) {
       setHasAnswer(true);
-    } else {
-      appendSystemMessage("No speech detected. Please try again.");
-      setStatus("Idle", "No speech detected");
     }
-  } catch (err) {
-    if (err?.authExpired || err?.status === 401 || err?.status === 403) {
-      return;
+    if (finalText.trim()) {
+      state.voiceTranscript = `${base}${finalText}`.trim();
     }
-    console.warn("voice stop error", err);
-    appendSystemMessage(err.message || "Transcription failed.");
-    setError(err.message || "Transcription failed");
-  } finally {
-    state.chunks = [];
+  };
+
+  recognition.onerror = (event) => {
+    setError(resolveSpeechError(event));
+    setListening(false);
+  };
+
+  recognition.onend = () => {
+    setListening(false);
+  };
+}
+
+function startListening() {
+  if (!speechSupported) return;
+  initSpeechRecognition();
+  if (!recognition) return;
+  state.voiceBaseText = (ui.input?.value || "").trim();
+  state.voiceTranscript = "";
+  clearError();
+  try {
+    recognition.start();
+  } catch (error) {
+    setError("Unable to start speech recognition.");
+    setListening(false);
   }
 }
 
-async function stopVoiceRecording() {
-  if (!state.mediaRecorder || !ui.micBtn) return;
-  ui.micBtn.disabled = true;
+function stopListening() {
+  if (!recognition) return;
   try {
-    state.mediaRecorder.stop();
+    recognition.stop();
   } catch {
-    appendSystemMessage("Unable to stop recorder.");
-    setError("Unable to stop recorder");
-  } finally {
-    setRecording(false);
-    ui.micBtn.disabled = false;
-    ui.micBtn.classList.remove("recording");
-    ui.micBtn.textContent = "Mic";
+    setListening(false);
   }
 }
 
 async function handleMicToggle() {
-  if (state.recording) {
-    await stopVoiceRecording();
-  } else {
-    await beginVoiceRecording();
+  if (!speechSupported) {
+    setError("Speech recognition is not supported in this browser.");
+    return;
   }
+  if (state.recording) {
+    stopListening();
+    return;
+  }
+  startListening();
 }
 
 async function handleSubmit() {
@@ -551,7 +525,7 @@ async function handleSubmit() {
 function autoResize() {
   if (!ui.input) return;
   ui.input.style.height = "auto";
-  ui.input.style.height = `${Math.min(ui.input.scrollHeight, 160)}px`;
+  ui.input.style.height = `${Math.min(ui.input.scrollHeight, 120)}px`;
 }
 
 function hydrateBrand() {
@@ -586,6 +560,18 @@ function init() {
   setStatus("Idle", "Waiting for the first question...");
   updateActionState();
   autoResize();
+  updateChatHint();
+
+  if (ui.input) {
+    ui.input.placeholder = DEFAULT_PLACEHOLDER;
+  }
+  if (!speechSupported && ui.micBtn) {
+    ui.micBtn.classList.add("mic--disabled");
+    ui.micBtn.setAttribute("aria-disabled", "true");
+    ui.micBtn.title = "Speech recognition is not supported in this browser.";
+  } else {
+    initSpeechRecognition();
+  }
 
   ui.micBtn?.addEventListener("click", () => {
     void handleMicToggle();

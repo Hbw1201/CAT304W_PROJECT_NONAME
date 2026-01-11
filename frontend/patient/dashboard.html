@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Osler Dashboard</title>
+  <title>aegis Dashboard</title>
   <script>
     const role = localStorage.getItem("userRole");
     if (!role) {
@@ -143,6 +143,105 @@
     #knowledgeModal #kmBody {
       white-space: pre-wrap;
       color: #0f172a;
+    }
+    .health-tip-card {
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .health-tip-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      margin: 0;
+    }
+    .health-tip-icon {
+      width: 14px;
+      height: 14px;
+      display: inline-flex;
+      opacity: 0.5;
+    }
+    .health-tip-icon svg {
+      width: 14px;
+      height: 14px;
+    }
+    .health-tip-headline {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .health-tip-subtext {
+      margin: 0;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .health-tip-cta {
+      align-self: flex-start;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--green-700);
+      background: var(--green-700);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .health-tip-cta:hover {
+      background: var(--green-600);
+      border-color: var(--green-600);
+      color: #ffffff;
+    }
+    .report-card .chip.warning {
+      border-color: #f5c26b;
+      background: #fff4db;
+      color: #b45309;
+    }
+    .report-card .chip.danger {
+      border-color: #fecdd3;
+      background: #ffe4e6;
+      color: #b91c1c;
+    }
+    .report-card .report-empty {
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+    .report-card .report-empty .pill {
+      margin-top: 6px;
+      width: fit-content;
+    }
+    .report-card .report-skeleton {
+      border-style: dashed;
+      background: #f8fafc;
+    }
+    .report-card .skeleton-stack {
+      display: grid;
+      gap: 6px;
+    }
+    .report-card .skeleton-line {
+      height: 10px;
+      border-radius: 999px;
+      background: #e6edf7;
+    }
+    .report-card .skeleton-line.wide {
+      width: 82%;
+    }
+    .report-card .skeleton-line.short {
+      width: 62%;
+    }
+    .report-card .skeleton-chip {
+      width: 70px;
+      height: 22px;
+      border-radius: 999px;
+      background: #e6edf7;
+      justify-self: end;
     }
   </style>
 </head>
@@ -300,15 +399,20 @@
             <p class="value" id="nextStepMain">Update questionnaire</p>
             <p class="meta" id="nextStepSub">About 5 minutes</p>
           </div>
-          <div class="stat-block">
-            <p class="label">Follow-up cycle</p>
-            <p class="value">Week 2 / 8 weeks</p>
-            <div class="progress mini"><div class="progress-fill" style="width: 25%;"></div></div>
-          </div>
-          <div class="stat-block">
-            <p class="label">Smoke-free days</p>
-            <p class="value">36 days</p>
-            <p class="meta">Keep going; lung function is recovering</p>
+          <div class="stat-block health-tip-card">
+            <p class="label health-tip-label">
+              <span class="health-tip-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9"></circle>
+                  <path d="M12 8v4"></path>
+                  <circle cx="12" cy="16" r="1"></circle>
+                </svg>
+              </span>
+              Health Tip
+            </p>
+            <p class="health-tip-headline">Early detection saves lives</p>
+            <p class="health-tip-subtext">Start a screening to understand your health risk.</p>
+            <a class="health-tip-cta" href="screening.html">Start Screening</a>
           </div>
         </div>
         <div class="hero-pattern" aria-hidden="true"></div>
@@ -478,7 +582,6 @@
         <article class="card knowledge-card">
           <div class="card-head">
             <p class="value">Health knowledge cards</p>
-            <span class="pill ghost small">Featured</span>
           </div>
           <div class="knowledge-grid">
             <div class="knowledge-tile">
@@ -499,22 +602,7 @@
             <p class="value">Latest reports preview</p>
             <a class="pill plain" href="report.html">View all</a>
           </div>
-          <ul class="report-list">
-            <li>
-              <div>
-                <p class="flow-title">AI image analysis</p>
-                <p class="meta">2025-04-10 &middot; Max nodule 2.8mm, soft density, no suspicious vascular pattern.</p>
-              </div>
-              <span class="chip success">Low risk</span>
-            </li>
-            <li>
-              <div>
-                <p class="flow-title">Doctor interpretation</p>
-                <p class="meta">2025-04-11 &middot; Recheck in 3 months + log symptoms; no invasive workup recommended.</p>
-              </div>
-              <span class="chip calm">In follow-up</span>
-            </li>
-          </ul>
+          <ul class="report-list" id="latestReportsList"></ul>
         </article>
       </section>
 
@@ -744,6 +832,8 @@
       where
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { auth, db } from "./firebase-config.js";
+    import { getReportsByPatient } from "../firestoreService.js";
+    import { maybeShowWelcomeModal } from "../shared/welcomeModal.js";
 
     const ring = document.querySelector(".health-score .ring");
     const scoreNumber = ring?.querySelector(".score-number");
@@ -906,6 +996,7 @@
           const snap = await getDoc(doc(db, "users", user.uid));
           const data = snap.exists() ? snap.data() : null;
           const level = data?.riskLevel ?? "low";
+          maybeShowWelcomeModal(user, data);
           setRiskRing(level);
         } catch (error) {
           console.error("[dashboard] Failed to load risk level:", error);
@@ -932,6 +1023,170 @@
       if(!ms) return "—";
       const date = new Date(ms);
       return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString();
+    }
+
+    const REPORT_TYPE_LABELS = {
+      "ai": "AI image analysis",
+      "ai analysis": "AI image analysis",
+      "ai image analysis": "AI image analysis",
+      "image analysis": "AI image analysis",
+      "doctor": "Doctor interpretation",
+      "doctor interpretation": "Doctor interpretation",
+      "interpretation": "Doctor interpretation",
+    };
+
+    function formatReportTitle(report){
+      const directTitle = String(
+        report?.title ||
+        report?.reportTitle ||
+        report?.report_title ||
+        ""
+      ).trim();
+      if (directTitle) return directTitle;
+
+      const rawType = String(
+        report?.type ||
+        report?.reportType ||
+        report?.report_type ||
+        ""
+      ).trim();
+      if (!rawType) return "Report";
+
+      const normalized = rawType.replace(/[_-]+/g, " ").trim().toLowerCase();
+      if (REPORT_TYPE_LABELS[normalized]) return REPORT_TYPE_LABELS[normalized];
+      if (!normalized) return "Report";
+      return normalized.replace(/\b\w/g, (match) => match.toUpperCase());
+    }
+
+    function formatReportSummary(report){
+      const summary = String(
+        report?.summary ||
+        report?.impression ||
+        report?.notes ||
+        report?.doctorAdvice ||
+        report?.analysisText ||
+        report?.explanation ||
+        ""
+      ).trim();
+      return summary || "No summary available.";
+    }
+
+    function formatReportDate(value){
+      const ms = toMillis(value);
+      if (!ms) return "—";
+      const date = new Date(ms);
+      if (Number.isNaN(date.getTime())) return "—";
+      return date.toISOString().slice(0, 10);
+    }
+
+    function resolveReportBadge(report){
+      const riskRaw = String(report?.riskLevel || report?.risk_level || "").trim().toLowerCase();
+      if (riskRaw) {
+        if (riskRaw === "low") return { text: "Low risk", className: "chip success" };
+        if (riskRaw === "medium") return { text: "Medium risk", className: "chip warning" };
+        if (riskRaw === "high") return { text: "High risk", className: "chip danger" };
+        return { text: riskRaw, className: "chip ghost" };
+      }
+
+      const statusRaw = String(report?.status || "").trim().toLowerCase();
+      if (!statusRaw) return null;
+      if (statusRaw === "follow-up" || statusRaw === "followup") {
+        return { text: "In follow-up", className: "chip calm" };
+      }
+      if (statusRaw === "pending") return { text: "Pending", className: "chip ghost" };
+      if (statusRaw === "done" || statusRaw === "completed") {
+        return { text: "Completed", className: "chip success" };
+      }
+      return { text: statusRaw, className: "chip ghost" };
+    }
+
+    function renderReportLoading(listEl){
+      if (!listEl) return;
+      listEl.innerHTML = "";
+      for (let i = 0; i < 2; i += 1) {
+        const item = document.createElement("li");
+        item.className = "report-skeleton";
+        const stack = document.createElement("div");
+        stack.className = "skeleton-stack";
+        const line1 = document.createElement("div");
+        line1.className = "skeleton-line wide";
+        const line2 = document.createElement("div");
+        line2.className = "skeleton-line short";
+        stack.append(line1, line2);
+        const chip = document.createElement("div");
+        chip.className = "skeleton-chip";
+        item.append(stack, chip);
+        listEl.appendChild(item);
+      }
+    }
+
+    function renderReportEmpty(listEl){
+      if (!listEl) return;
+      listEl.innerHTML = "";
+      const item = document.createElement("li");
+      item.className = "report-empty";
+      item.innerHTML = `
+        <div>
+          <p class="flow-title">No reports yet.</p>
+          <p class="meta">Complete a screening to generate your first report.</p>
+          <a class="pill plain small" href="screening.html">Start Screening</a>
+        </div>
+      `;
+      listEl.appendChild(item);
+    }
+
+    function renderReportError(listEl, message){
+      if (!listEl) return;
+      listEl.innerHTML = "";
+      const item = document.createElement("li");
+      item.className = "report-empty";
+      item.innerHTML = `
+        <div>
+          <p class="flow-title">Failed to load reports</p>
+          <p class="meta">${message || "Please try again later."}</p>
+        </div>
+      `;
+      listEl.appendChild(item);
+    }
+
+    function renderReportsList(listEl, reports){
+      if (!listEl) return;
+      listEl.innerHTML = "";
+
+      if (!reports.length) {
+        renderReportEmpty(listEl);
+        return;
+      }
+
+      reports.forEach((report) => {
+        const item = document.createElement("li");
+        const title = formatReportTitle(report);
+        const summary = formatReportSummary(report);
+        const createdAt = report?.createdAt || report?.created_at || report?.updatedAt || report?.updated_at;
+        const date = formatReportDate(createdAt);
+        const badge = resolveReportBadge(report);
+
+        const left = document.createElement("div");
+        const titleEl = document.createElement("p");
+        titleEl.className = "flow-title";
+        titleEl.textContent = title;
+
+        const metaEl = document.createElement("p");
+        metaEl.className = "meta";
+        metaEl.textContent = `${date} · ${summary}`;
+
+        left.append(titleEl, metaEl);
+        item.appendChild(left);
+
+        if (badge) {
+          const badgeEl = document.createElement("span");
+          badgeEl.className = badge.className;
+          badgeEl.textContent = badge.text;
+          item.appendChild(badgeEl);
+        }
+
+        listEl.appendChild(item);
+      });
     }
 
     async function fetchUpcomingAppointment(uid){
@@ -1800,6 +2055,35 @@
       });
     }
 
+    function initLatestReportsPreview(){
+      const listEl = document.getElementById("latestReportsList");
+      if (!listEl) return;
+      renderReportLoading(listEl);
+
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+          renderReportError(listEl, "Please sign in to view reports.");
+          return;
+        }
+
+        try {
+          const reports = await getReportsByPatient(user.uid);
+          const sorted = [...(reports || [])].sort((a, b) => {
+            const aMs = toMillis(a.updatedAt || a.updated_at || a.createdAt || a.created_at);
+            const bMs = toMillis(b.updatedAt || b.updated_at || b.createdAt || b.created_at);
+            if (aMs === bMs) return 0;
+            if (!aMs) return 1;
+            if (!bMs) return -1;
+            return bMs - aMs;
+          });
+          renderReportsList(listEl, sorted.slice(0, 2));
+        } catch (error) {
+          console.error("[dashboard] Failed to load reports preview", error);
+          renderReportError(listEl, "Failed to load reports.");
+        }
+      });
+    }
+
     function initMedicationReminders(){
       onAuthStateChanged(auth, (user)=>{
         initMedications(user);
@@ -1821,6 +2105,7 @@
       runModule("riskRing", initRiskRing);
       runModule("flowProgress", initFlowProgress);
       runModule("appointments", initAppointments);
+      runModule("latestReports", initLatestReportsPreview);
       runModule("medications", initMedicationReminders);
       runModule("selfCheck", initSelfCheck);
       runModule("knowledge", initKnowledgeCards);

@@ -55,13 +55,43 @@
           <span>Confirm Password</span>
           <input type="password" id="confirmPasswordSelf" name="confirm" autocomplete="new-password" placeholder="********" required>
         </label>
-        <label class="field" style="flex-direction: row; align-items: center; gap: 10px;">
-          <input type="checkbox" id="termsSelf" name="terms" style="width:18px;height:18px;" required>
-          <span>I agree to the Terms &amp; Privacy Policy.</span>
-        </label>
+        <div class="field terms-block">
+          <div class="terms-row">
+            <input type="checkbox" id="termsSelf" name="terms" aria-describedby="termsSelfError" required>
+            <label for="termsSelf">
+              I agree to the <a class="terms-link" href="#" id="termsLink" aria-controls="termsModal">Terms &amp; Privacy Policy</a>.
+            </label>
+          </div>
+          <p class="field-error" id="termsSelfError" aria-live="polite" hidden>Please agree to the Terms &amp; Privacy Policy.</p>
+        </div>
         <button type="submit" class="btn-primary">Create Account</button>
         <button type="button" class="btn-ghost" onclick="window.location.href='../login.html'">Back to Login</button>
       </form>
+    </div>
+  </div>
+  <div class="modal-overlay" id="termsModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="termsModalTitle">
+    <div class="modal-card" role="document" tabindex="-1">
+      <button type="button" class="modal-close" data-modal-close aria-label="Close modal">X</button>
+      <h2 id="termsModalTitle">Terms &amp; Privacy Policy</h2>
+      <div class="modal-content">
+        <h3>Terms</h3>
+        <ul>
+          <li>This platform provides screening support and informational guidance only.</li>
+          <li>It does not replace professional medical diagnosis or treatment.</li>
+          <li>Users are responsible for providing accurate information.</li>
+          <li>Eligibility and access may change based on clinical requirements.</li>
+        </ul>
+        <h3>Privacy</h3>
+        <ul>
+          <li>We store your account and screening data to provide services.</li>
+          <li>We do not sell your personal data.</li>
+          <li>You may request deletion of your data according to policy.</li>
+          <li>We use reasonable safeguards to protect your information.</li>
+        </ul>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost modal-close-btn" data-modal-close>Close</button>
+      </div>
     </div>
   </div>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -70,5 +100,84 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-functions-compat.js"></script>
   <script type="module" src="./firebase-config.js"></script>
   <script type="module" src="../script.js"></script>
+  <script>
+    (() => {
+      const termsLink = document.getElementById("termsLink");
+      const modal = document.getElementById("termsModal");
+      const modalCard = modal?.querySelector(".modal-card");
+      const closeButtons = modal?.querySelectorAll("[data-modal-close]") || [];
+      const termsCheckbox = document.getElementById("termsSelf");
+      const termsError = document.getElementById("termsSelfError");
+      const form = document.getElementById("registerSelfForm");
+      let previousOverflow = "";
+
+      if (!termsLink || !modal) return;
+
+      const openModal = () => {
+        previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        modal.classList.add("is-open");
+        modal.setAttribute("aria-hidden", "false");
+        modalCard?.focus();
+      };
+
+      const closeModal = () => {
+        modal.classList.remove("is-open");
+        modal.setAttribute("aria-hidden", "true");
+        document.body.style.overflow = previousOverflow;
+      };
+
+      const showTermsError = (message) => {
+        if (!termsError || !termsCheckbox) return;
+        termsError.textContent = message;
+        termsError.hidden = false;
+        termsCheckbox.setAttribute("aria-invalid", "true");
+      };
+
+      const clearTermsError = () => {
+        if (!termsError || !termsCheckbox) return;
+        termsError.textContent = "";
+        termsError.hidden = true;
+        termsCheckbox.removeAttribute("aria-invalid");
+      };
+
+      termsLink.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openModal();
+      });
+
+      closeButtons.forEach((button) => {
+        button.addEventListener("click", closeModal);
+      });
+
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) closeModal();
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && modal.classList.contains("is-open")) {
+          closeModal();
+        }
+      });
+
+      termsCheckbox?.addEventListener("change", () => {
+        if (termsCheckbox.checked) {
+          clearTermsError();
+        }
+      });
+
+      termsCheckbox?.addEventListener("invalid", (event) => {
+        event.preventDefault();
+        showTermsError("Please agree to the Terms & Privacy Policy.");
+      });
+
+      form?.addEventListener("submit", () => {
+        if (!termsCheckbox?.checked) {
+          showTermsError("Please agree to the Terms & Privacy Policy.");
+        }
+      });
+    })();
+  </script>
 </body>
 </html>

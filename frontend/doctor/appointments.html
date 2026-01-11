@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Doctor | Appointments</title>
+  <title>Doctor | Appointment Workspace</title>
   <script>
     const role = localStorage.getItem("userRole");
     if (role !== "doctor") {
@@ -16,6 +16,492 @@
   <link rel="stylesheet" href="../dashboard.css">
   <link rel="stylesheet" href="doctor-light.css">
   <link rel="stylesheet" href="../shared-layout.css">
+  <style>
+    .doctor-theme .main-panel {
+      display: block;
+    }
+
+    .appt-hero {
+      margin: 24px 24px 0;
+      border-radius: 24px;
+      border: 1px solid rgba(27, 132, 231, 0.2);
+      background: linear-gradient(135deg, rgba(27, 132, 231, 0.12), rgba(15, 118, 110, 0.08));
+      box-shadow: var(--doctor-shadow);
+    }
+
+    .appointments-workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 0.42fr) minmax(0, 0.58fr);
+      gap: 22px;
+      padding: 22px 24px 32px;
+    }
+
+    .appointments-panel {
+      padding: 20px;
+      border-radius: 20px;
+      border: 1px solid var(--doctor-border);
+      background: var(--doctor-surface);
+      box-shadow: var(--doctor-shadow);
+      min-width: 0;
+      display: grid;
+      gap: 16px;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--doctor-strong);
+    }
+
+    .panel-subtitle {
+      margin: 6px 0 0;
+      font-size: 13px;
+      color: var(--doctor-muted);
+    }
+
+    .panel-controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .panel-search input,
+    .panel-select {
+      border-radius: 999px;
+      border: 1px solid var(--doctor-border);
+      background: var(--doctor-surface-2);
+      color: var(--doctor-text);
+      padding: 8px 14px;
+      font-size: 13px;
+      height: 38px;
+      min-width: 180px;
+    }
+
+    .panel-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .appointment-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 12px;
+    }
+
+    .appointment-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--doctor-border);
+      background: var(--doctor-surface-2);
+      cursor: pointer;
+      position: relative;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .appointment-item::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 12px;
+      bottom: 12px;
+      width: 3px;
+      border-radius: 999px;
+      background: transparent;
+    }
+
+    .appointment-item:hover {
+      background: #ffffff;
+      border-color: rgba(27, 132, 231, 0.35);
+    }
+
+    .appointment-item.is-active {
+      background: #eef4ff;
+      border-color: rgba(27, 132, 231, 0.45);
+    }
+
+    .appointment-item.is-active::before {
+      background: var(--doctor-accent);
+    }
+
+    .appt-time {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--doctor-border);
+      background: var(--doctor-surface-3);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--doctor-strong);
+      white-space: nowrap;
+    }
+
+    .appt-name {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--doctor-strong);
+    }
+
+    .appt-summary {
+      margin: 4px 0 0;
+      font-size: 12px;
+      color: var(--doctor-muted);
+    }
+
+    .status-pill {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--doctor-border);
+      font-size: 12px;
+      font-weight: 600;
+      background: #ffffff;
+      color: var(--doctor-strong);
+      text-transform: capitalize;
+    }
+
+    .status-pill.status-confirmed {
+      background: rgba(27, 132, 231, 0.12);
+      border-color: rgba(27, 132, 231, 0.35);
+      color: #1d4ed8;
+    }
+
+    .status-pill.status-booked,
+    .status-pill.status-scheduled {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.35);
+      color: #b45309;
+    }
+
+    .status-pill.status-completed {
+      background: rgba(31, 157, 104, 0.12);
+      border-color: rgba(31, 157, 104, 0.35);
+      color: #166534;
+    }
+
+    .status-pill.status-cancelled {
+      background: rgba(229, 72, 77, 0.12);
+      border-color: rgba(229, 72, 77, 0.35);
+      color: #b4231a;
+    }
+
+    .panel-state {
+      padding: 14px;
+      border-radius: 16px;
+      border: 1px dashed var(--doctor-border);
+      background: var(--doctor-surface-2);
+      color: var(--doctor-muted);
+      display: grid;
+      gap: 6px;
+    }
+
+    .panel-state .state-title {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--doctor-strong);
+    }
+
+    .panel-state .state-subtitle {
+      margin: 0;
+      font-size: 13px;
+      color: var(--doctor-muted);
+    }
+
+    .panel-state.panel-error {
+      border-style: solid;
+    }
+
+    .list-skeleton {
+      display: grid;
+      gap: 12px;
+    }
+
+    .skeleton-row {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: var(--doctor-surface-2);
+      border: 1px solid transparent;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .skeleton-pill,
+    .skeleton-line {
+      display: block;
+      background: linear-gradient(90deg, #e7edf7 25%, #f3f6fb 45%, #e7edf7 65%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s ease-in-out infinite;
+      border-radius: 999px;
+    }
+
+    .skeleton-pill {
+      width: 52px;
+      height: 26px;
+    }
+
+    .skeleton-line {
+      height: 10px;
+      width: 160px;
+    }
+
+    .skeleton-line.line-short {
+      width: 120px;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .detail-panel {
+      position: relative;
+      min-height: 480px;
+    }
+
+    .detail-empty {
+      display: grid;
+      gap: 6px;
+      align-content: center;
+      justify-items: center;
+      text-align: center;
+      min-height: 420px;
+      color: var(--doctor-muted);
+      padding: 24px;
+    }
+
+    .detail-body {
+      display: grid;
+      gap: 18px;
+    }
+
+    .detail-card {
+      border-radius: 16px;
+      border: 1px solid var(--doctor-border);
+      background: #ffffff;
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .detail-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .detail-title {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--doctor-strong);
+    }
+
+    .detail-subtitle {
+      margin: 6px 0 0;
+      font-size: 13px;
+      color: var(--doctor-muted);
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+
+    .detail-item {
+      display: grid;
+      gap: 4px;
+      font-size: 13px;
+      color: var(--doctor-strong);
+    }
+
+    .detail-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--doctor-muted);
+    }
+
+    .detail-full {
+      grid-column: 1 / -1;
+    }
+
+    .note-input {
+      width: 100%;
+      min-height: 120px;
+      border-radius: 14px;
+      border: 1px solid var(--doctor-border);
+      background: var(--doctor-surface-2);
+      padding: 12px;
+      font-size: 13px;
+      color: var(--doctor-text);
+      resize: vertical;
+    }
+
+    .note-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .note-status {
+      font-size: 12px;
+      color: var(--doctor-muted);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--doctor-accent), var(--doctor-accent-2));
+      border-color: rgba(27, 132, 231, 0.35);
+      color: #f8fbff;
+      box-shadow: 0 12px 24px rgba(27, 132, 231, 0.18);
+    }
+
+    .btn-ghost {
+      background: var(--doctor-surface-2);
+      border-color: var(--doctor-border);
+      color: var(--doctor-strong);
+      box-shadow: none;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .notes-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .note-item {
+      border-radius: 14px;
+      border: 1px solid var(--doctor-border);
+      background: var(--doctor-surface-2);
+      padding: 10px 12px;
+    }
+
+    .note-item summary {
+      cursor: pointer;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      font-size: 12px;
+      color: var(--doctor-muted);
+      list-style: none;
+    }
+
+    .note-item summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .note-time {
+      font-weight: 600;
+      color: var(--doctor-strong);
+    }
+
+    .note-preview {
+      color: var(--doctor-muted);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      max-width: 360px;
+    }
+
+    .note-text {
+      margin: 10px 0 0;
+      font-size: 13px;
+      color: var(--doctor-text);
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .notes-loading {
+      font-size: 13px;
+      color: var(--doctor-muted);
+    }
+
+    .skeleton-stack {
+      display: grid;
+      gap: 6px;
+    }
+
+    .detail-empty .empty-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--doctor-strong);
+    }
+
+    .detail-empty .empty-subtitle {
+      margin: 0;
+      font-size: 13px;
+      color: var(--doctor-muted);
+    }
+
+    .panel-search input:focus,
+    .panel-select:focus,
+    .note-input:focus {
+      outline: none;
+      border-color: rgba(27, 132, 231, 0.45);
+      box-shadow: 0 0 0 3px rgba(27, 132, 231, 0.16);
+      background: #ffffff;
+    }
+
+    @media (max-width: 1024px) {
+      .appointments-workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .appt-hero {
+        margin: 24px 16px 0;
+      }
+
+      .appointments-workspace {
+        padding: 18px 16px 28px;
+      }
+    }
+  </style>
 </head>
 <body class="dash-body doctor-theme">
   <div class="page-layout">
@@ -139,57 +625,105 @@
     </aside>
 
     <main class="main-content main-panel">
-      <section class="card hero">
+      <section class="card hero appt-hero">
         <div>
-          <p class="value">Clinic schedule</p>
-          <p class="lede">Review upcoming visits and keep patients on time.</p>
+          <p class="eyebrow">Appointment Workspace</p>
+          <p class="lede">Manage upcoming visits and capture clinical notes.</p>
         </div>
         <div class="hero-pattern" aria-hidden="true"></div>
       </section>
 
-      <section class="appointments-grid">
-        <article class="card appointments-card">
-          <div class="card-head">
-            <div class="card-title-row">
-              <p class="card-title">Today's appointments</p>
-              <span class="pill" id="docApptCount">0 patients</span>
+      <section class="appointments-workspace">
+        <article class="appointments-panel">
+          <header class="panel-head">
+            <div>
+              <h2 class="panel-title">Appointments</h2>
+              <p class="panel-subtitle">Today and upcoming visits for your patients.</p>
             </div>
-            <p class="card-text">Quick glance at times, visit types, and context.</p>
-          </div>
-          <div class="agenda-list" id="docApptList"></div>
+            <div class="panel-controls">
+              <label class="panel-search" for="apptSearch">
+                <input id="apptSearch" type="search" placeholder="Search patient or note" autocomplete="off" aria-label="Search appointments">
+              </label>
+              <select id="apptStatusFilter" class="panel-select" aria-label="Filter by status">
+                <option value="all">All status</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="booked">Booked</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <div class="panel-meta">
+                <span class="status-pill" id="apptCount">0 appointments</span>
+              </div>
+            </div>
+          </header>
+
+          <ul class="appointment-list" id="apptList"></ul>
         </article>
 
-        <article class="card prep-card">
-          <div class="card-head">
-            <div class="card-title-row">
-              <p class="card-title">Preparation checklist</p>
-              <span class="pill">3 items</span>
+        <article class="appointments-panel detail-panel">
+          <header class="panel-head">
+            <div>
+              <h2 class="panel-title">Appointment Details</h2>
+              <p class="panel-subtitle">Review visit context and capture clinical notes.</p>
             </div>
-            <p class="card-text">Stay ahead of labs, notes, and imaging bookings.</p>
+          </header>
+
+          <div id="detailReady" hidden>
+            <div class="detail-body" id="apptDetailBody">
+              <section class="detail-card">
+                <div class="detail-head">
+                  <div>
+                    <h3 class="detail-title" id="detailPatientName">Patient</h3>
+                    <p class="detail-subtitle" id="detailSubtitle">Appointment details</p>
+                  </div>
+                  <span class="status-pill" id="detailStatus">Scheduled</span>
+                </div>
+                <div class="detail-grid">
+                  <div class="detail-item">
+                    <span class="detail-label">Date</span>
+                    <span id="detailDate">--</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Time</span>
+                    <span id="detailTime">--</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Location</span>
+                    <span id="detailLocation">--</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Patient ID</span>
+                    <span id="detailPatientId">--</span>
+                  </div>
+                  <div class="detail-item detail-full">
+                    <span class="detail-label">Summary</span>
+                    <span id="detailNotes">Appointment</span>
+                  </div>
+                </div>
+              </section>
+
+              <section class="detail-card">
+                <div>
+                  <h3 class="detail-title">Clinical Notes</h3>
+                  <p class="detail-subtitle">Add instructions and consultation notes.</p>
+                </div>
+                <textarea class="note-input" id="noteInput" placeholder="Write your clinical note here..."></textarea>
+                <div class="note-actions">
+                  <span class="note-status" id="noteStatus"></span>
+                  <button class="btn btn-primary" type="button" id="noteSaveBtn">Save Note</button>
+                </div>
+              </section>
+
+              <section class="detail-card">
+                <div>
+                  <h3 class="detail-title">History</h3>
+                  <p class="detail-subtitle">Previous notes for this appointment.</p>
+                </div>
+                <div class="notes-list" id="notesList"></div>
+              </section>
+            </div>
           </div>
-          <ul class="prep-list">
-            <li class="prep-item">
-              <div>
-                <p class="prep-title">Review labs before noon</p>
-                <p class="prep-text">CBC and lipid panel for morning cohort.</p>
-              </div>
-              <span class="pill">Due 11:30</span>
-            </li>
-            <li class="prep-item">
-              <div>
-                <p class="prep-title">Share prep notes</p>
-                <p class="prep-text">Send visit summaries to nursing team.</p>
-              </div>
-              <span class="pill green">Ready</span>
-            </li>
-            <li class="prep-item">
-              <div>
-                <p class="prep-title">Confirm imaging slots</p>
-                <p class="prep-text">Two patients require chest CT scheduling.</p>
-              </div>
-              <span class="pill blue">Pending</span>
-            </li>
-          </ul>
         </article>
       </section>
     </main>
@@ -198,18 +732,91 @@
   <script type="module">
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import {
+      addDoc,
       collection,
       doc,
       getDoc,
-      getDocs,
+      limit,
+      onSnapshot,
       orderBy,
       query,
+      serverTimestamp,
       where
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { auth, db } from "../firebase-config.js";
 
-    const listEl = document.getElementById("docApptList");
-    const countEl = document.getElementById("docApptCount");
+    const ui = {
+      list: document.getElementById("apptList"),
+      count: document.getElementById("apptCount"),
+      search: document.getElementById("apptSearch"),
+      statusFilter: document.getElementById("apptStatusFilter"),
+      rightReady: document.getElementById("detailReady"),
+      detailPatientName: document.getElementById("detailPatientName"),
+      detailSubtitle: document.getElementById("detailSubtitle"),
+      detailStatus: document.getElementById("detailStatus"),
+      detailDate: document.getElementById("detailDate"),
+      detailTime: document.getElementById("detailTime"),
+      detailLocation: document.getElementById("detailLocation"),
+      detailPatientId: document.getElementById("detailPatientId"),
+      detailNotes: document.getElementById("detailNotes"),
+      noteInput: document.getElementById("noteInput"),
+      noteSaveBtn: document.getElementById("noteSaveBtn"),
+      noteStatus: document.getElementById("noteStatus"),
+      notesList: document.getElementById("notesList")
+    };
+
+    const state = {
+      uid: "",
+      appointments: [],
+      filtered: [],
+      selectedId: "",
+      selected: null,
+      apptUnsub: null,
+      notesUnsub: null
+    };
+
+    const patientNameCache = new Map();
+    const patientNameRequests = new Map();
+    let pendingSelectionId = new URLSearchParams(window.location.search).get("apptId") || "";
+
+
+    function setHidden(el, hidden) {
+      if (!el) return;
+      el.hidden = hidden;
+    }
+
+    function updateCount(count) {
+      if (!ui.count) return;
+      const label = `${count} appointment${count === 1 ? "" : "s"}`;
+      ui.count.textContent = label;
+    }
+
+    function clearAppointmentsList() {
+      if (ui.list) ui.list.innerHTML = "";
+    }
+
+    function clearDetail() {
+      clearNotesSubscription();
+      state.selectedId = "";
+      state.selected = null;
+      setHidden(ui.rightReady, true);
+      if (ui.noteInput) {
+        ui.noteInput.value = "";
+        ui.noteInput.disabled = true;
+      }
+      if (ui.noteStatus) ui.noteStatus.textContent = "";
+      if (ui.notesList) ui.notesList.innerHTML = "";
+      updateNoteSaveState();
+    }
+
+
+
+
+
+
+
+
+
 
     function pad2(value) {
       return String(value).padStart(2, "0");
@@ -219,49 +826,170 @@
       return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
     }
 
-    function formatTime(date) {
-      return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
-    }
-
-    function parseTime(value) {
-      const match = String(value || "").match(/(\d{1,2}):(\d{2})/);
-      if (!match) return "";
-      return `${pad2(match[1])}:${match[2]}`;
+    function toDate(value) {
+      if (!value) return null;
+      if (value instanceof Date) return value;
+      if (typeof value.toDate === "function") return value.toDate();
+      if (typeof value.seconds === "number") return new Date(value.seconds * 1000);
+      if (typeof value === "number") return new Date(value);
+      if (typeof value === "string") {
+        const parsed = new Date(value);
+        if (!Number.isNaN(parsed.getTime())) return parsed;
+      }
+      return null;
     }
 
     function normalizeDateKey(value) {
       if (!value) return "";
-      if (value instanceof Date) return formatDateKey(value);
-      const raw = String(value);
+      const asDate = toDate(value);
+      if (asDate) return formatDateKey(asDate);
+      const raw = String(value).trim();
+      if (!raw) return "";
+      const compact = raw.replace(/[^\d]/g, "");
+      if (compact.length === 8) {
+        return `${compact.slice(0, 4)}-${compact.slice(4, 6)}-${compact.slice(6, 8)}`;
+      }
       const match = raw.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
       if (match) {
         return `${match[1]}-${pad2(match[2])}-${pad2(match[3])}`;
       }
-      const parsed = new Date(raw.replace(/\//g, "-"));
-      if (!Number.isNaN(parsed.getTime())) {
-        return formatDateKey(parsed);
+      return "";
+    }
+
+    function formatTime(date) {
+      if (!date) return "--:--";
+      return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+    }
+
+    function normalizeTime(value) {
+      if (!value) return "";
+      if (value instanceof Date || typeof value.toDate === "function") {
+        return formatTime(toDate(value));
+      }
+      const raw = String(value).trim();
+      if (!raw) return "";
+      const match = raw.match(/(\d{1,2}):(\d{2})/);
+      if (match) return `${pad2(match[1])}:${match[2]}`;
+      const compact = raw.replace(/[^\d]/g, "");
+      if (compact.length === 4) {
+        return `${compact.slice(0, 2)}:${compact.slice(2, 4)}`;
       }
       return "";
     }
 
-    function getDateKeyFromDoc(data) {
-      if (data?.dateKey) return normalizeDateKey(data.dateKey);
-      if (data?.startAt?.toDate) return formatDateKey(data.startAt.toDate());
-      if (data?.scheduledAt?.toDate) return formatDateKey(data.scheduledAt.toDate());
-      if (data?.scheduledDate) {
-        const scheduledDate = data.scheduledDate?.toDate ? data.scheduledDate.toDate() : data.scheduledDate;
-        return normalizeDateKey(scheduledDate);
+    function formatDateShort(date) {
+      if (!date) return "--";
+      const options = { month: "short", day: "numeric" };
+      const now = new Date();
+      if (date.getFullYear() !== now.getFullYear()) {
+        options.year = "numeric";
       }
-      return "";
+      return date.toLocaleDateString("en-US", options);
     }
 
-    function getTimeLabel(data) {
-      if (data?.startAt?.toDate) return formatTime(data.startAt.toDate());
-      if (data?.scheduledAt?.toDate) return formatTime(data.scheduledAt.toDate());
-      if (data?.timeRange) return parseTime(data.timeRange);
-      if (data?.startAt) return parseTime(data.startAt);
-      if (data?.scheduledTime) return parseTime(data.scheduledTime);
-      return "--:--";
+    function isSameDay(a, b) {
+      if (!a || !b) return false;
+      return (
+        a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() &&
+        a.getDate() === b.getDate()
+      );
+    }
+
+    function normalizeStatus(value) {
+      const raw = String(value || "").trim().toLowerCase();
+      if (!raw) return "scheduled";
+      if (["pending", "upcoming", "active"].includes(raw)) return "scheduled";
+      return raw;
+    }
+
+    function titleCase(value) {
+      return String(value || "")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (match) => match.toUpperCase());
+    }
+
+    function getStartDate(data) {
+      const direct = toDate(
+        data?.scheduledAt ||
+        data?.slotStartAt ||
+        data?.startAt ||
+        data?.startTime ||
+        data?.dateTime
+      );
+      if (direct) return direct;
+      const dateKey = normalizeDateKey(
+        data?.dateKey ||
+        data?.scheduledDate ||
+        data?.date ||
+        data?.day
+      );
+      if (!dateKey) return null;
+      const timeValue = normalizeTime(
+        data?.slotKey ||
+        data?.timeSlot ||
+        data?.timeRange ||
+        data?.scheduledTime ||
+        data?.time
+      );
+      const iso = timeValue ? `${dateKey}T${timeValue}:00` : `${dateKey}T00:00:00`;
+      const parsed = new Date(iso);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    function getTimeLabel(data, startDate) {
+      if (startDate) return formatTime(startDate);
+      const fallback = normalizeTime(
+        data?.slotKey ||
+        data?.timeSlot ||
+        data?.timeRange ||
+        data?.scheduledTime ||
+        data?.time
+      );
+      return fallback || "--:--";
+    }
+
+    function getDateLabel(data, startDate) {
+      if (startDate) return formatDateShort(startDate);
+      const dateKey = normalizeDateKey(data?.dateKey || data?.scheduledDate || data?.date);
+      if (!dateKey) return "--";
+      const parsed = new Date(`${dateKey}T00:00:00`);
+      return Number.isNaN(parsed.getTime()) ? dateKey : formatDateShort(parsed);
+    }
+
+    function getSummary(data) {
+      const candidates = [
+        data?.reason,
+        data?.summary,
+        data?.notes,
+        data?.symptoms,
+        data?.chiefComplaint,
+        data?.description,
+        data?.purpose,
+        data?.visitReason,
+        data?.visitType
+      ];
+      for (const value of candidates) {
+        const text = String(value || "").trim();
+        if (text) return text;
+      }
+      return "Appointment";
+    }
+
+    function getLocation(data) {
+      const candidates = [
+        data?.hospitalName,
+        data?.hospital,
+        data?.clinic,
+        data?.clinicName,
+        data?.location,
+        data?.site
+      ];
+      for (const value of candidates) {
+        const text = String(value || "").trim();
+        if (text) return text;
+      }
+      return "";
     }
 
     function getPatientName(data) {
@@ -275,218 +1003,497 @@
       ).trim();
     }
 
-    function getVisitType(data) {
-      const raw = String(data?.visitType || data?.visitMode || data?.type || "").toLowerCase();
-      if (raw.includes("virtual")) return "Virtual";
-      return "In person";
+    function getPatientId(data) {
+      return String(
+        data?.patientId ||
+        data?.patientUid ||
+        data?.patient_id ||
+        data?.uid ||
+        ""
+      ).trim();
     }
 
-    function getSubtitle(data) {
-      const hospital = String(data?.hospitalName || data?.hospital || data?.location || "").trim();
-      if (hospital) return `Hospital: ${hospital}`;
-      return "Visit";
+    function buildAppointment(docSnap) {
+      const data = docSnap.data() || {};
+      const startDate = getStartDate(data);
+      const dateKey = startDate ? formatDateKey(startDate) : normalizeDateKey(data?.dateKey || data?.scheduledDate);
+      const status = normalizeStatus(data?.status);
+      const patientName = getPatientName(data);
+      const patientId = getPatientId(data);
+      const timeLabel = getTimeLabel(data, startDate);
+      const dateLabel = getDateLabel(data, startDate);
+      const summary = getSummary(data);
+      const location = getLocation(data);
+      const now = new Date();
+      const isToday = dateKey ? dateKey === formatDateKey(now) : (startDate ? isSameDay(startDate, now) : false);
+      const pillLabel = isToday ? timeLabel : dateLabel;
+      const sortKey = startDate ? startDate.getTime() : Number.MAX_SAFE_INTEGER;
+
+      return {
+        id: docSnap.id,
+        data,
+        startDate,
+        dateKey,
+        timeLabel,
+        dateLabel,
+        pillLabel,
+        isToday,
+        status,
+        statusLabel: titleCase(status),
+        summary,
+        location,
+        patientName,
+        patientId,
+        sortKey
+      };
     }
 
-    function timeToMinutes(value) {
-      const match = String(value || "").match(/(\d{2}):(\d{2})/);
-      if (!match) return 9999;
-      return Number(match[1]) * 60 + Number(match[2]);
+    function isIndexError(error) {
+      const code = String(error?.code || "").toLowerCase();
+      if (code === "failed-precondition") return true;
+      const message = String(error?.message || "").toLowerCase();
+      return message.includes("index");
     }
 
-    function updateCount(count) {
-      if (!countEl) return;
-      const label = `${count} patient${count === 1 ? "" : "s"}`;
-      countEl.textContent = label;
+    async function resolvePatientName(patientId) {
+      if (!patientId || !db) return "";
+      if (patientNameCache.has(patientId)) return patientNameCache.get(patientId);
+      if (patientNameRequests.has(patientId)) return patientNameRequests.get(patientId);
+      const request = (async () => {
+        try {
+          const snap = await getDoc(doc(db, "users", patientId));
+          if (snap.exists()) {
+            const data = snap.data() || {};
+            const name = String(data.fullName || data.name || data.displayName || data.email || "").trim();
+            if (name) {
+              patientNameCache.set(patientId, name);
+              return name;
+            }
+          }
+        } catch (error) {
+          console.warn("[appointments] patient lookup failed", error);
+        } finally {
+          patientNameRequests.delete(patientId);
+        }
+        return "";
+      })();
+      patientNameRequests.set(patientId, request);
+      return request;
     }
 
-    function renderEmptyState() {
-      if (!listEl) return;
-      listEl.innerHTML = "";
-      const item = document.createElement("div");
-      item.className = "agenda-item";
+    async function hydratePatientNames(items) {
+      const pending = items.filter((item) => !item.patientName && item.patientId);
+      if (!pending.length) return false;
+      await Promise.all(
+        pending.map(async (item) => {
+          const name = await resolvePatientName(item.patientId);
+          if (name) item.patientName = name;
+        })
+      );
+      return true;
+    }
 
-      const time = document.createElement("div");
-      time.className = "agenda-time";
-      time.textContent = "--:--";
+    function applyFilters(preferId = "") {
+      if (!state.uid) {
+        clearAppointmentsList();
+        updateCount(0);
+        clearDetail();
+        return;
+      }
+      const searchTerm = String(ui.search?.value || "").trim().toLowerCase();
+      const statusFilter = String(ui.statusFilter?.value || "all").trim().toLowerCase();
 
-      const body = document.createElement("div");
-      body.className = "agenda-body";
-      const title = document.createElement("p");
-      title.className = "agenda-title";
-      title.textContent = "No appointments today";
-      const sub = document.createElement("p");
-      sub.className = "agenda-sub";
-      sub.textContent = "Check back later.";
-      body.append(title, sub);
+      const filtered = state.appointments.filter((item) => {
+        if (statusFilter !== "all" && item.status !== statusFilter) return false;
+        if (!searchTerm) return true;
+        const haystack = [
+          item.patientName,
+          item.summary,
+          item.statusLabel,
+          item.dateLabel,
+          item.timeLabel,
+          item.location
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(searchTerm);
+      });
 
-      const pill = document.createElement("span");
-      pill.className = "pill";
-      pill.textContent = "None";
+      state.filtered = filtered;
 
-      item.append(time, body, pill);
-      listEl.appendChild(item);
+      let nextSelected = null;
+      if (preferId) {
+        nextSelected = filtered.find((item) => item.id === preferId) || null;
+      }
+      if (!nextSelected && state.selectedId) {
+        nextSelected = filtered.find((item) => item.id === state.selectedId) || null;
+      }
+
+      if (nextSelected) {
+        const selectionChanged = state.selectedId !== nextSelected.id;
+        state.selectedId = nextSelected.id;
+        state.selected = nextSelected;
+        renderDetail(nextSelected, !selectionChanged);
+        if (selectionChanged) subscribeNotes(nextSelected);
+      } else {
+        clearDetail();
+      }
+
+      renderAppointments(filtered);
+      updateNoteSaveState();
     }
 
     function renderAppointments(items) {
-      if (!listEl) return;
-      listEl.innerHTML = "";
-      updateCount(items.length);
+      if (!ui.list) return;
+      ui.list.innerHTML = "";
+      if (!items.length) return;
+      const fragment = document.createDocumentFragment();
 
-      if (!items.length) {
-        renderEmptyState();
+      items.forEach((item) => {
+        const row = document.createElement("li");
+        row.className = "appointment-item";
+        if (item.id === state.selectedId) {
+          row.classList.add("is-active");
+        }
+        row.dataset.id = item.id;
+
+        const time = document.createElement("div");
+        time.className = "appt-time";
+        time.textContent = item.pillLabel || "--";
+
+        const body = document.createElement("div");
+        const name = document.createElement("p");
+        name.className = "appt-name";
+        name.textContent = item.patientName || "Patient";
+        const summary = document.createElement("p");
+        summary.className = "appt-summary";
+        summary.textContent = item.summary || "Appointment";
+        body.append(name, summary);
+
+        const status = document.createElement("span");
+        status.className = "status-pill";
+        if (item.status) status.classList.add(`status-${item.status}`);
+        status.textContent = item.statusLabel || "Scheduled";
+
+        row.append(time, body, status);
+        fragment.appendChild(row);
+      });
+
+      ui.list.appendChild(fragment);
+    }
+
+    function setStatusPill(el, status) {
+      if (!el) return;
+      const normalized = normalizeStatus(status);
+      const label = titleCase(normalized);
+      el.textContent = label || "Scheduled";
+      const classes = [
+        "status-booked",
+        "status-confirmed",
+        "status-completed",
+        "status-cancelled",
+        "status-scheduled"
+      ];
+      classes.forEach((cls) => el.classList.remove(cls));
+      if (normalized) el.classList.add(`status-${normalized}`);
+    }
+
+    function renderDetail(item, preserveNoteInput = false) {
+      if (!item) {
+        clearDetail();
+        return;
+      }
+      setHidden(ui.rightReady, false);
+
+      if (ui.detailPatientName) ui.detailPatientName.textContent = item.patientName || "Patient";
+      if (ui.detailSubtitle) ui.detailSubtitle.textContent = item.summary || "Appointment details";
+      setStatusPill(ui.detailStatus, item.status);
+
+      const dateValue = item.startDate ? item.startDate.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric"
+      }) : (item.dateLabel || "--");
+      if (ui.detailDate) ui.detailDate.textContent = dateValue;
+      if (ui.detailTime) ui.detailTime.textContent = item.timeLabel || "--:--";
+      if (ui.detailLocation) ui.detailLocation.textContent = item.location || "Not specified";
+      if (ui.detailPatientId) ui.detailPatientId.textContent = item.patientId || "Not available";
+      if (ui.detailNotes) ui.detailNotes.textContent = item.summary || "Appointment";
+
+      if (ui.noteInput) {
+        ui.noteInput.disabled = false;
+        if (!preserveNoteInput) ui.noteInput.value = "";
+      }
+      if (ui.noteStatus && !preserveNoteInput) ui.noteStatus.textContent = "";
+      updateNoteSaveState();
+    }
+
+    function updateNoteSaveState() {
+      if (!ui.noteSaveBtn) return;
+      const hasText = !!ui.noteInput && ui.noteInput.value.trim().length > 0;
+      ui.noteSaveBtn.disabled = !state.selected || !hasText;
+    }
+
+    async function handleSaveNote() {
+      if (!state.selected || !state.uid || !db) {
+        if (ui.noteStatus) ui.noteStatus.textContent = "Please select an appointment first.";
+        return;
+      }
+      const text = String(ui.noteInput?.value || "").trim();
+      if (!text) {
+        if (ui.noteStatus) ui.noteStatus.textContent = "Please enter a note before saving.";
+        updateNoteSaveState();
         return;
       }
 
-      const frag = document.createDocumentFragment();
-      items.forEach((appt) => {
-        const item = document.createElement("div");
-        item.className = "agenda-item";
+      if (ui.noteSaveBtn) ui.noteSaveBtn.disabled = true;
+      if (ui.noteStatus) ui.noteStatus.textContent = "Saving...";
 
-        const time = document.createElement("div");
-        time.className = "agenda-time";
-        time.textContent = appt.timeLabel || "--:--";
+      const payload = {
+        appointmentId: state.selected.id,
+        doctorId: state.uid,
+        patientId: state.selected.patientId || "",
+        patientName: state.selected.patientName || "",
+        text,
+        statusSnapshot: state.selected.status || "",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
 
-        const body = document.createElement("div");
-        body.className = "agenda-body";
-        const title = document.createElement("p");
-        title.className = "agenda-title";
-        title.textContent = appt.patientName || "Patient";
-        const sub = document.createElement("p");
-        sub.className = "agenda-sub";
-        sub.textContent = appt.subtitle || "Visit";
-        body.append(title, sub);
+      try {
+        await addDoc(collection(db, "appointmentNotes"), payload);
+        if (ui.noteInput) ui.noteInput.value = "";
+        if (ui.noteStatus) ui.noteStatus.textContent = "Saved.";
+      } catch (error) {
+        console.error("[appointments] save note failed", error);
+        if (ui.noteStatus) ui.noteStatus.textContent = "Failed to save. Try again.";
+      } finally {
+        updateNoteSaveState();
+      }
+    }
 
-        const pill = document.createElement("span");
-        pill.className = appt.type === "Virtual" ? "pill green" : "pill blue";
-        pill.textContent = appt.type || "In person";
+    function renderNotes(items) {
+      if (!ui.notesList) return;
+      ui.notesList.innerHTML = "";
+      if (!items.length) return;
 
-        item.append(time, body, pill);
-        frag.appendChild(item);
+      const fragment = document.createDocumentFragment();
+      items.forEach((note) => {
+        const details = document.createElement("details");
+        details.className = "note-item";
+
+        const summary = document.createElement("summary");
+
+        const time = document.createElement("span");
+        time.className = "note-time";
+        time.textContent = note.timeLabel;
+
+        const preview = document.createElement("span");
+        preview.className = "note-preview";
+        preview.textContent = note.preview;
+
+        summary.append(time, preview);
+
+        const body = document.createElement("p");
+        body.className = "note-text";
+        body.textContent = note.text;
+
+        details.append(summary, body);
+        fragment.appendChild(details);
       });
-      listEl.appendChild(frag);
+
+      ui.notesList.appendChild(fragment);
     }
 
-    async function resolveDoctorName(uid) {
-      try {
-        const cached = JSON.parse(localStorage.getItem("userProfile") || "null");
-        const cachedName = String(cached?.fullName || cached?.name || "").trim();
-        if (cachedName) return cachedName;
-      } catch (error) {
-        console.warn("[appt] cached profile parse failed", error);
-      }
-
-      const authName = String(auth?.currentUser?.displayName || "").trim();
-      if (authName) return authName;
-
-      try {
-        const snap = await getDoc(doc(db, "users", uid));
-        if (snap.exists()) {
-          const data = snap.data() || {};
-          return String(data.fullName || data.name || "").trim();
-        }
-      } catch (error) {
-        console.warn("[appt] doctor name lookup failed", error);
-      }
-
-      return "";
+    function clearNotesSubscription() {
+      if (state.notesUnsub) state.notesUnsub();
+      state.notesUnsub = null;
     }
 
-    async function fetchAppointments(field, value) {
-      let snap = null;
-      try {
-        const q = query(
-          collection(db, "appointments"),
-          where(field, "==", value),
-          orderBy("updatedAt", "desc")
-        );
-        snap = await getDocs(q);
-      } catch (error) {
-        console.warn("[appt] query failed, retrying without orderBy", error);
-        try {
-          const q = query(
-            collection(db, "appointments"),
-            where(field, "==", value)
-          );
-          snap = await getDocs(q);
-        } catch (innerError) {
-          console.error("[appt] query failed", innerError);
-          return [];
-        }
+    function subscribeNotes(appointment) {
+      clearNotesSubscription();
+      if (!appointment || !state.uid || !db) {
+        if (ui.notesList) ui.notesList.innerHTML = "";
+        return;
       }
+
+      if (ui.notesList) ui.notesList.innerHTML = "";
+      const notesQuery = query(
+        collection(db, "appointmentNotes"),
+        where("appointmentId", "==", appointment.id),
+        where("doctorId", "==", state.uid),
+        orderBy("createdAt", "desc"),
+        limit(20)
+      );
+
+      state.notesUnsub = onSnapshot(
+        notesQuery,
+        (snapshot) => {
+          const notes = snapshot.docs.map((docSnap) => {
+            const data = docSnap.data() || {};
+            const createdAt = toDate(data.createdAt) || new Date();
+            return {
+              id: docSnap.id,
+              text: String(data.text || "").trim(),
+              preview: String(data.text || "").trim() || "Clinical note",
+              timeLabel: createdAt.toLocaleString("en-US", {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit"
+              })
+            };
+          });
+
+          renderNotes(notes);
+        },
+        (error) => {
+          console.error("[appointments] notes error", error);
+          if (ui.notesList) ui.notesList.innerHTML = "";
+        }
+      );
+    }
+
+    function clearAppointmentsSubscription() {
+      if (state.apptUnsub) state.apptUnsub();
+      state.apptUnsub = null;
+    }
+
+    function handleAppointmentsSnapshot(snapshot) {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayKey = formatDateKey(todayStart);
 
       const items = [];
-      snap.forEach((docSnap) => {
-        const data = docSnap.data() || {};
-        items.push({ id: docSnap.id, data });
-      });
-      return items;
-    }
-
-    function toViewModel(entries, dateKey) {
-      const items = [];
-      entries.forEach(({ id, data }) => {
-        const status = String(data.status || "scheduled").toLowerCase();
-        if (status === "cancelled") return;
-
-        const docDateKey = getDateKeyFromDoc(data);
-        if (docDateKey && docDateKey !== dateKey) return;
-        if (!docDateKey) {
-          const startDate = data?.startAt?.toDate ? data.startAt.toDate() : null;
-          const scheduledDate = data?.scheduledAt?.toDate ? data.scheduledAt.toDate() : null;
-          const pickedDate = startDate || scheduledDate;
-          if (!pickedDate || formatDateKey(pickedDate) !== dateKey) return;
-        }
-
-        const patientName = getPatientName(data) || "Patient";
-        const timeLabel = getTimeLabel(data);
-        const subtitle = getSubtitle(data);
-        const type = getVisitType(data);
-        const sortKey = timeToMinutes(timeLabel);
-
-        items.push({
-          id,
-          patientName,
-          timeLabel,
-          subtitle,
-          type,
-          status,
-          sortKey
-        });
+      snapshot.forEach((docSnap) => {
+        const item = buildAppointment(docSnap);
+        if (item.startDate && item.startDate < todayStart) return;
+        if (!item.startDate && item.dateKey && item.dateKey < todayKey) return;
+        items.push(item);
       });
 
       items.sort((a, b) => a.sortKey - b.sortKey);
-      return items;
-    }
+      state.appointments = items;
+      updateCount(items.length);
 
-    async function loadDoctorAppointmentsForDay(uid, dateKey) {
-      if (!uid) return [];
-
-      const entries = await fetchAppointments("doctorId", uid);
-      let items = toViewModel(entries, dateKey);
-
-      if (!entries.length) {
-        const doctorName = await resolveDoctorName(uid);
-        if (doctorName) {
-          const nameEntries = await fetchAppointments("doctorName", doctorName);
-          items = toViewModel(nameEntries, dateKey);
-        }
-      }
-
-      return items;
-    }
-
-    onAuthStateChanged(auth, async (user) => {
-      if (!listEl || !countEl) return;
-      if (!user) {
-        updateCount(0);
-        renderEmptyState();
+      if (!items.length) {
+        clearAppointmentsList();
+        clearDetail();
         return;
       }
 
-      const dateKey = formatDateKey(new Date());
-      const items = await loadDoctorAppointmentsForDay(user.uid, dateKey);
-      renderAppointments(items);
+      applyFilters(pendingSelectionId);
+      if (pendingSelectionId && state.selectedId === pendingSelectionId) {
+        pendingSelectionId = "";
+      }
+
+      hydratePatientNames(items)
+        .then((didUpdate) => {
+          if (didUpdate) {
+            applyFilters(state.selectedId);
+          }
+        })
+        .catch((error) => {
+          console.warn("[appointments] name hydrate failed", error);
+        });
+    }
+
+    function subscribeAppointments(uid, useOrderBy = true) {
+      clearAppointmentsSubscription();
+      if (!uid || !db) return;
+
+      clearAppointmentsList();
+      updateCount(0);
+      clearDetail();
+      const constraints = [where("doctorId", "==", uid)];
+      if (useOrderBy) constraints.push(orderBy("scheduledAt", "asc"));
+      constraints.push(limit(50));
+
+      const apptQuery = query(collection(db, "appointments"), ...constraints);
+      state.apptUnsub = onSnapshot(
+        apptQuery,
+        (snapshot) => {
+          handleAppointmentsSnapshot(snapshot);
+        },
+        (error) => {
+          console.error("[appointments] list error", error);
+          if (useOrderBy && isIndexError(error)) {
+            subscribeAppointments(uid, false);
+            return;
+          }
+          state.appointments = [];
+          state.filtered = [];
+          clearAppointmentsList();
+          updateCount(0);
+          clearDetail();
+        }
+      );
+    }
+
+    function initForUser(user) {
+      state.uid = user?.uid || "";
+      state.appointments = [];
+      state.filtered = [];
+      state.selectedId = "";
+      state.selected = null;
+      clearNotesSubscription();
+
+      const isAuthed = !!user && !!user.uid;
+      if (!isAuthed) {
+        clearAppointmentsSubscription();
+        clearAppointmentsList();
+        updateCount(0);
+        clearDetail();
+        return;
+      }
+
+      clearDetail();
+      subscribeAppointments(user.uid);
+    }
+
+    function bindEvents() {
+      ui.search?.addEventListener("input", () => {
+        applyFilters();
+      });
+      ui.statusFilter?.addEventListener("change", () => {
+        applyFilters();
+      });
+      ui.list?.addEventListener("click", (event) => {
+        const target = event.target.closest(".appointment-item");
+        if (!target || !ui.list.contains(target)) return;
+        const id = target.dataset.id || "";
+        const selected = state.filtered.find((item) => item.id === id) ||
+          state.appointments.find((item) => item.id === id);
+        if (!selected) return;
+        state.selectedId = selected.id;
+        state.selected = selected;
+        renderDetail(selected);
+        subscribeNotes(selected);
+        renderAppointments(state.filtered);
+        updateNoteSaveState();
+      });
+      ui.noteInput?.addEventListener("input", () => {
+        if (ui.noteStatus) ui.noteStatus.textContent = "";
+        updateNoteSaveState();
+      });
+      ui.noteSaveBtn?.addEventListener("click", handleSaveNote);
+    }
+
+    clearAppointmentsList();
+    updateCount(0);
+    clearDetail();
+    bindEvents();
+
+    onAuthStateChanged(auth, (user) => {
+      initForUser(user);
     });
+
+    window.addEventListener("beforeunload", () => {
+      clearAppointmentsSubscription();
+      clearNotesSubscription();
+    });
+
   </script>
 </body>
 </html>

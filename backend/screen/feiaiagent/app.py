@@ -75,18 +75,19 @@ except Exception as _e:
 from report_manager import report_manager
 from intelligent_questionnaire_manager import IntelligentQuestionnaireManager
 
-# Firebase helper for report persistence
-try:
-    from firebase_helper import upload_pdf_to_storage, upload_report_to_storage, write_report_doc
-    from firebase_admin import firestore as admin_firestore
-    FIREBASE_AVAILABLE = True
-except Exception as e:
-    logger.warning(f"Firebase helper not available: {e}")
-    FIREBASE_AVAILABLE = False
-    def upload_pdf_to_storage(*args, **kwargs):
-        raise RuntimeError("Firebase not configured")
-    def write_report_doc(*args, **kwargs):
-        raise RuntimeError("Firebase not configured")
+# Firebase helper for report persistence (fail-fast)
+from firebase_helper import (
+    get_firestore_client,
+    upload_report_pdf,
+    write_report_doc,
+    debug_check_object,
+    init_firebase_or_die,
+    FirebaseUploadError,
+)
+from firebase_admin import firestore as admin_firestore
+
+init_firebase_or_die()
+FIREBASE_AVAILABLE = True
 
 # ===== Global thread pool & cache =====
 _global_thread_pool = None
@@ -1325,12 +1326,12 @@ def metagpt_next_simple():
         if status == "completed":
             report_text = result.get("report") or ""
             answers_map = _build_answers_map(manager, questionnaire)
-            # Extract user uid from request headers (set by main backend proxy)
-            patient_id = request.headers.get("X-Firebase-UID", "").strip()
-            if not patient_id:
+            # Extract auth uid from request headers (set by main backend proxy)
+            auth_uid = request.headers.get("X-Firebase-UID", "").strip()
+            if not auth_uid:
                 auth_header = request.headers.get("Authorization", "")
                 if auth_header and auth_header.startswith("Bearer "):
-                    patient_id = "dev" if auth_header == "Bearer dev" else ""
+                    auth_uid = "dev" if auth_header == "Bearer dev" else ""
 
             # Extract risk level from report text
             risk_level = "unknown"
@@ -1342,84 +1343,149 @@ def metagpt_next_simple():
             elif "low risk" in report_lower or "🟢" in report_text:
                 risk_level = "low"
 
-            if patient_id:
-                answers_map["userId"] = patient_id
+            if not FIREBASE_AVAILABLE:
+                logger.error("[firebase] unavailable; cannot upload report PDF")
+                return jsonify({"ok": False, "type": "report_failed", "error": "firebase_admin_unavailable"}), 503
+
+            if not auth_uid or auth_uid == "dev":
+                logger.error("[firebase] missing patient uid; cannot upload report PDF")
+                return jsonify({"ok": False, "type": "report_failed", "error": "missing patient uid"}), 400
+
+            answers_map["userId"] = auth_uid
             answers_map["riskLevel"] = risk_level
+
+            db = get_firestore_client()
+            doc_ref = db.collection("reports").document()
+            report_id = doc_ref.id
+            screening_id = session_id
+            report_ext = "pdf"
+            local_path = f"screen/feiaiagent/report/{report_id}.{report_ext}"
+            download_url_local = f"/api/reports/download/{report_id}.{report_ext}"
+
+            write_report_doc(
+                report_id=report_id,
+                patient_id=auth_uid,
+                screening_id=screening_id,
+                risk_level=risk_level,
+                storage_path="",
+                report_format=report_ext,
+                doctor_id=None,
+                source="metagpt",
+                file_name=f"{report_id}.{report_ext}",
+                local_path=local_path,
+                download_url_local=download_url_local,
+                content_text=report_text,
+                answers_raw=answers_map,
+                pdf_status="pending",
+                status="pending",
+            )
 
             report_path = report_manager.save_report(report_text, answers_map, session_id)
             report_manager.save_report_json(report_text, answers_map, session_id)
             try:
-                pdf_path = report_manager.save_report_pdf(report_text, answers_map, session_id)
+                pdf_path = report_manager.save_report_pdf(report_text, answers_map, report_id)
             except Exception as exc:
-                logger.error("[report] PDF generation failed for session=%s error=%s", session_id, exc)
+                logger.error("[report] PDF generation failed for reportId=%s error=%s", report_id, exc)
+                doc_ref.set(
+                    {
+                        "pdfStatus": "failed",
+                        "status": "failed",
+                        "pdfError": f"PDF generation failed: {exc}",
+                        "pdfUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
+                        "updatedAt": admin_firestore.SERVER_TIMESTAMP,
+                    },
+                    merge=True,
+                )
                 return jsonify({"ok": False, "type": "report_failed", "error": "PDF generation failed"}), 500
             if not pdf_path:
-                logger.error("[report] PDF generation failed for session=%s", session_id)
+                logger.error("[report] PDF generation failed for reportId=%s", report_id)
+                doc_ref.set(
+                    {
+                        "pdfStatus": "failed",
+                        "status": "failed",
+                        "pdfError": "PDF generation failed: empty path",
+                        "pdfUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
+                        "updatedAt": admin_firestore.SERVER_TIMESTAMP,
+                    },
+                    merge=True,
+                )
                 return jsonify({"ok": False, "type": "report_failed", "error": "PDF generation failed"}), 500
-            report_file_path = Path(pdf_path)
-            local_path = f"screen/feiaiagent/report/{report_file_path.name}"
-            download_url_local = f"/api/reports/download/{report_file_path.name}"
-            storage_path = ""
-            # Persist report to Firebase Storage and Firestore
-            if FIREBASE_AVAILABLE and pdf_path:
-                try:
-                    if patient_id and patient_id != "dev":
-                        # Read PDF file
-                        if report_file_path.exists():
-                            if report_file_path.suffix.lower() != ".pdf":
-                                logger.error(f"[report] Expected PDF but got {report_file_path.suffix}")
-                            else:
-                                # Use session_id as report_id
-                                report_id = session_id
-                                screening_id = session_id  # Use session_id as screening_id
 
-                                report_ext = "pdf"
-                                report_size = report_file_path.stat().st_size
-                                logger.info(
-                                    "[report] uploading storagePath=reports/%s/%s.%s size=%s",
-                                    patient_id,
-                                    report_id,
-                                    report_ext,
-                                    report_size,
-                                )
-                                try:
-                                    storage_path = upload_report_to_storage(
-                                        str(report_file_path),
-                                        patient_id,
-                                        report_id,
-                                        report_ext,
-                                    )
-                                except Exception as upload_exc:
-                                    logger.error(
-                                        "[report] storage upload failed report_id=%s error=%s",
-                                        report_id,
-                                        upload_exc,
-                                    )
-                                
-                                # Write Firestore document
-                                write_report_doc(
-                                    report_id=report_id,
-                                    patient_id=patient_id,
-                                    screening_id=screening_id,
-                                    risk_level=risk_level,
-                                    storage_path=storage_path,
-                                    report_format=report_ext,
-                                    doctor_id=None,  # Not available in screening flow
-                                    source="metagpt",
-                                    file_name=report_file_path.name,
-                                    local_path=local_path,
-                                    download_url_local=download_url_local,
-                                    content_text=report_text,
-                                    answers_raw=answers_map,
-                                )
-                                logger.info(f"[firebase] Report persisted: {report_id} for patient {patient_id}")
-                        else:
-                            logger.warning(f"[firebase] PDF file not found: {pdf_path}")
-                    else:
-                        logger.info(f"[firebase] Skipping persistence: patient_id={patient_id} (dev mode or not authenticated)")
-                except Exception as e:
-                    # Log error but don't fail the request
-                    logger.error(f"[firebase] Failed to persist report: {e}", exc_info=True)
+            report_file_path = Path(pdf_path)
+            if not report_file_path.exists():
+                logger.error("[report] PDF file not found: %s", pdf_path)
+                doc_ref.set(
+                    {
+                        "pdfStatus": "failed",
+                        "status": "failed",
+                        "pdfError": f"PDF file not found: {pdf_path}",
+                        "pdfUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
+                        "updatedAt": admin_firestore.SERVER_TIMESTAMP,
+                    },
+                    merge=True,
+                )
+                return jsonify({"ok": False, "type": "report_failed", "error": "PDF file not found"}), 500
+            if report_file_path.suffix.lower() != ".pdf":
+                logger.error("[report] Expected PDF but got %s", report_file_path.suffix)
+                doc_ref.set(
+                    {
+                        "pdfStatus": "failed",
+                        "status": "failed",
+                        "pdfError": f"Expected PDF but got {report_file_path.suffix}",
+                        "pdfUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
+                        "updatedAt": admin_firestore.SERVER_TIMESTAMP,
+                    },
+                    merge=True,
+                )
+                return jsonify({"ok": False, "type": "report_failed", "error": "PDF generation failed"}), 500
+
+            storage_path = ""
+            try:
+                report_size = report_file_path.stat().st_size
+                logger.info(
+                    "[report] uploading storagePath=reports/%s/%s.%s size=%s",
+                    auth_uid,
+                    report_id,
+                    report_ext,
+                    report_size,
+                )
+                storage_path = upload_report_pdf(
+                    {"auth_uid": auth_uid, "reportId": report_id, "_doc_ref": doc_ref},
+                    str(report_file_path),
+                )
+                debug_check_object(storage_path)
+                logger.info("[firebase] Report persisted: %s for auth_uid %s", report_id, auth_uid)
+            except FirebaseUploadError as exc:
+                logger.exception("[firebase] upload failed reportId=%s auth_uid=%s", report_id, auth_uid)
+                error_detail = f"{type(exc.cause).__name__}: {exc.cause}" if exc.cause else str(exc)
+                return (
+                    jsonify(
+                        {
+                            "ok": False,
+                            "error": "firebase_upload_failed",
+                            "stage": exc.stage,
+                            "bucket": exc.bucket,
+                            "storagePath": exc.storage_path,
+                            "exception": error_detail,
+                        }
+                    ),
+                    503,
+                )
+            except Exception as e:
+                logger.exception("[firebase] unexpected upload failure reportId=%s auth_uid=%s", report_id, auth_uid)
+                return (
+                    jsonify(
+                        {
+                            "ok": False,
+                            "error": "firebase_upload_failed",
+                            "stage": "upload_pdf",
+                            "bucket": "",
+                            "storagePath": f"reports/{auth_uid}/{report_id}.{report_ext}",
+                            "exception": f"{type(e).__name__}: {e}",
+                        }
+                    ),
+                    503,
+                )
             
             return jsonify({
                 "ok": True,
@@ -1427,7 +1493,7 @@ def metagpt_next_simple():
                 "session_id": session_id,
                 "question": None,
                 "done": True,
-                "report_id": session_id,
+                "report_id": report_id,
                 "risk_level": risk_level,
                 "storage_path": storage_path or None,
                 "download_url_local": download_url_local,

@@ -21,6 +21,7 @@ import {
   getPatientsByIds,
 } from "./firestoreService.js";
 import { buildFlowModel, normalizeSteps, FLOW_ORDER } from "../shared/flowProgress.js";
+import { maybeShowWelcomeModal } from "../shared/welcomeModal.js";
 
 const doctorState = {
   patients: [],
@@ -123,6 +124,7 @@ async function hydrateDoctorProfile(user) {
     if (snap.exists()) {
       const data = snap.data();
       localStorage.setItem("userProfile", JSON.stringify(data));
+      maybeShowWelcomeModal(user, data);
       applyDoctorInfo(data);
       fillProfileForm(data);
     }

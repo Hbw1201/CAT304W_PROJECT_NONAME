@@ -1,6 +1,15 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isDoctor() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "doctor";
+    }
+
     // CT studies storage access model:
     // - Doctors can read/write their assigned study objects.
     match /ctStudies/{studyId}/{filePath=**} {
@@ -12,8 +21,15 @@ service firebase.storage {
     // - Patients can read only their own PDFs stored at reports/{patientId}/{reportId}.pdf
     // - Client writes are disabled (server-side only).
     match /reports/{patientId}/{fileName} {
-      allow read: if request.auth != null && request.auth.uid == patientId;
+      allow read: if isSignedIn() && (request.auth.uid == patientId || isDoctor());
       allow write: if false;
+    }
+
+    // Help Desk feedback uploads (signed-in write only).
+    match /feedback/{fileName} {
+      allow write: if isSignedIn();
+      allow read: if false;
+      allow update, delete: if false;
     }
 
     match /{allPaths=**} {

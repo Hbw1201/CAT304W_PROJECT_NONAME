@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Osler Patient Portal</title>
+  <title>aegis Patient Portal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -378,10 +378,31 @@
       height: 320px;
       position: relative;
       box-shadow: 0 25px 80px rgba(15, 23, 42, 0.1);
+      overflow: hidden;
     }
-    .story-content p {
-      color: var(--muted);
-      line-height: 1.8;
+    .story-visual img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: inherit;
+      display: block;
+    }
+    #story .section-title {
+      font-size: clamp(28px, 2.2vw, 32px);
+      font-weight: 700;
+      line-height: 1.28;
+    }
+    #story .story-content .section-title + p {
+      margin-top: 10px;
+    }
+    #story .story-content p {
+      color: #4b5563;
+      line-height: 1.7;
+      font-weight: 400;
+      margin: 0 0 16px;
+    }
+    #story .story-content p:last-of-type {
+      margin-bottom: 0;
     }
     .steps-grid {
       display: grid;
@@ -467,6 +488,17 @@
       font-weight: 600;
       cursor: pointer;
     }
+    .contact-card .form-feedback {
+      margin: 6px 0 0;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .contact-card .form-feedback[data-state="error"] {
+      color: #b91c1c;
+    }
+    .contact-card .form-feedback[data-state="success"] {
+      color: #166534;
+    }
     .link-like {
       background: none;
       border: none;
@@ -475,7 +507,7 @@
       cursor: pointer;
       padding: 0;
     }
-    footer.osler-footer {
+    footer.aegis-footer {
       background: #0f172a;
       color: #e2e8f0;
       padding: 70px 20px 28px;
@@ -484,7 +516,7 @@
       border-top: 1px solid rgba(148, 163, 184, 0.18);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
     }
-    footer.osler-footer::before {
+    footer.aegis-footer::before {
       content: "";
       position: absolute;
       inset: 0;
@@ -501,13 +533,13 @@
       position: relative;
       z-index: 1;
     }
-    .osler-footer .brand-mark{
+    .aegis-footer .brand-mark{
       align-items: center !important;
       gap: 12px;
       min-height: 86px !important;
       line-height: 1 !important;
     }
-    .osler-footer .brand-mark img{
+    .aegis-footer .brand-mark img{
       height: 110px !important;
       width: auto !important;
       max-height: none !important;
@@ -765,8 +797,8 @@
     <div class="nav-container container">
       <div class="header-left">
         <div class="brand-mark">
-          <img src="../resource/logo.png" alt="Osler logo">
-          <span>Osler</span>
+          <img src="../resource/logo.png" alt="aegis logo">
+          <span>AEGIS</span>
         </div>
       </div>
       <nav class="primary-nav nav-links header-center">
@@ -800,10 +832,9 @@
             <div class="hero-text">
               <p class="eyebrow">ADVANCED CARE, HUMAN EMPATHY</p>
               <h1 class="hero-title">Your trusted partner in lung healthcare.</h1>
-              <p class="hero-subtitle">Empowering every patient with guided screenings, AI-enhanced insights, and compassionate clinicians. Osler brings your lung-health data, scheduling, and follow-ups together in a single experience.</p>
+              <p class="hero-subtitle">Empowering every patient with guided screenings, AI-enhanced insights, and compassionate clinicians. aegis brings your lung-health data, scheduling, and follow-ups together in a single experience.</p>
               <p>Start today to track your screenings, understand your results, and stay connected with your care team.</p>
               <div class="hero-actions">
-                <a class="btn-primary" href="#services">Get Started</a>
                 <a class="btn-secondary" href="#story">Learn More</a>
               </div>
             </div>
@@ -914,12 +945,13 @@
     </section>
 
     <section id="story" class="story-section">
-      <div class="story-visual" aria-hidden="true"></div>
+      <div class="story-visual" aria-hidden="true">
+        <img src="../resource/doctor_team.png" alt="">
+      </div>
       <div class="story-content">
-        <h2 class="section-title">Osler&#39;s Story: Get to know us</h2>
-        <p>Osler began as a collaboration between lung specialists and AI researchers who believed proactive screening should feel personal. From the first questionnaire to the final consultation, every step was designed to guide you with clarity and empathy.</p>
-        <p>Our care experience pairs clinical protocols with modern design, helping patients understand their data, reduce anxiety, and access support faster.</p>
-        <a class="btn-secondary" href="#contact">Learn more about us</a>
+        <h2 class="section-title">Our Story: Care That Starts Before Diagnosis</h2>
+        <p>Early detection can change outcomes, but the screening journey should never feel confusing. Aegis brings together medical expertise and AI technology to guide users through lung health screening in a way that is clear, supportive, and easy to follow.</p>
+        <p>From your first question to ongoing follow-up, the system is built around understanding, reassurance, and timely care. We believe good screening is not only about accuracy, but also about trust.</p>
       </div>
     </section>
 
@@ -946,14 +978,14 @@
 
     <section id="testimonials">
       <h2 class="section-title">Patient Testimonials</h2>
-      <p class="section-subtitle">Hear how Osler supports healthier breathing journeys.</p>
+      <p class="section-subtitle">Hear how aegis supports healthier breathing journeys.</p>
       <div class="testimonial-grid">
         <article class="testimonial-card">
           <p>&#34;After years of uncertainty, the convenience of online consultations and rapid recovery plans helped me breathe easier.&#34;</p>
           <strong>- Linda A.</strong>
         </article>
         <article class="testimonial-card">
-          <p>&#34;Managing chronic conditions felt daunting, but Osler&#39;s reminders and remote monitoring kept me on track.&#34;</p>
+          <p>&#34;Managing chronic conditions felt daunting, but aegis&#39;s reminders and remote monitoring kept me on track.&#34;</p>
           <strong>- Henry B.</strong>
         </article>
       </div>
@@ -972,18 +1004,14 @@
       <h2 class="section-title">Meet our team of specialists</h2>
       <div class="doctor-grid">
         <article class="doctor-card">
-          <div class="doctor-avatar" aria-hidden="true"></div>
           <h3>Dr. Sarah Johnson</h3>
           <p>Pulmonologist</p>
           <p>Focused on early detection programs and holistic breathing therapies for complex cases.</p>
-          <button type="button">Book appointment</button>
         </article>
         <article class="doctor-card">
-          <div class="doctor-avatar" aria-hidden="true"></div>
           <h3>Dr. Mark Lee</h3>
           <p>Thoracic specialist</p>
           <p>Combines surgical experience with telehealth follow-ups to keep patients supported.</p>
-          <button type="button">Book appointment</button>
         </article>
       </div>
     </section>
@@ -992,22 +1020,23 @@
       <h2 class="section-title">Reach our Help Desk</h2>
       <p class="section-subtitle">Questions about screenings or scheduling? Send us a message and we&#39;ll respond quickly.</p>
       <div class="contact-card">
-        <form>
-          <input type="text" name="name" placeholder="Your name" required>
-          <input type="email" name="email" placeholder="Your email" required>
-          <textarea name="message" rows="4" placeholder="How can we help?" required></textarea>
-          <button type="submit">Contact us</button>
+        <form id="helpDeskForm" novalidate>
+          <input id="helpDeskName" type="text" name="name" placeholder="Your name" required>
+          <input id="helpDeskEmail" type="email" name="email" placeholder="Your email" required>
+          <textarea id="helpDeskMessage" name="message" rows="4" placeholder="How can we help?" required></textarea>
+          <button id="helpDeskSubmit" type="submit">Contact us</button>
+          <p id="helpDeskFeedback" class="form-feedback" role="status" aria-live="polite" hidden></p>
         </form>
       </div>
     </section>
   </main>
 
-  <footer class="osler-footer">
+  <footer class="aegis-footer">
     <div class="footer-inner">
       <div class="footer-brand">
         <div class="brand-mark" style="color:#fff;">
-          <img src="../resource/logo.png" alt="Osler logo">
-          <span>Osler</span>
+          <img src="../resource/logo.png" alt="aegis logo">
+          <span>AEGIS</span>
         </div>
         <p>Technology should not stand above people,<br>but serve them.</p>
       </div>
@@ -1027,7 +1056,7 @@
         </ul>
       </div>
     </div>
-    <div class="footer-bottom">&copy; Osler 2025. All rights reserved.</div>
+    <div class="footer-bottom">&copy; aegis 2025. All rights reserved.</div>
   </footer>
 
   <div class="modal-backdrop" id="privacy-modal" aria-modal="true" role="dialog" aria-labelledby="privacy-title">
@@ -1043,19 +1072,19 @@
       </div>
 
       <div class="modal-body">
-        <p><strong>System:</strong> Osler (MAQ-SCREEN Lung Cancer Early Screening)</p>
+        <p><strong>System:</strong> aegis (MAQ-SCREEN Lung Cancer Early Screening)</p>
         <p><strong>Effective Date:</strong> 2025</p>
         <p><strong>Last Updated:</strong> 2025</p>
 
         <p>
-          Osler (“we”, “our”, or “the System”) is committed to protecting your privacy and personal data.
-          This Privacy Policy explains how we collect, use, store, and protect information when you use the Osler Patient Portal,
+          aegis (“we”, “our”, or “the System”) is committed to protecting your privacy and personal data.
+          This Privacy Policy explains how we collect, use, store, and protect information when you use the aegis Patient Portal,
           including AI-assisted screening questionnaires and report generation. This policy is designed in accordance with the
           Malaysia Personal Data Protection Act (PDPA) and common international data protection principles.
         </p>
 
         <h3>1. Scope</h3>
-        <p>This policy applies to patients and users who access the Osler web portal, complete questionnaires, view screening results, and manage their profiles.</p>
+        <p>This policy applies to patients and users who access the aegis web portal, complete questionnaires, view screening results, and manage their profiles.</p>
 
         <h3>2. Information We Collect</h3>
 
@@ -1101,10 +1130,10 @@
 
         <h3>4. AI and Automated Processing</h3>
         <p>
-          Osler uses AI-assisted logic to guide questionnaire flow and generate screening-support insights.
+          aegis uses AI-assisted logic to guide questionnaire flow and generate screening-support insights.
           Outputs are informational and supportive only.
         </p>
-        <p><strong>Osler does not provide medical diagnosis or treatment.</strong> Always consult qualified healthcare professionals for clinical advice.</p>
+        <p><strong>aegis does not provide medical diagnosis or treatment.</strong> Always consult qualified healthcare professionals for clinical advice.</p>
 
         <h3>5. Data Storage &amp; Security</h3>
         <h4>5.1 Storage</h4>
@@ -1231,9 +1260,9 @@
       </div>
       <div class="modal-body">
         <div class="team-image-wrapper">
-          <img src="../resource/teams.png" alt="Osler Development Team" class="team-image" />
+          <img src="../resource/teams.png" alt="aegis Development Team" class="team-image" />
         </div>
-        <p>We are the development team behind Osler (MAQ-SCREEN), an LLM-driven lung cancer early screening system for conversational screening, intelligent Q&amp;A, and personal health data management.</p>
+        <p>We are the development team behind aegis (MAQ-SCREEN), an LLM-driven lung cancer early screening system for conversational screening, intelligent Q&amp;A, and personal health data management.</p>
 
         <h3>Team Members</h3>
         <ul>
@@ -1419,5 +1448,92 @@
   </script>
   <script type="module" src="./firebase-config.js"></script>
   <script type="module" src="../script.js"></script>
+  <script type="module">
+    import { storage } from "./firebase-config.js";
+    import { ref, uploadBytes } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
+    const form = document.getElementById("helpDeskForm");
+    const nameInput = document.getElementById("helpDeskName");
+    const emailInput = document.getElementById("helpDeskEmail");
+    const messageInput = document.getElementById("helpDeskMessage");
+    const submitBtn = document.getElementById("helpDeskSubmit");
+    const feedbackEl = document.getElementById("helpDeskFeedback");
+    const defaultBtnText = submitBtn?.textContent || "Contact us";
+
+    const setFeedback = (message, state) => {
+      if (!feedbackEl) return;
+      feedbackEl.textContent = message || "";
+      feedbackEl.dataset.state = state || "";
+      feedbackEl.hidden = !message;
+    };
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const isValidEmail = (value) => emailRegex.test(value);
+
+    if (form) {
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!nameInput || !emailInput || !messageInput || !submitBtn) return;
+
+        const name = nameInput.value.trim();
+        const email = emailInput.value.trim();
+        const message = messageInput.value.trim();
+
+        if (name.length < 2) {
+          setFeedback("Please enter your name (at least 2 characters).", "error");
+          return;
+        }
+        if (!isValidEmail(email)) {
+          setFeedback("Please enter a valid email address.", "error");
+          return;
+        }
+        if (message.length < 5) {
+          setFeedback("Please enter a message (at least 5 characters).", "error");
+          return;
+        }
+        if (!storage) {
+          setFeedback("Failed to send. Please try again.", "error");
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Sending...";
+        setFeedback("", "");
+
+        try {
+          const createdAt = new Date().toISOString();
+          const dateStr = createdAt.slice(0, 10);
+          const safeId = email
+            ? email.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 40)
+            : "anon";
+          const filename = `${Date.now()}_${safeId || "anon"}.json`;
+          const fullPath = `feedback/${dateStr}/${filename}`;
+          const payload = {
+            name,
+            email,
+            message,
+            createdAt,
+            page: location.href,
+            userAgent: navigator.userAgent,
+          };
+          const json = JSON.stringify(payload, null, 2);
+          const blob = new Blob([json], { type: "application/json" });
+
+          await uploadBytes(ref(storage, fullPath), blob, {
+            contentType: "application/json",
+          });
+
+          setFeedback("Thanks! Your message has been received.", "success");
+          form.reset();
+        } catch (error) {
+          console.error("Failed to submit help desk feedback:", error);
+          setFeedback("Failed to send. Please try again.", "error");
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = defaultBtnText;
+        }
+      });
+    }
+  </script>
 </body>
 </html>

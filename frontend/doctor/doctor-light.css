@@ -120,6 +120,22 @@ body.doctor-theme {
 }
 
 /* CT Imaging risk summary + viewer overlay */
+.ct-details-body {
+  font-size: 14px;
+}
+
+.ct-details-body .info-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(15, 23, 42, 0.6);
+}
+
+.ct-details-body .info-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--doctor-strong);
+}
+
 .ct-details-body .info-row.info-muted .info-label {
   color: rgba(15, 23, 42, 0.45);
 }
@@ -133,10 +149,10 @@ body.doctor-theme {
 .risk-card {
   background: #f8fafc;
   border: 1px solid var(--doctor-border);
-  border-radius: 16px;
-  padding: 14px 16px;
+  border-radius: 20px;
+  padding: 18px 18px;
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .risk-card-head {
@@ -148,43 +164,43 @@ body.doctor-theme {
 
 .risk-title {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--doctor-strong);
 }
 
 .risk-sub {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--doctor-muted);
 }
 
 .risk-badge {
   display: inline-flex;
   align-items: center;
-  padding: 6px 12px;
+  padding: 8px 14px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   border: 1px solid transparent;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
 }
 
 .risk-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .risk-metric {
   background: #ffffff;
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 12px;
-  padding: 10px 12px;
+  border-radius: 14px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .risk-label {
@@ -194,19 +210,19 @@ body.doctor-theme {
 }
 
 .risk-value {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--doctor-strong);
 }
 
 .risk-interpretation {
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.6;
   color: var(--doctor-muted);
-  background: #ffffff;
-  border: 1px dashed rgba(15, 23, 42, 0.12);
-  border-radius: 12px;
-  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  padding: 12px 14px;
 }
 
 .risk-low,
@@ -428,6 +444,31 @@ body.doctor-theme {
 .doctor-theme .report-card .card-text,
 .doctor-theme .knowledge-card .card-text {
   margin-top: 6px;
+}
+
+.doctor-theme .report-search {
+  display: flex;
+  margin-top: 10px;
+}
+
+.doctor-theme .report-search input {
+  width: 100%;
+  border-radius: 999px;
+  border: 1px solid var(--doctor-border);
+  background: var(--doctor-surface-2);
+  padding: 10px 14px;
+  font: inherit;
+  color: var(--doctor-text);
+}
+
+.doctor-theme .report-search input::placeholder {
+  color: var(--doctor-muted);
+}
+
+.doctor-theme .report-search input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(27, 132, 231, 0.15);
+  border-color: rgba(27, 132, 231, 0.45);
 }
 
 .doctor-theme .report-list {

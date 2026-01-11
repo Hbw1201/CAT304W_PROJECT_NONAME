@@ -34,7 +34,6 @@ const ui = {
   infoPatientId: document.getElementById("infoPatientId"),
   infoCreatedAt: document.getElementById("infoCreatedAt"),
   infoStatus: document.getElementById("infoStatus"),
-  infoStoragePrefix: document.getElementById("infoStoragePrefix"),
   infoAnalysisUpdated: document.getElementById("infoAnalysisUpdated"),
   analysisStatusBadge: document.getElementById("analysisStatusBadge"),
   analysisMeta: document.getElementById("analysisMeta"),
@@ -448,7 +447,6 @@ function updateStudyDetails(study) {
     setText(ui.infoPatientId, EMPTY_PLACEHOLDER);
     setText(ui.infoCreatedAt, EMPTY_PLACEHOLDER);
     setText(ui.infoStatus, EMPTY_PLACEHOLDER);
-    setText(ui.infoStoragePrefix, EMPTY_PLACEHOLDER);
     setText(ui.infoAnalysisUpdated, EMPTY_PLACEHOLDER);
     updateAnalysisPanel(null);
     updateRunAiLabel(null);
@@ -461,7 +459,6 @@ function updateStudyDetails(study) {
   setText(ui.infoPatientId, study.patientId || "-");
   setText(ui.infoCreatedAt, formatTimestamp(study.createdAt));
   setText(ui.infoStatus, formatStatus(study.status, "-"));
-  setText(ui.infoStoragePrefix, study.storagePrefix || "-");
   setText(ui.infoAnalysisUpdated, formatTimestamp(study.analysisUpdatedAt));
   updateAnalysisPanel(study);
   updateRunAiLabel(study);

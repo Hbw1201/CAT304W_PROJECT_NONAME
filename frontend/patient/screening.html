@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Osler Screening</title>
+  <title>aegis Screening</title>
   <script>
     const role = localStorage.getItem("userRole");
     if (!role) {
@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="../dashboard.css">
   <link rel="stylesheet" href="../shared-layout.css">
+  <link rel="stylesheet" href="screening.css">
 </head>
 <body class="dash-body screening-page">
   <div class="patient-shell">
@@ -155,10 +156,12 @@
             <p class="value">Screening Assistant</p>
             <p class="label" id="screenStatusDetail">Ready to start your screening.</p>
           </div>
-          <span class="pill plain" id="screenStatusPill" data-state="idle">Idle</span>
+          <span class="status-pill" id="screenStatusPill" data-state="idle">Idle</span>
         </div>
         <div class="chat-status" id="screenError" role="status" aria-live="polite"></div>
-        <div class="chat-body" id="screeningMessages" aria-live="polite"></div>
+        <div class="chat-body" id="screeningMessages" aria-live="polite">
+          <div class="chat-hint" id="screeningHint">You can type or use the mic to answer.</div>
+        </div>
         <form class="chat-footer" id="screeningForm">
           <textarea id="screeningInput" name="message" rows="1" placeholder="Type your answer..." autocomplete="off"></textarea>
           <button class="pill action-primary" id="screeningSend" type="submit">Send</button>

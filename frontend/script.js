@@ -2,13 +2,11 @@ import { auth, db, storage } from "./firebase-config.js";
 import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { addDoc, collection, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-if (typeof firebase !== "undefined") {
-  const needsFunctions = /register-self\.html|question\.html|dashboard\.html/i.test(location.pathname);
-  if (needsFunctions && typeof firebase.functions !== "function") {
+const needsFunctions = /register-self\.html|question\.html|dashboard\.html/i.test(location.pathname);
+if (needsFunctions) {
+  if (typeof firebase === "undefined" || typeof firebase.functions !== "function") {
     console.error("Firebase Functions SDK not loaded");
   }
-} else {
-  console.error("Firebase Functions SDK not loaded");
 }
 
 const icons = {

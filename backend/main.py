@@ -24,13 +24,21 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
-from typing import Any, Dict, Optional, Callable
+from typing import Any, Dict, Optional, Callable, Union
 from urllib.parse import urlparse
 
 try:
     import fcntl  # Linux only
 except Exception:
     fcntl = None
+
+try:
+    from dotenv import load_dotenv
+    _ENV_PATH = Path(__file__).resolve().parent / ".env"  # backend/.env
+    load_dotenv(dotenv_path=_ENV_PATH, override=False)
+except Exception:
+    # do not crash if dotenv is missing; firebase_admin_init will raise if env missing
+    pass
 
 from flask import Flask, abort, jsonify, request, send_from_directory, Response, g
 from flask_cors import CORS
@@ -41,6 +49,7 @@ from firebase_admin import firestore as admin_firestore
 from firebase_admin import storage as admin_storage
 
 from firebase_admin_init import (
+    init_firebase_or_die,
     get_firestore_client,
     get_project_id,
     get_user_role,
@@ -72,6 +81,24 @@ START_SCREEN = os.environ.get("START_SCREEN", "1").lower() not in ("0", "false",
 CHAT_HOST = os.environ.get("CHAT_HOST", "127.0.0.1")
 CHAT_PORT = int(os.environ.get("NODE_CHAT_PORT", 3000))
 DEFAULT_NODE_CHAT_URL = f"http://{CHAT_HOST}:{CHAT_PORT}"
+CHAT_SERVICE_URL = (
+    os.getenv("CHAT_SERVICE_URL")
+    or os.getenv("NODE_CHAT_URL")
+    or DEFAULT_NODE_CHAT_URL
+).rstrip("/")
+if "://" not in CHAT_SERVICE_URL:
+    CHAT_SERVICE_URL = f"http://{CHAT_SERVICE_URL}"
+CHAT_CONNECT_TIMEOUT = float(os.getenv("CHAT_CONNECT_TIMEOUT", "3"))
+CHAT_READ_TIMEOUT = float(os.getenv("CHAT_READ_TIMEOUT", "120"))
+CHAT_MAX_RETRIES = int(os.getenv("CHAT_MAX_RETRIES", "2"))
+CHAT_SESSION = requests.Session()
+_CHAT_UPSTREAM_CHECKED = False
+_CHAT_RETRY_STATUS_CODES = {502, 503, 504}
+_CHAT_RETRY_EXCEPTIONS = (
+    requests.exceptions.ReadTimeout,
+    requests.exceptions.ConnectTimeout,
+    requests.exceptions.ConnectionError,
+)
 AUTO_START_CHAT = os.environ.get("AUTO_START_CHAT", "1").lower() not in ("0", "false", "no")
 _screen_process: Optional[subprocess.Popen] = None
 _chat_process: Optional[subprocess.Popen] = None
@@ -514,6 +541,171 @@ def _decode_pdf_bytes() -> tuple[Optional[bytes], Dict[str, Any]]:
     return pdf_bytes, meta
 
 
+def _coerce_pdf_path(pdf_bytes_or_path: Union[bytes, str, Path]) -> tuple[Path, Optional[Path]]:
+    if isinstance(pdf_bytes_or_path, (bytes, bytearray)):
+        temp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+        temp.write(pdf_bytes_or_path)
+        temp.flush()
+        temp.close()
+        temp_path = Path(temp.name)
+        return temp_path, temp_path
+    return Path(str(pdf_bytes_or_path)).expanduser(), None
+
+
+def _describe_pdf_source(pdf_path: Union[str, Path]) -> tuple[str, int, Path]:
+    file_path = Path(str(pdf_path)).expanduser()
+    abs_path = str(file_path.resolve())
+    size = -1
+    try:
+        size = file_path.stat().st_size
+    except FileNotFoundError:
+        size = -1
+    return abs_path, size, file_path
+
+
+def _mark_pdf_failed(doc_ref: Optional[Any], report_id: str, error_message: str) -> None:
+    payload = {
+        "pdfStatus": "failed",
+        "status": "failed",
+        "pdfError": str(error_message)[:500],
+        "pdfUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
+        "updatedAt": admin_firestore.SERVER_TIMESTAMP,
+    }
+    try:
+        if doc_ref is None:
+            db = get_firestore_client()
+            doc_ref = db.collection("reports").document(report_id)
+        doc_ref.set(payload, merge=True)
+    except Exception:
+        logger.warning("[reports] failed to mark pdfStatus=failed for reportId=%s", report_id)
+
+
+def debug_check_object(storage_path: str) -> None:
+    if not storage_path:
+        return
+    try:
+        bucket = get_storage_bucket()
+        blob = bucket.blob(storage_path)
+        exists = blob.exists()
+        try:
+            blob.reload()
+        except Exception:
+            pass
+        size = blob.size or 0
+        logger.info(
+            "[pdf-upload] debug_check_object exists=%s size=%s bucket=%s path=%s",
+            exists,
+            size,
+            bucket.name,
+            storage_path,
+        )
+    except Exception as exc:
+        logger.warning("[pdf-upload] debug_check_object failed path=%s error=%s", storage_path, exc)
+
+
+def upload_report_pdf(report_doc: Dict[str, Any], pdf_bytes_or_path: Union[bytes, str, Path]) -> str:
+    auth_uid = str(report_doc.get("auth_uid") or report_doc.get("authUid") or "").strip()
+    report_id = str(report_doc.get("reportId") or report_doc.get("id") or "").strip()
+    doc_ref = report_doc.get("_doc_ref")
+    if not auth_uid or not report_id:
+        raise ValueError("upload_report_pdf requires auth_uid and reportId")
+
+    storage_path = f"reports/{auth_uid}/{report_id}.pdf"
+    temp_path = None
+    pdf_path, temp_path = _coerce_pdf_path(pdf_bytes_or_path)
+    local_path, local_size, file_path = _describe_pdf_source(pdf_path)
+    project_id = get_project_id()
+    try:
+        bucket = get_storage_bucket()
+    except Exception as exc:
+        logger.error("[pdf-upload] bucket init failed auth_uid=%s reportId=%s error=%s", auth_uid, report_id, exc)
+        _mark_pdf_failed(doc_ref, report_id, f"bucket init failed: {exc}")
+        raise
+    logger.info(
+        "[pdf-upload] project=%s bucket=%s auth_uid=%s reportId=%s local=%s size=%s dest=%s",
+        project_id,
+        bucket.name,
+        auth_uid,
+        report_id,
+        local_path,
+        local_size,
+        storage_path,
+    )
+    if not file_path.exists():
+        _mark_pdf_failed(doc_ref, report_id, f"local file not found: {local_path}")
+        raise FileNotFoundError(f"Report file not found: {local_path}")
+    try:
+        blob = bucket.blob(storage_path)
+        blob.upload_from_filename(str(file_path), content_type="application/pdf")
+        exists = blob.exists()
+        try:
+            blob.reload()
+        except Exception:
+            pass
+        size = blob.size or 0
+        logger.info(
+            "[pdf-upload] upload verify exists=%s size=%s storagePath=%s",
+            exists,
+            size,
+            storage_path,
+        )
+        if not exists or size <= 0:
+            message = f"upload verification failed exists={exists} size={size}"
+            _mark_pdf_failed(doc_ref, report_id, message)
+            raise RuntimeError(message)
+        logger.info(
+            "[reports] storage upload ok auth_uid=%s reportId=%s storagePath=%s size=%s",
+            auth_uid,
+            report_id,
+            storage_path,
+            size,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.error(
+            "[reports] storage upload failed auth_uid=%s reportId=%s storagePath=%s error=%s",
+            auth_uid,
+            report_id,
+            storage_path,
+            exc,
+        )
+        _mark_pdf_failed(doc_ref, report_id, f"upload failed: {exc}")
+        raise
+    finally:
+        if temp_path:
+            try:
+                temp_path.unlink()
+            except Exception:
+                pass
+
+    try:
+        db = get_firestore_client()
+        doc_ref = doc_ref or db.collection("reports").document(report_id)
+        doc_ref.set(
+            {
+                "patientUid": auth_uid,
+                "storagePath": storage_path,
+                "pdfPath": storage_path,
+                "pdfStatus": "ready",
+                "status": "ready",
+                "pdfError": "",
+                "pdfUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
+                "updatedAt": admin_firestore.SERVER_TIMESTAMP,
+            },
+            merge=True,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.error(
+            "[reports] firestore update failed uid=%s reportId=%s storagePath=%s error=%s",
+            patient_uid,
+            report_id,
+            storage_path,
+            exc,
+        )
+        raise
+
+    return storage_path
+
+
 def _parse_answers_payload(raw: Any) -> list[Dict[str, Any]]:
     if not raw:
         return []
@@ -708,6 +900,7 @@ def system_init() -> Flask:
     - CT inference modules
     - additional API routes or services
     """
+    init_firebase_or_die()
     app = Flask(
         __name__,
         static_folder=str(UI_DIR),
@@ -844,6 +1037,9 @@ def system_init() -> Flask:
             for doc in docs:
                 data = doc.to_dict() or {}
                 storage_path = data.get("storagePath") or data.get("pdfPath") or ""
+                pdf_status = str(data.get("pdfStatus") or "").strip().lower()
+                if not pdf_status:
+                    pdf_status = "ready" if storage_path else "missing"
                 local_path = data.get("localPath") or ""
                 download_url_local = data.get("downloadUrlLocal") or ""
                 report_item = {
@@ -861,6 +1057,7 @@ def system_init() -> Flask:
                     "title": data.get("title", "Lung Cancer Screening Report"),
                     "source": data.get("source", "screening"),
                     "status": data.get("status", "ready"),
+                    "pdfStatus": pdf_status,
                 }
                 created_at = data.get("createdAt")
                 report_item["createdAt"] = created_at.isoformat() if hasattr(created_at, "isoformat") else (str(created_at) if created_at else None)
@@ -988,8 +1185,8 @@ def system_init() -> Flask:
     @app.route("/api/reports", methods=["POST"])
     @require_firebase_auth()
     def create_report() -> Any:
-        uid = getattr(g, "firebase_uid", None)
-        if not uid:
+        auth_uid = str(getattr(g, "firebase_uid", "") or "").strip()
+        if not auth_uid:
             return jsonify({"error": "Unauthorized"}), 401
 
         try:
@@ -1021,11 +1218,13 @@ def system_init() -> Flask:
         mode = (meta.get("mode") or "voice").strip().lower()
         session_id = (meta.get("sessionId") or "").strip() or None
 
-        report_id = meta.get("reportId") or session_id or _build_report_id(uid)
-        if session_id and report_id != session_id:
+        report_id = str(meta.get("reportId") or "").strip() or None
+        if session_id and report_id and report_id != session_id:
             logger.info("[reports] overriding reportId to session_id reportId=%s session_id=%s", report_id, session_id)
             report_id = session_id
-        screening_id = meta.get("screeningId") or _build_screening_id()
+        if session_id and not report_id:
+            report_id = session_id
+        screening_id = meta.get("screeningId") or session_id or _build_screening_id()
         doctor_id = (meta.get("doctorId") or "").strip() or None
         if doctor_id == "unassigned":
             doctor_id = None
@@ -1039,51 +1238,57 @@ def system_init() -> Flask:
         }
 
         try:
-            bucket = get_storage_bucket()
-            path = f"reports/{uid}/{report_id}.pdf"
-            blob = bucket.blob(path)
-            blob.upload_from_string(pdf_bytes, content_type="application/pdf")
-        except Exception as exc:  # noqa: BLE001
-            logger.error("[reports] storage upload failed uid=%s reportId=%s bytes=%s error=%s", uid, report_id, len(pdf_bytes), exc)
-            return jsonify({"error": "Storage upload failed", "detail": str(exc)}), 500
-
-        try:
             db = get_firestore_client()
+            doc_ref = db.collection("reports").document(report_id) if report_id else db.collection("reports").document()
+            report_id = doc_ref.id
             # Reports schema (source of truth):
             # reports/{reportId}: patientId, doctorId, reportId, screeningId, riskLevel, createdAt.
-            # Optional: pdfPath, contentText, updatedAt.
+            # Optional: storagePath, contentText, updatedAt.
             payload = {
                 "createdAt": admin_firestore.SERVER_TIMESTAMP,
                 "updatedAt": admin_firestore.SERVER_TIMESTAMP,
                 "doctorId": doctor_id,
-                "patientId": uid,
-                "userId": uid,
+                "patientId": auth_uid,
+                "patientUid": auth_uid,
+                "userId": auth_uid,
+                "userUid": auth_uid,
                 "reportId": report_id,
                 "screeningId": screening_id,
+                "sessionId": session_id,
                 "riskLevel": risk_level,
-                "pdfPath": path,
-                "storagePath": path,
+                "storagePath": "",
+                "pdfPath": "",
+                "pdfStatus": "pending",
                 "format": "pdf",
                 "title": "Lung Cancer Screening Report",
                 "source": mode,
-                "status": "ready",
+                "status": "pending",
                 "answersRaw": answers_raw,
                 "answersNormalized": answers_normalized,
                 "summaryUserInfo": summary_user_info,
                 "contentText": content_text,
             }
-            doc_ref = db.collection("reports").document(report_id)
             doc_ref.set(payload, merge=True)
             doc_id = doc_ref.id
         except Exception as exc:  # noqa: BLE001
-            logger.error("[reports] firestore write failed uid=%s reportId=%s error=%s", uid, report_id, exc)
+            logger.error("[reports] firestore write failed auth_uid=%s reportId=%s error=%s", auth_uid, report_id, exc)
             return jsonify({"error": "Firestore write failed", "detail": str(exc)}), 500
 
+        try:
+            path = upload_report_pdf(
+                {"auth_uid": auth_uid, "reportId": report_id, "_doc_ref": doc_ref},
+                pdf_bytes,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"error": "Storage upload failed", "detail": str(exc)}), 500
+        debug_check_object(path)
+
         logger.info(
-            "[reports] created uid=%s reportId=%s docId=%s bytes=%s mode=%s answers=%s",
-            uid,
+            "[reports] created auth_uid=%s reportId=%s docId=%s storagePath=%s bytes=%s mode=%s answers=%s",
+            auth_uid,
             report_id,
             doc_id,
+            path,
             len(pdf_bytes),
             mode,
             len(answers_raw),
@@ -1094,7 +1299,9 @@ def system_init() -> Flask:
                 "docId": doc_id,
                 "reportId": report_id,
                 "screeningId": screening_id,
+                "storagePath": path,
                 "pdfPath": path,
+                "pdfStatus": "ready",
                 "patientId": uid,
                 "createdAt": admin_firestore.SERVER_TIMESTAMP,
             }
@@ -1498,21 +1705,18 @@ def system_init() -> Flask:
         if auth_header:
             headers["Authorization"] = auth_header
 
-        try:
-            proxied = requests.post(
-                target_url,
-                data=raw_body,
-                headers=headers,
-                timeout=15,
-            )
-            print(f"[/api/chat proxy] -> {target_url} status={proxied.status_code}")
-        except requests.RequestException as exc:
-            print(f"[/api/chat proxy] -> {target_url} error={exc}")
-            return jsonify({"error": f"backend chat service unreachable: {exc}"}), 502
+        proxied, error_detail = _post_chat_with_retries(target_url, raw_body, headers)
+        if proxied is None:
+            logger.warning("[/api/chat proxy] -> %s failed: %s", target_url, error_detail)
+            return _chat_upstream_error(error_detail)
 
-        resp_content = proxied.content
-        resp_headers = {"Content-Type": proxied.headers.get("Content-Type", "application/json")}
-        return Response(resp_content, status=proxied.status_code, headers=resp_headers)
+        logger.info("[/api/chat proxy] -> %s status=%s", target_url, proxied.status_code)
+        try:
+            node_payload = proxied.json()
+        except ValueError:
+            resp_headers = {"Content-Type": proxied.headers.get("Content-Type", "application/json")}
+            return Response(proxied.content, status=proxied.status_code, headers=resp_headers)
+        return jsonify(node_payload), proxied.status_code
 
     def add_cors(resp: Response) -> Response:
         resp.headers["Access-Control-Allow-Origin"] = "*"
@@ -2340,10 +2544,71 @@ def _is_port_open(host: str, port: int, timeout: float = 0.5) -> bool:
 
 
 def _get_chat_base() -> str:
-    target_base = (os.environ.get("NODE_CHAT_URL") or DEFAULT_NODE_CHAT_URL).rstrip("/")
-    if "://" not in target_base:
-        target_base = f"http://{target_base}"
-    return target_base
+    return CHAT_SERVICE_URL
+
+
+def _chat_retry_sleep(attempt: int) -> None:
+    time.sleep(0.5 * (2 ** attempt))
+
+
+def _post_chat_with_retries(
+    url: str,
+    raw_body: bytes,
+    headers: Dict[str, str],
+) -> tuple[Optional[requests.Response], str]:
+    last_error = ""
+    for attempt in range(CHAT_MAX_RETRIES + 1):
+        try:
+            resp = CHAT_SESSION.post(
+                url,
+                data=raw_body,
+                headers=headers,
+                timeout=(CHAT_CONNECT_TIMEOUT, CHAT_READ_TIMEOUT),
+            )
+        except _CHAT_RETRY_EXCEPTIONS as exc:
+            last_error = f"{type(exc).__name__}: {exc}"
+            if attempt < CHAT_MAX_RETRIES:
+                _chat_retry_sleep(attempt)
+                continue
+            return None, last_error
+        except requests.RequestException as exc:
+            last_error = f"{type(exc).__name__}: {exc}"
+            return None, last_error
+
+        if resp.status_code in _CHAT_RETRY_STATUS_CODES:
+            last_error = f"upstream_status_{resp.status_code}"
+            if attempt < CHAT_MAX_RETRIES:
+                _chat_retry_sleep(attempt)
+                continue
+            return None, last_error
+        return resp, ""
+    return None, last_error
+
+
+def _chat_upstream_error(detail: str) -> tuple[Response, int]:
+    payload = {
+        "ok": False,
+        "code": "CHAT_UPSTREAM_TIMEOUT",
+        "message": "Chat service is busy, please try again.",
+        "detail": detail or "upstream_timeout",
+    }
+    return jsonify(payload), 503
+
+
+def _log_chat_upstream_status() -> None:
+    global _CHAT_UPSTREAM_CHECKED
+    if _CHAT_UPSTREAM_CHECKED:
+        return
+    _CHAT_UPSTREAM_CHECKED = True
+    url = f"{CHAT_SERVICE_URL}/api/chat"
+    try:
+        resp = CHAT_SESSION.get(url, timeout=(1, 3))
+        if resp.ok:
+            logger.info("[chat] chat upstream ok")
+        else:
+            logger.warning("[chat] chat upstream not reachable")
+    except requests.RequestException:
+        logger.warning("[chat] chat upstream not reachable")
 
 
 def is_chat_running(timeout: float = 0.5) -> bool:
@@ -2649,6 +2914,7 @@ def ensure_screen_backend():
 app = system_init()
 _chat_base = _get_chat_base()
 logger.info(f"[launcher] expecting chat service at {_chat_base}")
+_log_chat_upstream_status()
 
 logger.info("\n=== ROUTES (runtime) ===")
 for r in app.url_map.iter_rules():
