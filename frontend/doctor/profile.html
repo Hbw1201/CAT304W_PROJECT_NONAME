@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="doctor-light.css">
   <link rel="stylesheet" href="../shared-layout.css">
 </head>
-<body class="dash-body doctor-theme">
+<body class="dash-body doctor-theme doctor-profile-page">
   <div class="page-layout">
     <aside class="sidebar">
       <div class="brand-row">
@@ -139,27 +139,28 @@
     </aside>
 
     <main class="main-content main-panel">
-      <section class="card hero">
-        <div>
-          <p class="value">Profile & preferences</p>
-          <p class="lede">Keep your practice details up to date for patients and staff.</p>
+      <section class="card hero profile-hero">
+        <div class="hero-copy">
+          <p class="hero-label">Profile & preferences</p>
+          <p class="hero-title">Doctor settings</p>
+          <p class="hero-sub">Keep your practice details up to date for patients and staff.</p>
         </div>
         <div class="hero-pattern" aria-hidden="true"></div>
       </section>
 
       <section class="card profile-card">
-        <div class="card-head">
-          <div class="card-title-row">
+        <div class="card-head profile-head">
+          <div class="profile-head-text">
             <p class="card-title">Doctor information</p>
-            <span class="pill blue">Editable</span>
+            <p class="card-text">Manage your professional and contact details shared with patients.</p>
           </div>
         </div>
-        <form class="profile-grid">
+        <form class="profile-grid profile-form-grid">
           <label class="field">
             <span>Full name</span>
             <input id="doctor-name-input" type="text" placeholder="Dr. Jane Smith" value="">
           </label>
-          <label class="field">
+          <label class="field span-2">
             <span>Hospital / clinic</span>
             <input id="doctor-hospital-input" type="text" placeholder="Osler Medical Center" value="">
           </label>
@@ -175,15 +176,15 @@
             <span>Contact phone</span>
             <input id="doctor-phone-input" type="tel" placeholder="+1 (555) 123-4567" value="">
           </label>
-          <label class="field">
+          <label class="field span-5">
             <span>Clinic address</span>
             <input id="doctor-address-input" type="text" placeholder="123 Health Way, Suite 400" value="">
           </label>
-          <label class="field full-width">
+          <label class="field full-width span-5">
             <span>Bio</span>
             <textarea id="doctor-bio-input" rows="3" placeholder="Add a short note about your experience and focus areas."></textarea>
           </label>
-          <div class="field full-width">
+          <div class="field full-width profile-actions">
             <button class="btn-primary" type="button" id="save-profile-btn">Save profile</button>
             <button class="btn-ghost" type="button" id="logout-link-secondary">Log out</button>
           </div>

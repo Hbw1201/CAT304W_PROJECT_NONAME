@@ -175,20 +175,37 @@ function updateSelectedPatientUI(patient) {
     doctorState.chat.patientNameEl.textContent = name;
   }
   if (doctorState.chat.metaEl) {
+    const patientId = patient?.id || patient?.patientId || "N/A";
+    const email = patient?.contactEmail || patient?.email || "";
+    const emailPart = email ? ` · ${email}` : "";
     doctorState.chat.metaEl.textContent = patient
-      ? `Patient ID: ${patient.id || patient.patientId || "N/A"}${patient.email ? ` • ${patient.email}` : ""}`
+      ? `Patient ID: ${patientId}${emailPart}`
       : "Select a patient to begin chatting.";
   }
+}
+
+function highlightSelectedPatient(patientId) {
+  const listEl = document.getElementById("patient-list");
+  if (!listEl) return;
+  const normalized = patientId || null;
+  listEl.querySelectorAll(".patient-list-item").forEach((item) => {
+    const id = item.dataset.patientId || "";
+    if (normalized && id === normalized) {
+      item.classList.add("active");
+    } else {
+      item.classList.remove("active");
+    }
+  });
 }
 
 function appendDoctorMessage(senderType, text, time) {
   const messages = doctorState.chat.messages;
   if (!messages) return;
   const bubble = document.createElement("div");
-  bubble.className = `chat-message ${senderType}`;
+  bubble.className = `chat-message msg ${senderType}`;
 
   const meta = document.createElement("div");
-  meta.className = "chat-message-meta";
+  meta.className = "chat-message-meta meta";
 
   const senderEl = document.createElement("span");
   senderEl.className = "chat-message-sender";
@@ -309,6 +326,7 @@ async function setActiveChatForPatient(patient) {
   doctorState.chat.currentChatId = null;
 
   const patientId = getPatientId(patient);
+  highlightSelectedPatient(patientId);
   subscribeFlowForPatient(patientId);
   if (!patientId) return;
 
@@ -657,7 +675,8 @@ function renderPatientList(patients) {
   statusEl.textContent = "";
   patients.forEach((patient) => {
     const li = document.createElement("li");
-    li.className = "patient-list-item";
+    li.className = "patient-list-item patient-item";
+    li.dataset.patientId = getPatientId(patient);
     const title = document.createElement("div");
     title.className = "patient-name";
     title.textContent = patient.fullName || patient.name || "Unnamed patient";
@@ -671,6 +690,7 @@ function renderPatientList(patients) {
     });
     listEl.appendChild(li);
   });
+  highlightSelectedPatient(getPatientId(doctorState.selectedPatient));
 }
 
 async function loadDoctorPatients(user) {

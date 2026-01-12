@@ -1,4 +1,4 @@
-# app.py
+﻿# app.py
 import os, pathlib, shutil, subprocess, tempfile, logging, time, sys, asyncio, threading, base64, json, traceback, uuid
 import concurrent.futures
 from functools import lru_cache
@@ -101,6 +101,8 @@ SCREEN_BIND = os.getenv("SCREEN_BIND", SCREEN_HOST)
 # ===== Voice & MetaGPT session state =====
 _voice_sessions: Dict[str, Dict[str, str]] = {}
 _voice_lock = threading.Lock()
+_session_lock_registry: Dict[str, threading.Lock] = {}
+_session_lock_registry_lock = threading.Lock()
 
 
 def _generate_session_id(prefix: str = "sess") -> str:
@@ -150,9 +152,9 @@ def get_shared_answer_validator():
                 try:
                     from metagpt_questionnaire.agents.answer_validator import AnswerValidatorAgent
                     _shared_answer_validator = AnswerValidatorAgent()
-                    logger.info("✅ Shared answer validator initialized successfully")
+                    logger.info("鉁?Shared answer validator initialized successfully")
                 except Exception as e:
-                    logger.error(f"❌ Failed to initialize shared answer validator: {e}")
+                    logger.error(f"鉂?Failed to initialize shared answer validator: {e}")
                     return None
     return _shared_answer_validator
 
@@ -167,7 +169,7 @@ def _init_metagpt_if_needed():
             return True
         
         try:
-            logger.info("🚀 Initializing MetaGPT questionnaire workflow...")
+            logger.info("馃殌 Initializing MetaGPT questionnaire workflow...")
             
             # 1. Ensure paths are correct
             current_file = pathlib.Path(__file__).resolve()
@@ -185,18 +187,18 @@ def _init_metagpt_if_needed():
                 if path not in sys.path:
                     sys.path.insert(0, path)
             
-            logger.info(f"✅ MetaGPT path confirmed: {metagpt_dir}")
+            logger.info(f"鉁?MetaGPT path confirmed: {metagpt_dir}")
             
             # 3. Check environment variables
             deepseek_key = os.getenv("DEEPSEEK_API_KEY")
             if not deepseek_key or deepseek_key.startswith("your-"):
-                logger.warning("⚠️ DEEPSEEK_API_KEY is not configured, MetaGPT will run in degraded mode")
+                logger.warning("鈿狅笍 DEEPSEEK_API_KEY is not configured, MetaGPT will run in degraded mode")
             
             # 4. Import core modules
             try:
                 from metagpt_questionnaire.config.metagpt_config import validate_config as metagpt_validate_config, get_llm_config
                 from metagpt_questionnaire.agents.base_agent import agent_registry
-                logger.info("✅ Core MetaGPT modules imported successfully")
+                logger.info("鉁?Core MetaGPT modules imported successfully")
             except ImportError as e:
                 _metagpt_error = f"Failed to import core MetaGPT modules: {e}"
                 logger.error(_metagpt_error)
@@ -250,18 +252,18 @@ def _init_metagpt_if_needed():
                 except Exception as e:
                     logger.warning(f"Failed to register agent {agent_class.__name__}: {e}")
             
-            logger.info(f"✅ Registered {registered_count} MetaGPT agents")
+            logger.info(f"鉁?Registered {registered_count} MetaGPT agents")
             
             # 7. Validate MetaGPT config (optional)
             config_ok = False
             try:
                 config_ok = metagpt_validate_config()
                 if config_ok:
-                    logger.info("✅ MetaGPT config validation passed")
+                    logger.info("鉁?MetaGPT config validation passed")
                 else:
-                    logger.warning("⚠️ MetaGPT config validation failed, running in degraded mode")
+                    logger.warning("鈿狅笍 MetaGPT config validation failed, running in degraded mode")
             except Exception as e:
-                logger.warning(f"⚠️ MetaGPT config validation raised an exception: {e}")
+                logger.warning(f"鈿狅笍 MetaGPT config validation raised an exception: {e}")
             
             # 8. Create workflow
             try:
@@ -270,11 +272,11 @@ def _init_metagpt_if_needed():
                 
                 # Test workflow status
                 status = _metagpt_workflow.get_agent_status()
-                logger.info(f"✅ MetaGPT workflow created, total agents: {status.get('total_agents', 0)}")
+                logger.info(f"鉁?MetaGPT workflow created, total agents: {status.get('total_agents', 0)}")
                 
                 _metagpt_init_ok = True
                 _metagpt_error = None
-                logger.info("🎉 MetaGPT questionnaire workflow initialization completed")
+                logger.info("馃帀 MetaGPT questionnaire workflow initialization completed")
                 return True
                 
             except Exception as e:
@@ -420,7 +422,7 @@ def _create_pipeline_session(session_id: str, bucket_attr: str):
         "source": "local",
         "local_questionnaire_path": os.environ.get("LOCAL_QUESTIONNAIRE_PATH")
     }))
-    logger.info(f"🧠 QuestionnaireDesignerAgent: generated {len(questionnaire.questions)} base questions")
+    logger.info(f"馃 QuestionnaireDesignerAgent: generated {len(questionnaire.questions)} base questions")
 
     manager = SimpleQuestionnaireManager()
     if not manager.initialize_questionnaire(questionnaire):
@@ -560,11 +562,11 @@ def validate_user_answer(answer_text: str, question_text: str) -> (bool, str):
         if len(text) < 2:
             return False, "The answer is too short."
         
-        # Generic vague answers (Chinese and English) – kept here as negative examples
+        # Generic vague answers (Chinese and English) kept here as negative examples
         generic_list = [
-            "不知道", "不清楚", "随便", "无", "没了", "没有", "嗯", "啊",
-            "ok", "好的", "还行", "是", "否", "不知道呢", "记不清", "忘了",
-            "idk", "dont know", "don't know", "no idea", "whatever", "nothing"
+            "???", "???", "??", "??", "??", "??", "???",
+            "ok", "??", "??", "??",
+            "idk", "dont know", "don't know", "no idea", "whatever", "nothing", "n/a", "none"
         ]
         if any(g in text for g in generic_list):
             return False, "The answer is too vague."
@@ -594,7 +596,7 @@ def serve_tts(filename):
 
 # ========= Text length & chunking for avatar =========
 AVG_CHARS_PER_SEC = 4.0   # Rough estimate, depends on TTS voice
-TARGET_SECS = 7           # Target 6–8 seconds per segment
+TARGET_SECS = 7           # Target 6鈥? seconds per segment
 MAX_CHARS = 10000         # Allow long sentences for TTS output
 
 def shorten_for_avatar(text: str, max_chars: int = MAX_CHARS) -> str:
@@ -606,7 +608,7 @@ def split_for_avatar(text: str, target_secs: int = TARGET_SECS):
     t = (text or "").strip()
     if not t:
         return []
-    parts = re.split(r'(?<=[。！？\n.!?])', t)
+    parts = re.split(r'(?<=[銆傦紒锛焅n.!?])', t)
     parts = [p.strip() for p in parts if p.strip()]
     chunks, cur, cur_len = [], [], 0
     target_chars = int(target_secs * AVG_CHARS_PER_SEC * 1.15)
@@ -1113,353 +1115,433 @@ def api_screen_metagpt_next_alias():
     return metagpt_next_simple()
 
 
+def _json_with_request_id(payload: Dict[str, object], request_id: str, status: int = 200):
+    body = dict(payload or {})
+    body.setdefault("request_id", request_id)
+    return jsonify(body), status
+
+
+def _parse_json_body(request_id: str, endpoint: str):
+    raw_body = (request.get_data(cache=False) or b"").strip()
+    data = {}
+    if raw_body:
+        try:
+            data = json.loads(raw_body.decode("utf-8"))
+        except Exception:
+            logger.warning("[%s] request_id=%s invalid_json", endpoint, request_id)
+            return None, _json_with_request_id({"ok": False, "error": "invalid_json"}, request_id, 400)
+    else:
+        data = request.get_json(silent=True) or {}
+    if data is None:
+        data = {}
+    if not isinstance(data, dict):
+        logger.warning("[%s] request_id=%s invalid_json_type=%s", endpoint, request_id, type(data).__name__)
+        return None, _json_with_request_id({"ok": False, "error": "invalid_json"}, request_id, 400)
+    return data, None
+
+
 # ========= Simplified MetaGPT API =========
 @app.route("/metagpt/start", methods=["POST"])
 def metagpt_start_simple():
-    data = request.get_json(silent=True) or {}
-    requested_session = data.get("session_id")
-    session_id, question, error = _start_metagpt_session_for_api(requested_session)
-    if error:
-        return jsonify({"ok": False, "error": error}), 500
-    return jsonify({"ok": True, "session_id": session_id, "question": question, "step": 1})
+    request_id = uuid.uuid4().hex[:12]
+    g.request_id = request_id
+    try:
+        data, error_resp = _parse_json_body(request_id, "metagpt start")
+        if error_resp:
+            return error_resp
+        uid = (request.headers.get("X-Firebase-UID") or "").strip()
+        if not uid:
+            raw_uid = data.get("user_id")
+            if isinstance(raw_uid, str):
+                uid = raw_uid.strip()
+        payload_keys = sorted(list(data.keys()))
+        logger.info("[metagpt start] enter request_id=%s uid=%s keys=%s", request_id, uid or "-", payload_keys)
+
+        requested_session = data.get("session_id") or data.get("sessionId")
+        session_id, question, error = _start_metagpt_session_for_api(requested_session)
+        if error:
+            logger.error("[metagpt start] request_id=%s error=%s", request_id, error)
+            return _json_with_request_id({"ok": False, "error": error}, request_id, 500)
+        return _json_with_request_id(
+            {"ok": True, "session_id": session_id, "sessionId": session_id, "question": question, "step": 1},
+            request_id,
+            200,
+        )
+    except Exception:
+        logger.error("[metagpt start] request_id=%s exception=%s", request_id, traceback.format_exc())
+        return _json_with_request_id({"ok": False, "error": "internal_error"}, request_id, 500)
+
 
 
 @app.route("/metagpt/next", methods=["POST"])
 def metagpt_next_simple():
-    request_id = getattr(g, "request_id", None) or uuid.uuid4().hex[:8]
-    where = "/api/screen/metagpt/next"
+    request_id = uuid.uuid4().hex[:12]
+    g.request_id = request_id
+    lock = None
+    lock_acquired = False
     try:
-        data = request.get_json(silent=True)
-        if data is None and request.data:
-            try:
-                raw_text = request.data.decode("utf-8", errors="ignore").strip()
-                if raw_text:
-                    data = json.loads(raw_text)
-            except Exception:
-                data = None
-        if data is None:
-            data = {}
-        if not isinstance(data, dict):
-            logger.warning("[metagpt next] request_id=%s invalid_json", request_id)
-            return jsonify({
-                "ok": False,
-                "type": "bad_request",
-                "error": "missing body",
-                "where": where,
-                "request_id": request_id
-            }), 400
+        data, error_resp = _parse_json_body(request_id, "metagpt next")
+        if error_resp:
+            return error_resp
+
+        uid = (request.headers.get("X-Firebase-UID", "") or "").strip()
+        if not uid:
+            raw_uid = data.get("user_id")
+            if isinstance(raw_uid, str):
+                uid = raw_uid.strip()
+        payload_keys = sorted(list(data.keys()))
+        logger.info("[metagpt next] enter request_id=%s uid=%s keys=%s", request_id, uid or "-", payload_keys)
 
         session_id_raw = data.get("session_id") or data.get("sessionId")
-        session_id = session_id_raw.strip() if isinstance(session_id_raw, str) else ""
+        if not isinstance(session_id_raw, str) or not session_id_raw.strip():
+            return _json_with_request_id(
+                {"ok": False, "error": "missing_field", "field": "sessionId"},
+                request_id,
+                400,
+            )
+        session_id = session_id_raw.strip()
         message_raw = data.get("message") or data.get("answer")
-        message = message_raw.strip() if isinstance(message_raw, str) else ""
-        uid = request.headers.get("X-Firebase-UID", "").strip()
-        if not uid:
-            uid = data.get("user_id") if isinstance(data.get("user_id"), str) else ""
-
-        if not session_id:
-            return jsonify({
-                "ok": False,
-                "type": "bad_request",
-                "error": "missing session_id",
-                "where": where,
-                "request_id": request_id
-            }), 400
-        if not message:
-            return jsonify({
-                "ok": False,
-                "type": "bad_request",
-                "error": "missing message",
-                "where": where,
-                "request_id": request_id
-            }), 400
-
-        safe_answer = message
-        if len(safe_answer) > 200:
-            safe_answer = f"{safe_answer[:200]}..."
-        logger.info(
-            "[metagpt next] request_id=%s session_id=%s uid=%s answer=%s",
-            request_id,
-            session_id,
-            uid or "-",
-            safe_answer
-        )
-        _ensure_metagpt_session_storage()
-        sess = app.metagpt_sessions.get(session_id)
-        if not sess:
-            logger.info("[metagpt next] request_id=%s session_missing session_id=%s", request_id, session_id)
-            return jsonify({
-                "ok": True,
-                "type": "needs_restart",
-                "session_id": session_id,
-                "assistant": {"text": "Session expired. Please start screening again."},
-                "request_id": request_id
-            }), 200
-
-        manager = sess.get("manager")
-        questionnaire = sess.get("questionnaire")
-        if not manager:
-            logger.error(
-                "[metagpt next] request_id=%s state_invalid session_id=%s state_keys=%s",
+        if not isinstance(message_raw, str) or not message_raw.strip():
+            return _json_with_request_id(
+                {"ok": False, "error": "missing_field", "field": "answer"},
                 request_id,
-                session_id,
-                list(sess.keys())
+                400,
             )
-            return jsonify({
-                "ok": True,
-                "type": "needs_restart",
-                "session_id": session_id,
-                "assistant": {"text": "Session expired. Please start screening again."},
-                "request_id": request_id,
-            }), 200
+        message = message_raw.strip()
 
-        message_lower = message.lower()
-        repeat_phrases = [
-            "repeat",
-            "again",
-            "ask again",
-            "last question",
-            "previous question",
-            "repeat question",
-        ]
-        if any(phrase in message_lower for phrase in repeat_phrases):
-            current_index = getattr(manager, "current_question_index", 0)
-            question_text = ""
-            if questionnaire and hasattr(questionnaire, "questions"):
-                questions = getattr(questionnaire, "questions", [])
-                if isinstance(questions, list) and questions:
-                    if current_index >= len(questions):
-                        current_index = max(len(questions) - 1, 0)
-                    try:
-                        question_obj = questions[current_index]
-                        question_text = getattr(question_obj, "text", "") or str(question_obj)
-                    except Exception:
-                        question_text = ""
-            if not question_text:
-                question_text = sess.get("last_question") or "Please answer the current question."
-            sess["last_question"] = question_text
-            logger.info(
-                "[metagpt next] request_id=%s repeat_question session_id=%s index=%s",
-                request_id,
-                session_id,
-                current_index
-            )
-            return jsonify({
-                "ok": True,
-                "type": "repeat_question",
-                "session_id": session_id,
-                "assistant": {"text": question_text},
-                "question": question_text,
-                "done": False,
-                "request_id": request_id
-            }), 200
-
+        lock_key = f"{uid or 'anon'}::{session_id}"
+        with _session_lock_registry_lock:
+            lock = _session_lock_registry.get(lock_key)
+            if lock is None:
+                lock = threading.Lock()
+                _session_lock_registry[lock_key] = lock
+        if not lock.acquire(blocking=False):
+            logger.warning("[metagpt next] request_id=%s session_lock_conflict key=%s", request_id, lock_key)
+            return _json_with_request_id({"ok": False, "error": "session_conflict"}, request_id, 409)
+        lock_acquired = True
         try:
-            result = _run_async(manager.get_next_question(message))
-        except Exception:
-            logger.error(
-                "[metagpt next] request_id=%s validator_exception=%s",
+            safe_answer = message if len(message) <= 200 else f"{message[:200]}..."
+            logger.info(
+                "[metagpt next] request_id=%s session_id=%s uid=%s answer=%s",
                 request_id,
-                traceback.format_exc()
+                session_id,
+                uid or "-",
+                safe_answer,
             )
-            return jsonify({
-                "ok": True,
-                "type": "needs_clarification",
-                "session_id": session_id,
-                "assistant": {"text": "Please provide a more specific answer."},
-                "request_id": request_id
-            }), 200
-        sess["current_index"] = manager.current_question_index
-        status = result.get("status")
-        response_type = {
-            "invalid_answer": "needs_clarification",
-            "completed": "completed",
-            "next_question": "next_question"
-        }.get(status, "error")
-        validator_valid = status != "invalid_answer"
-        validator_reason = result.get("error") if not validator_valid else ""
-        question_id = result.get("question_id")
-        current_index = getattr(manager, "current_question_index", None)
-        logger.info(
-            "[metagpt next] request_id=%s session_id=%s state=%s question_id=%s validator_valid=%s reason=%s response_type=%s",
-            request_id,
-            session_id,
-            current_index,
-            question_id,
-            validator_valid,
-            validator_reason,
-            response_type
-        )
-        if status == "invalid_answer":
-            assistant_text = result.get("error") or "Please provide a more specific answer."
-            suggestion = result.get("suggestion")
-            if suggestion:
-                assistant_text = f"{assistant_text} {suggestion}".strip()
-            assistant_question = result.get("question")
-            if assistant_question:
-                sess["last_question"] = assistant_question
-            return jsonify({
-                "ok": True,
-                "type": "needs_clarification",
-                "session_id": session_id,
-                "assistant": {
-                    "text": assistant_text,
-                    "question": assistant_question
-                },
-                "state": {
-                    "status": status,
-                    "valid": False,
-                    "reason": result.get("error"),
-                    "suggestion": suggestion,
-                    "progress": result.get("progress")
-                },
-                "message": assistant_text,
-                "question": assistant_question,
-                "hint": suggestion,
-                "retry": True,
-                "done": False,
-                "question_id": question_id,
-                "category": result.get("category"),
-                "progress": result.get("progress"),
-                "request_id": request_id
-            }), 200
-        if status == "completed":
-            report_text = result.get("report") or ""
-            answers_map = _build_answers_map(manager, questionnaire)
-            # Extract auth uid from request headers (set by main backend proxy)
-            auth_uid = request.headers.get("X-Firebase-UID", "").strip()
-            if not auth_uid:
-                auth_header = request.headers.get("Authorization", "")
-                if auth_header and auth_header.startswith("Bearer "):
-                    auth_uid = "dev" if auth_header == "Bearer dev" else ""
-
-            # Extract risk level from report text
-            risk_level = "unknown"
-            report_lower = report_text.lower()
-            if "high risk" in report_lower or "🔴" in report_text:
-                risk_level = "high"
-            elif "medium risk" in report_lower or "🟡" in report_text:
-                risk_level = "medium"
-            elif "low risk" in report_lower or "🟢" in report_text:
-                risk_level = "low"
-
-            if not FIREBASE_AVAILABLE:
-                logger.error("[firebase] unavailable; cannot upload report PDF")
-                return jsonify({"ok": False, "type": "report_failed", "error": "firebase_admin_unavailable"}), 503
-
-            if not auth_uid or auth_uid == "dev":
-                logger.error("[firebase] missing patient uid; cannot upload report PDF")
-                return jsonify({"ok": False, "type": "report_failed", "error": "missing patient uid"}), 400
-
-            answers_map["userId"] = auth_uid
-            answers_map["riskLevel"] = risk_level
-
-            db = get_firestore_client()
-            doc_ref = db.collection("reports").document()
-            report_id = doc_ref.id
-            screening_id = session_id
-            report_ext = "pdf"
-            local_path = f"screen/feiaiagent/report/{report_id}.{report_ext}"
-            download_url_local = f"/api/reports/download/{report_id}.{report_ext}"
-
-            write_report_doc(
-                report_id=report_id,
-                patient_id=auth_uid,
-                screening_id=screening_id,
-                risk_level=risk_level,
-                storage_path="",
-                report_format=report_ext,
-                doctor_id=None,
-                source="metagpt",
-                file_name=f"{report_id}.{report_ext}",
-                local_path=local_path,
-                download_url_local=download_url_local,
-                content_text=report_text,
-                answers_raw=answers_map,
-                pdf_status="pending",
-                status="pending",
-            )
-
-            report_path = report_manager.save_report(report_text, answers_map, session_id)
-            report_manager.save_report_json(report_text, answers_map, session_id)
-            try:
-                pdf_path = report_manager.save_report_pdf(report_text, answers_map, report_id)
-            except Exception as exc:
-                logger.error("[report] PDF generation failed for reportId=%s error=%s", report_id, exc)
-                doc_ref.set(
+            _ensure_metagpt_session_storage()
+            sess = app.metagpt_sessions.get(session_id)
+            if not sess:
+                logger.info("[metagpt next] request_id=%s session_missing session_id=%s", request_id, session_id)
+                return _json_with_request_id(
                     {
-                        "pdfStatus": "failed",
-                        "status": "failed",
-                        "pdfError": f"PDF generation failed: {exc}",
-                        "pdfUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
-                        "updatedAt": admin_firestore.SERVER_TIMESTAMP,
+                        "ok": False,
+                        "error": "session_state_missing",
+                        "type": "needs_restart",
+                        "session_id": session_id,
+                        "assistant": {"text": "Session expired. Please start screening again."},
                     },
-                    merge=True,
+                    request_id,
+                    409,
                 )
-                return jsonify({"ok": False, "type": "report_failed", "error": "PDF generation failed"}), 500
-            if not pdf_path:
-                logger.error("[report] PDF generation failed for reportId=%s", report_id)
-                doc_ref.set(
-                    {
-                        "pdfStatus": "failed",
-                        "status": "failed",
-                        "pdfError": "PDF generation failed: empty path",
-                        "pdfUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
-                        "updatedAt": admin_firestore.SERVER_TIMESTAMP,
-                    },
-                    merge=True,
-                )
-                return jsonify({"ok": False, "type": "report_failed", "error": "PDF generation failed"}), 500
 
-            report_file_path = Path(pdf_path)
-            if not report_file_path.exists():
-                logger.error("[report] PDF file not found: %s", pdf_path)
-                doc_ref.set(
-                    {
-                        "pdfStatus": "failed",
-                        "status": "failed",
-                        "pdfError": f"PDF file not found: {pdf_path}",
-                        "pdfUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
-                        "updatedAt": admin_firestore.SERVER_TIMESTAMP,
-                    },
-                    merge=True,
+            manager = sess.get("manager")
+            questionnaire = sess.get("questionnaire")
+            if not manager:
+                logger.error(
+                    "[metagpt next] request_id=%s state_invalid session_id=%s state_keys=%s",
+                    request_id,
+                    session_id,
+                    list(sess.keys()),
                 )
-                return jsonify({"ok": False, "type": "report_failed", "error": "PDF file not found"}), 500
-            if report_file_path.suffix.lower() != ".pdf":
-                logger.error("[report] Expected PDF but got %s", report_file_path.suffix)
-                doc_ref.set(
+                return _json_with_request_id(
                     {
-                        "pdfStatus": "failed",
-                        "status": "failed",
-                        "pdfError": f"Expected PDF but got {report_file_path.suffix}",
-                        "pdfUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
-                        "updatedAt": admin_firestore.SERVER_TIMESTAMP,
+                        "ok": False,
+                        "error": "session_state_missing",
+                        "type": "needs_restart",
+                        "session_id": session_id,
+                        "assistant": {"text": "Session expired. Please start screening again."},
                     },
-                    merge=True,
+                    request_id,
+                    409,
                 )
-                return jsonify({"ok": False, "type": "report_failed", "error": "PDF generation failed"}), 500
 
-            storage_path = ""
-            try:
-                report_size = report_file_path.stat().st_size
+            message_lower = message.lower()
+            repeat_phrases = [
+                "repeat",
+                "again",
+                "ask again",
+                "last question",
+                "previous question",
+                "repeat question",
+            ]
+            if any(phrase in message_lower for phrase in repeat_phrases):
+                current_index = getattr(manager, "current_question_index", 0)
+                question_text = ""
+                if questionnaire and hasattr(questionnaire, "questions"):
+                    questions = getattr(questionnaire, "questions", [])
+                    if isinstance(questions, list) and questions:
+                        if current_index >= len(questions):
+                            current_index = max(len(questions) - 1, 0)
+                        try:
+                            question_obj = questions[current_index]
+                            question_text = getattr(question_obj, "text", "") or str(question_obj)
+                        except Exception:
+                            question_text = ""
+                if not question_text:
+                    question_text = sess.get("last_question") or "Please answer the current question."
+                sess["last_question"] = question_text
                 logger.info(
-                    "[report] uploading storagePath=reports/%s/%s.%s size=%s",
-                    auth_uid,
-                    report_id,
-                    report_ext,
-                    report_size,
+                    "[metagpt next] request_id=%s repeat_question session_id=%s index=%s",
+                    request_id,
+                    session_id,
+                    current_index,
                 )
-                storage_path = upload_report_pdf(
-                    {"auth_uid": auth_uid, "reportId": report_id, "_doc_ref": doc_ref},
-                    str(report_file_path),
+                return _json_with_request_id(
+                    {
+                        "ok": True,
+                        "type": "repeat_question",
+                        "session_id": session_id,
+                        "assistant": {"text": question_text},
+                        "question": question_text,
+                        "done": False,
+                    },
+                    request_id,
+                    200,
                 )
-                debug_check_object(storage_path)
-                logger.info("[firebase] Report persisted: %s for auth_uid %s", report_id, auth_uid)
-            except FirebaseUploadError as exc:
-                logger.exception("[firebase] upload failed reportId=%s auth_uid=%s", report_id, auth_uid)
-                error_detail = f"{type(exc.cause).__name__}: {exc.cause}" if exc.cause else str(exc)
-                return (
-                    jsonify(
+
+            try:
+                result = _run_async(manager.get_next_question(message))
+            except Exception:
+                logger.error(
+                    "[metagpt next] request_id=%s validator_exception=%s",
+                    request_id,
+                    traceback.format_exc(),
+                )
+                return _json_with_request_id(
+                    {
+                        "ok": True,
+                        "type": "needs_clarification",
+                        "session_id": session_id,
+                        "assistant": {"text": "Please provide a more specific answer."},
+                    },
+                    request_id,
+                    200,
+                )
+            sess["current_index"] = manager.current_question_index
+            status = result.get("status")
+            response_type = {
+                "invalid_answer": "needs_clarification",
+                "completed": "completed",
+                "next_question": "next_question",
+            }.get(status, "error")
+            validator_valid = status != "invalid_answer"
+            validator_reason = result.get("error") if not validator_valid else ""
+            question_id = result.get("question_id")
+            current_index = getattr(manager, "current_question_index", None)
+            logger.info(
+                "[metagpt next] request_id=%s session_id=%s state=%s question_id=%s validator_valid=%s reason=%s response_type=%s",
+                request_id,
+                session_id,
+                current_index,
+                question_id,
+                validator_valid,
+                validator_reason,
+                response_type,
+            )
+            if status == "invalid_answer":
+                assistant_text = result.get("error") or "Please provide a more specific answer."
+                suggestion = result.get("suggestion")
+                if suggestion:
+                    assistant_text = f"{assistant_text} {suggestion}".strip()
+                assistant_question = result.get("question")
+                if assistant_question:
+                    sess["last_question"] = assistant_question
+                return _json_with_request_id(
+                    {
+                        "ok": True,
+                        "type": "needs_clarification",
+                        "session_id": session_id,
+                        "assistant": {
+                            "text": assistant_text,
+                            "question": assistant_question,
+                        },
+                        "state": {
+                            "status": status,
+                            "valid": False,
+                            "reason": result.get("error"),
+                            "suggestion": suggestion,
+                            "progress": result.get("progress"),
+                        },
+                        "message": assistant_text,
+                        "question": assistant_question,
+                        "hint": suggestion,
+                        "retry": True,
+                        "done": False,
+                        "question_id": question_id,
+                        "category": result.get("category"),
+                        "progress": result.get("progress"),
+                    },
+                    request_id,
+                    200,
+                )
+            if status == "completed":
+                report_text = result.get("report") or ""
+                answers_map = _build_answers_map(manager, questionnaire)
+                auth_uid = request.headers.get("X-Firebase-UID", "").strip()
+                if not auth_uid:
+                    auth_header = request.headers.get("Authorization", "")
+                    if auth_header and auth_header.startswith("Bearer "):
+                        auth_uid = "dev" if auth_header == "Bearer dev" else ""
+
+                risk_level = "unknown"
+                report_lower = report_text.lower()
+                if "high risk" in report_lower or "🔴" in report_text:
+                    risk_level = "high"
+                elif "medium risk" in report_lower or "🟡" in report_text:
+                    risk_level = "medium"
+                elif "low risk" in report_lower or "🟢" in report_text:
+                    risk_level = "low"
+
+                if not FIREBASE_AVAILABLE:
+                    logger.error("[firebase] unavailable; cannot upload report PDF")
+                    return _json_with_request_id(
+                        {"ok": False, "type": "report_failed", "error": "firebase_admin_unavailable"},
+                        request_id,
+                        503,
+                    )
+
+                if not auth_uid or auth_uid == "dev":
+                    logger.error("[firebase] missing patient uid; cannot upload report PDF")
+                    return _json_with_request_id(
+                        {"ok": False, "type": "report_failed", "error": "missing patient uid"},
+                        request_id,
+                        400,
+                    )
+
+                answers_map["userId"] = auth_uid
+                answers_map["riskLevel"] = risk_level
+
+                db = get_firestore_client()
+                doc_ref = db.collection("reports").document()
+                report_id = doc_ref.id
+                screening_id = session_id
+                report_ext = "pdf"
+                local_path = f"screen/feiaiagent/report/{report_id}.{report_ext}"
+                download_url_local = f"/api/reports/download/{report_id}.{report_ext}"
+
+                write_report_doc(
+                    report_id=report_id,
+                    patient_id=auth_uid,
+                    screening_id=screening_id,
+                    risk_level=risk_level,
+                    storage_path="",
+                    report_format=report_ext,
+                    doctor_id=None,
+                    source="metagpt",
+                    file_name=f"{report_id}.{report_ext}",
+                    local_path=local_path,
+                    download_url_local=download_url_local,
+                    content_text=report_text,
+                    answers_raw=answers_map,
+                    pdf_status="pending",
+                    status="pending",
+                )
+
+                report_path = report_manager.save_report(report_text, answers_map, session_id)
+                report_manager.save_report_json(report_text, answers_map, session_id)
+                try:
+                    pdf_path = report_manager.save_report_pdf(report_text, answers_map, report_id)
+                except Exception as exc:
+                    logger.error("[report] PDF generation failed for reportId=%s error=%s", report_id, exc)
+                    doc_ref.set(
+                        {
+                            "pdfStatus": "failed",
+                            "status": "failed",
+                            "pdfError": f"PDF generation failed: {exc}",
+                            "pdfUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
+                            "updatedAt": admin_firestore.SERVER_TIMESTAMP,
+                        },
+                        merge=True,
+                    )
+                    return _json_with_request_id(
+                        {"ok": False, "type": "report_failed", "error": "PDF generation failed"},
+                        request_id,
+                        500,
+                    )
+                if not pdf_path:
+                    logger.error("[report] PDF generation failed for reportId=%s", report_id)
+                    doc_ref.set(
+                        {
+                            "pdfStatus": "failed",
+                            "status": "failed",
+                            "pdfError": "PDF generation failed: empty path",
+                            "pdfUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
+                            "updatedAt": admin_firestore.SERVER_TIMESTAMP,
+                        },
+                        merge=True,
+                    )
+                    return _json_with_request_id(
+                        {"ok": False, "type": "report_failed", "error": "PDF generation failed"},
+                        request_id,
+                        500,
+                    )
+
+                report_file_path = Path(pdf_path)
+                if not report_file_path.exists():
+                    logger.error("[report] PDF file not found: %s", pdf_path)
+                    doc_ref.set(
+                        {
+                            "pdfStatus": "failed",
+                            "status": "failed",
+                            "pdfError": f"PDF file not found: {pdf_path}",
+                            "pdfUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
+                            "updatedAt": admin_firestore.SERVER_TIMESTAMP,
+                        },
+                        merge=True,
+                    )
+                    return _json_with_request_id(
+                        {"ok": False, "type": "report_failed", "error": "PDF file not found"},
+                        request_id,
+                        500,
+                    )
+                if report_file_path.suffix.lower() != ".pdf":
+                    logger.error("[report] Expected PDF but got %s", report_file_path.suffix)
+                    doc_ref.set(
+                        {
+                            "pdfStatus": "failed",
+                            "status": "failed",
+                            "pdfError": f"Expected PDF but got {report_file_path.suffix}",
+                            "pdfUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
+                            "updatedAt": admin_firestore.SERVER_TIMESTAMP,
+                        },
+                        merge=True,
+                    )
+                    return _json_with_request_id(
+                        {"ok": False, "type": "report_failed", "error": "PDF generation failed"},
+                        request_id,
+                        500,
+                    )
+
+                storage_path = ""
+                try:
+                    report_size = report_file_path.stat().st_size
+                    logger.info(
+                        "[report] uploading storagePath=reports/%s/%s.%s size=%s",
+                        auth_uid,
+                        report_id,
+                        report_ext,
+                        report_size,
+                    )
+                    storage_path = upload_report_pdf(
+                        {"auth_uid": auth_uid, "reportId": report_id, "_doc_ref": doc_ref},
+                        str(report_file_path),
+                    )
+                    debug_check_object(storage_path)
+                    logger.info("[firebase] Report persisted: %s for auth_uid %s", report_id, auth_uid)
+                except FirebaseUploadError as exc:
+                    logger.exception("[firebase] upload failed reportId=%s auth_uid=%s", report_id, auth_uid)
+                    error_detail = f"{type(exc.cause).__name__}: {exc.cause}" if exc.cause else str(exc)
+                    return _json_with_request_id(
                         {
                             "ok": False,
                             "error": "firebase_upload_failed",
@@ -1467,78 +1549,137 @@ def metagpt_next_simple():
                             "bucket": exc.bucket,
                             "storagePath": exc.storage_path,
                             "exception": error_detail,
-                        }
-                    ),
-                    503,
-                )
-            except Exception as e:
-                logger.exception("[firebase] unexpected upload failure reportId=%s auth_uid=%s", report_id, auth_uid)
-                return (
-                    jsonify(
+                        },
+                        request_id,
+                        503,
+                    )
+                except Exception as e:
+                    logger.exception("[firebase] unexpected upload failure reportId=%s auth_uid=%s", report_id, auth_uid)
+                    return _json_with_request_id(
                         {
                             "ok": False,
                             "error": "firebase_upload_failed",
-                            "stage": "upload_pdf",
+                            "stage": "unexpected",
                             "bucket": "",
-                            "storagePath": f"reports/{auth_uid}/{report_id}.{report_ext}",
-                            "exception": f"{type(e).__name__}: {e}",
-                        }
-                    ),
-                    503,
+                            "storagePath": storage_path,
+                            "exception": str(e),
+                        },
+                        request_id,
+                        503,
+                    )
+
+                try:
+                    doc_ref.set(
+                        {
+                            "pdfStatus": "ready",
+                            "status": "completed",
+                            "storagePath": storage_path,
+                            "pdfUpdatedAt": admin_firestore.SERVER_TIMESTAMP,
+                            "updatedAt": admin_firestore.SERVER_TIMESTAMP,
+                        },
+                        merge=True,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.error("[firebase] doc update failed reportId=%s error=%s", report_id, exc)
+
+                return _json_with_request_id(
+                    {
+                        "ok": True,
+                        "type": "completed",
+                        "session_id": session_id,
+                        "assistant": {"text": report_text},
+                        "report_id": report_id,
+                        "storage_path": storage_path,
+                        "risk_level": risk_level,
+                        "download_url_local": download_url_local,
+                    },
+                    request_id,
+                    200,
                 )
-            
-            return jsonify({
-                "ok": True,
-                "type": "completed",
-                "session_id": session_id,
-                "question": None,
-                "done": True,
-                "report_id": report_id,
-                "risk_level": risk_level,
-                "storage_path": storage_path or None,
-                "download_url_local": download_url_local,
-                "request_id": request_id
-            })
-        if status == "next_question":
-            question_text = result.get("question", "")
-            if question_text:
-                sess["last_question"] = question_text
-            return jsonify({
-                "ok": True,
-                "type": "next_question",
-                "session_id": session_id,
-                "question": question_text,
-                "done": False,
-                "request_id": request_id
-            })
-        logger.error(
-            "[metagpt next] request_id=%s unknown_status status=%s error=%s",
-            request_id,
-            status,
-            result.get("error")
-        )
-        return jsonify({
-            "ok": False,
-            "type": "internal_error",
-            "error": "metagpt_next failed",
-            "request_id": request_id,
-            "where": where
-        }), 500
+
+            if status not in {"next_question", "redo_question"}:
+                logger.error(
+                    "[metagpt next] request_id=%s unknown_status status=%s error=%s",
+                    request_id,
+                    status,
+                    result.get("error"),
+                )
+                return _json_with_request_id(
+                    {
+                        "ok": False,
+                        "type": "error",
+                        "error": "metagpt_next failed",
+                        "status": status,
+                        "detail": result.get("error"),
+                    },
+                    request_id,
+                    500,
+                )
+
+            question = result.get("question") or result.get("report") or ""
+            last_question = question or sess.get("last_question") or ""
+            sess["last_question"] = last_question
+            tts_url = generate_tts_audio(shorten_for_avatar(last_question), session_id)
+            if status == "redo_question":
+                return _json_with_request_id(
+                    {
+                        "ok": True,
+                        "type": "repeat_question",
+                        "session_id": session_id,
+                        "assistant": {"text": question},
+                        "question": question,
+                        "tts_url": tts_url,
+                        "category": result.get("category"),
+                        "progress": result.get("progress"),
+                        "question_id": result.get("question_id"),
+                        "done": False,
+                        "retry": True,
+                    },
+                    request_id,
+                    200,
+                )
+
+            return _json_with_request_id(
+                {
+                    "ok": True,
+                    "type": "next_question",
+                    "session_id": session_id,
+                    "assistant": {"text": question},
+                    "question": question,
+                    "tts_url": tts_url,
+                    "category": result.get("category"),
+                    "progress": result.get("progress"),
+                    "question_id": result.get("question_id"),
+                },
+                request_id,
+                200,
+            )
+        finally:
+            if lock_acquired and lock:
+                lock.release()
+                lock_acquired = False
     except Exception:
         logger.error(
             "[metagpt next] request_id=%s exception=%s",
             request_id,
-            traceback.format_exc()
+            traceback.format_exc(),
         )
-        return jsonify({
-            "ok": False,
-            "type": "internal_error",
-            "error": "metagpt_next failed",
-            "request_id": request_id,
-            "where": where
-        }), 500
+        return _json_with_request_id(
+            {
+                "ok": False,
+                "type": "error",
+                "error": "internal_error",
+            },
+            request_id,
+            500,
+        )
+    finally:
+        if lock_acquired and lock:
+            try:
+                lock.release()
+            except Exception:
+                logger.warning("[metagpt next] request_id=%s lock_release_failed", request_id)
 
-# ===== MetaGPT workflow management API =====
 @app.route("/api/metagpt/init", methods=["POST", "GET"])
 def metagpt_init():
     ok = _init_metagpt_if_needed()
@@ -1774,7 +1915,7 @@ def find_next_question_index(current_index: int, answers: dict) -> int:
                 value_lower = value.lower()
                 if (
                     value_lower in answer_text
-                    and not any(neg in answer_text for neg in ["不", "没", "无", "否", "没有", "不会"])
+                    and not any(neg in answer_text for neg in ["none", "no", "not", "nothing", "nope"])
                 ):
                     dependency_met = True
                     break
@@ -1785,7 +1926,7 @@ def find_next_question_index(current_index: int, answers: dict) -> int:
             question_text = question_data.get("text")
             if question_text and question_text not in answers:
                 answers[question_text] = auto_fill_value
-                print(f"🔄 Auto-filled: {question_text} = {auto_fill_value}")
+                print(f"馃攧 Auto-filled: {question_text} = {auto_fill_value}")
             next_index += 1
     
     return -1
@@ -1989,10 +2130,10 @@ def export_report_pdf(filename):
         
         for line in lines:
             line = line.strip()
-            if line == "【用户信息】":
+            if line.startswith("??????"):
                 in_answers_section = True
                 continue
-            elif line == "【会话信息】":
+            elif line.startswith("??????"):
                 in_answers_section = False
                 break
             elif in_answers_section and ":" in line:
@@ -2310,7 +2451,7 @@ def intelligent_questionnaire_reply():
                 _ = report_manager.save_report(report_text, answers_map, session_id)
                 _ = report_manager.save_report_json(report_text, answers_map, session_id)
                 _ = report_manager.save_report_pdf(report_text, answers_map, session_id)
-                logger.info(f"📝 Intelligent questionnaire report saved: {session_id}")
+                logger.info(f"馃摑 Intelligent questionnaire report saved: {session_id}")
             except Exception as e:
                 logger.warning(f"Failed to save intelligent questionnaire report: {e}")
             

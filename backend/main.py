@@ -415,6 +415,12 @@ def require_firebase_auth(allowed_roles: Optional[set[str]] = None) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
             request_path = request.path
+            request_id = (
+                request.headers.get("X-Request-Id")
+                or request.args.get("request_id")
+                or getattr(g, "request_id", None)
+                or uuid.uuid4().hex[:8]
+            )
             auth_mode = _get_auth_mode()
             if auth_mode == "dev":
                 _set_dev_identity()
@@ -438,27 +444,51 @@ def require_firebase_auth(allowed_roles: Optional[set[str]] = None) -> Callable:
                 return jsonify({"error": "Firebase service account not configured"}), 401
 
             token = _extract_bearer_token()
+            token_len = len(token) if token else 0
+            dot_count = token.count(".") if token else 0
             if not token:
-                return jsonify({"error": "Missing Authorization Bearer token"}), 401
+                logger.warning(
+                    "[auth] request_id=%s path=%s token_len=%s dotCount=%s missing_token",
+                    request_id,
+                    request_path,
+                    token_len,
+                    dot_count,
+                )
+                return jsonify({"error": "missing_token"}), 401
+            if dot_count != 2:
+                logger.warning(
+                    "[auth] request_id=%s path=%s token_len=%s dotCount=%s invalid_token_format",
+                    request_id,
+                    request_path,
+                    token_len,
+                    dot_count,
+                )
+                return jsonify({"error": "invalid_token_format"}), 401
             try:
                 decoded = verify_firebase_id_token(token)
             except Exception as exc:  # noqa: BLE001
-                token_prefix = token[:20] if token else ""
-                header_claims, payload_claims = _decode_jwt_unverified(token) if token else ({}, {})
                 logger.warning(
-                    "[auth] token verification failed: %s | token_prefix=%s header_aud=%s header_iss=%s payload_aud=%s payload_iss=%s",
+                    "[auth] request_id=%s path=%s token_len=%s dotCount=%s token verification failed: %s",
+                    request_id,
+                    request_path,
+                    token_len,
+                    dot_count,
                     exc,
-                    token_prefix,
-                    header_claims.get("aud"),
-                    header_claims.get("iss"),
-                    payload_claims.get("aud"),
-                    payload_claims.get("iss"),
                 )
-                return jsonify({"error": "Invalid Firebase ID token", "detail": str(exc)}), 401
+                return jsonify({"error": "invalid_token", "detail": str(exc)}), 401
 
             _set_identity(decoded, token)
             if not getattr(g, "firebase_uid", None):
                 return jsonify({"error": "Token missing uid"}), 401
+            logger.info(
+                "[auth] request_id=%s path=%s token_len=%s dotCount=%s uid=%s role=%s",
+                request_id,
+                request_path,
+                token_len,
+                dot_count,
+                getattr(g, "firebase_uid", ""),
+                getattr(g, "firebase_role", ""),
+            )
 
             if allowed_roles:
                 role = (getattr(g, "firebase_role", "") or "").lower()

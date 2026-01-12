@@ -1,13 +1,7 @@
-import { auth, db, storage } from "./firebase-config.js";
+import { app, auth, db, storage } from "./firebase-config.js";
 import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { addDoc, collection, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-const needsFunctions = /register-self\.html|question\.html|dashboard\.html/i.test(location.pathname);
-if (needsFunctions) {
-  if (typeof firebase === "undefined" || typeof firebase.functions !== "function") {
-    console.error("Firebase Functions SDK not loaded");
-  }
-}
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 
 const icons = {
   mission: '<svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 10.1 12 4l7 6.1a2 2 0 0 1 .7 1.54V18a1 1 0 0 1-1 1h-4v-3.35a2.65 2.65 0 0 0-5.3 0V19H5a1 1 0 0 1-1-1v-6.36A2 2 0 0 1 5 10.1Z"/><path d="M9 17.5a3 3 0 0 0 6 0V16H9v1.5Z"/></svg>',
@@ -132,6 +126,10 @@ async function handleRegister({
   termsChecked,
 }) {
   console.log("[signupAssignDoctor] register handler entered");
+  // Fix: eliminate compat global firebase usage; use modular auth/firestore instances to prevent "firebase is not defined".
+  if (typeof firebase !== "undefined") {
+    console.warn("[register] compat firebase detected; modular SDK is used here. Avoid global compat calls in script.js.");
+  }
   if (!auth || !db) {
     alert("Firebase 未配置，请先填写 firebase-config.js");
     return;
@@ -216,17 +214,15 @@ async function handleRegister({
     console.log("[signup] waiting for auth state to be ready...");
     showToast("Registered. Finalizing account setup...");
 
-    const unsubscribe = firebase.auth().onAuthStateChanged(async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) return;          // 还没 ready，继续等
       unsubscribe();              // 只执行一次
 
       try {
         await user.getIdToken(true);
 
-        const fn = firebase
-          .app()
-          .functions("asia-east2")
-          .httpsCallable("assignDoctorToPatient");
+        const functions = getFunctions(app, "asia-east2");
+        const fn = httpsCallable(functions, "assignDoctorToPatient");
 
         const res = await fn();
         const data = res?.data || {};

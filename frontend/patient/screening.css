@@ -598,6 +598,66 @@
   cursor: pointer;
 }
 
+/* UI polish: improve screening Send/Mic buttons (visual only, no logic change) */
+.screening-page .screening-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.screening-page .screening-send-btn,
+.screening-page .screening-mic-btn {
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.screening-page .screening-send-btn {
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #ffffff;
+  border: none;
+  border-radius: 14px;
+  padding-left: 22px;
+  padding-right: 22px;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.screening-page .screening-send-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.35);
+}
+
+.screening-page .screening-send-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+}
+
+.screening-page .screening-mic-btn {
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  border-radius: 14px;
+  padding-left: 18px;
+  padding-right: 18px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.screening-page .screening-mic-btn:hover {
+  background: rgba(37, 99, 235, 0.15);
+  border-color: rgba(37, 99, 235, 0.45);
+}
+
 .screening-page .mic-btn {
   position: relative;
 }

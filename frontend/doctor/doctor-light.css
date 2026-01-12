@@ -1166,3 +1166,542 @@ body.doctor-theme {
     grid-template-columns: 1fr;
   }
 }
+
+.doctor-chat-page {
+  --bg: #f6faf9;
+  --card: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --line: #e6eef0;
+  --primary: #16a34a;
+  --primary-weak: rgba(22, 163, 74, 0.12);
+  --r-lg: 18px;
+  --r-md: 14px;
+  --shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  --shadow-sm: 0 6px 18px rgba(15, 23, 42, 0.05);
+}
+
+/* Doctor chat modern refresh */
+.doctor-theme.doctor-chat-page {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.doctor-chat-page .sidebar {
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  color: var(--text);
+}
+
+.doctor-chat-page .card,
+.doctor-chat-page .panel,
+.doctor-chat-page .box {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+}
+
+.doctor-chat-page .hero {
+  background: linear-gradient(180deg, rgba(22, 163, 74, 0.1), rgba(22, 163, 74, 0));
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.doctor-chat-page .card-title,
+.doctor-chat-page .value {
+  color: var(--text);
+}
+
+.doctor-chat-page .card-text,
+.doctor-chat-page .lede {
+  color: var(--muted);
+}
+
+.doctor-chat-page .section-title {
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.doctor-chat-page .chat-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.doctor-chat-page .patient-list {
+  gap: 12px;
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+}
+
+.doctor-chat-page .patient-list-card {
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.doctor-chat-page .patient-list-item {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 12px 12px;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, border-color 0.08s ease;
+  background: #fbfdfd;
+}
+
+.doctor-chat-page .patient-list-item:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  border-color: rgba(22, 163, 74, 0.25);
+}
+
+.doctor-chat-page .patient-list-item.active {
+  background: rgba(22, 163, 74, 0.08);
+  border-color: rgba(22, 163, 74, 0.35);
+}
+
+.doctor-chat-page .patient-email {
+  color: var(--muted);
+}
+
+.doctor-chat-page .chat-card {
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.doctor-chat-page .question-chat-container {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 0;
+  overflow: hidden;
+}
+
+.doctor-chat-page .chat-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.doctor-chat-page .chat-header .title {
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--text);
+}
+
+.doctor-chat-page .chat-header .sub {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.doctor-chat-page .chat-body {
+  padding: 18px;
+  background: #fbfdfd;
+}
+
+.doctor-chat-page .question-chat-messages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: #fbfdfd;
+  max-height: calc(100vh - 360px);
+}
+
+.doctor-chat-page .question-chat-messages .chat-message {
+  max-width: 62%;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+  line-height: 1.35;
+  font-size: 13px;
+  background: #ffffff;
+}
+
+.doctor-chat-page .question-chat-messages .chat-message.patient {
+  background: #eef6ff;
+  border-color: rgba(59, 130, 246, 0.22);
+  margin-right: auto;
+}
+
+.doctor-chat-page .question-chat-messages .chat-message.doctor {
+  background: #ecfdf3;
+  border-color: rgba(22, 163, 74, 0.25);
+  margin-left: auto;
+}
+
+.doctor-chat-page .chat-message-meta {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.doctor-chat-page .question-chat-input-area {
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--card);
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.doctor-chat-page .question-chat-input {
+  flex: 1;
+  width: 100%;
+  resize: none;
+  min-height: 44px;
+  max-height: 120px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  padding: 12px 14px;
+  background: #ffffff;
+  color: #0f172a;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  font-weight: 400;
+  letter-spacing: 0.2px;
+}
+
+.doctor-chat-page .question-chat-input:focus {
+  border-color: rgba(22, 163, 74, 0.35);
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.1);
+  outline: none;
+  caret-color: #16a34a;
+}
+
+.doctor-chat-page .question-chat-input::placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+  letter-spacing: 0.3px;
+}
+
+.doctor-chat-page .question-chat-send-btn {
+  border: none;
+  border-radius: 14px;
+  padding: 12px 16px;
+  background: var(--primary);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 10px 20px rgba(22, 163, 74, 0.18);
+  cursor: pointer;
+}
+
+.doctor-chat-page .question-chat-send-btn:hover {
+  filter: brightness(0.98);
+}
+
+.doctor-chat-page .patient-list::-webkit-scrollbar,
+.doctor-chat-page .question-chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.doctor-chat-page .patient-list::-webkit-scrollbar-thumb,
+.doctor-chat-page .question-chat-messages::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.35);
+  border-radius: 999px;
+}
+
+.doctor-chat-page .patient-list::-webkit-scrollbar-thumb:hover,
+.doctor-chat-page .question-chat-messages::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
+}
+
+.doctor-chat-page .patient-list::-webkit-scrollbar-track,
+.doctor-chat-page .question-chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (max-width: 720px) {
+  .doctor-chat-page .chat-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .doctor-chat-page .question-chat-input-area {
+    flex-direction: column;
+  }
+
+  .doctor-chat-page .question-chat-send-btn {
+    width: 100%;
+  }
+}
+
+/* fallback hide badges if any remain */
+.doctor-chat-page .badge-live,
+.doctor-chat-page .live-badge,
+.doctor-chat-page .status-online,
+.doctor-chat-page .doctor-online,
+.doctor-chat-page .question-chat-status,
+.doctor-chat-page .patient-list-card .pill {
+  display: none !important;
+}
+
+/* Doctor Profile – UI polish */
+.doctor-profile-page {
+  --profile-bg: #f6faf9;
+  --profile-card: #ffffff;
+  --profile-border: #e6eef0;
+  --profile-text: #0f172a;
+  --profile-muted: #64748b;
+  --profile-primary: #16a34a;
+  --profile-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--profile-bg);
+  color: var(--profile-text);
+}
+
+.doctor-profile-page .sidebar {
+  box-shadow: var(--profile-shadow);
+  border-color: var(--profile-border);
+}
+
+.doctor-profile-page .nav-item.active {
+  background: rgba(22, 163, 74, 0.12);
+  border: 1px solid rgba(22, 163, 74, 0.28);
+  color: var(--profile-text);
+  box-shadow: 0 10px 24px rgba(22, 163, 74, 0.12);
+}
+
+.doctor-profile-page .profile-hero {
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.14), rgba(56, 189, 248, 0.12));
+  border: 1px solid var(--profile-border);
+  border-radius: 18px;
+  box-shadow: var(--profile-shadow);
+  padding: 18px 20px;
+}
+
+.doctor-profile-page .hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.doctor-profile-page .hero-label {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  font-size: 12px;
+  color: rgba(15, 23, 42, 0.8);
+  margin: 0;
+}
+
+.doctor-profile-page .hero-title {
+  margin: 0;
+  font-weight: 800;
+  font-size: 22px;
+  color: var(--profile-text);
+}
+
+.doctor-profile-page .hero-sub {
+  margin: 0;
+  color: var(--profile-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.doctor-profile-page .profile-card {
+  background: var(--profile-card);
+  border: 1px solid var(--profile-border);
+  border-radius: 18px;
+  box-shadow: var(--profile-shadow);
+  padding: 20px;
+}
+
+.doctor-profile-page .profile-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.doctor-profile-page .profile-head-text .card-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--profile-text);
+}
+
+.doctor-profile-page .profile-head-text .card-text {
+  margin: 4px 0 0;
+  color: var(--profile-muted);
+  font-size: 13px;
+}
+
+.doctor-profile-page .status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(22, 163, 74, 0.12);
+  border: 1px solid rgba(22, 163, 74, 0.3);
+  color: var(--profile-text);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+}
+
+.doctor-profile-page .profile-form-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.doctor-profile-page .profile-form-grid .field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--profile-muted);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.doctor-profile-page .profile-form-grid .field > span {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.doctor-profile-page .profile-form-grid .span-2 {
+  grid-column: span 2;
+}
+
+.doctor-profile-page .profile-form-grid .span-3 {
+  grid-column: span 3;
+}
+
+.doctor-profile-page .profile-form-grid .span-5,
+.doctor-profile-page .profile-form-grid .field.full-width {
+  grid-column: 1 / -1;
+}
+
+.doctor-profile-page .profile-form-grid input,
+.doctor-profile-page .profile-form-grid textarea {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid var(--profile-border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  color: var(--profile-text);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.55;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.doctor-profile-page .profile-form-grid textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.doctor-profile-page .profile-form-grid input::placeholder,
+.doctor-profile-page .profile-form-grid textarea::placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.doctor-profile-page .profile-form-grid input:focus,
+.doctor-profile-page .profile-form-grid textarea:focus {
+  outline: none;
+  border-color: rgba(22, 163, 74, 0.35);
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.1);
+  background: #ffffff;
+}
+
+.doctor-profile-page .profile-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.doctor-profile-page .profile-card .btn-primary,
+.doctor-profile-page .profile-card .btn-ghost {
+  border-radius: 14px;
+  padding: 12px 18px;
+  min-height: 44px;
+  font-weight: 700;
+  font-size: 14px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.doctor-profile-page .profile-card .btn-primary {
+  background: linear-gradient(135deg, var(--profile-primary), #11963f);
+  color: #ffffff;
+  box-shadow: 0 12px 26px rgba(22, 163, 74, 0.18);
+}
+
+.doctor-profile-page .profile-card .btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(22, 163, 74, 0.22);
+}
+
+.doctor-profile-page .profile-card .btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 8px 18px rgba(22, 163, 74, 0.2);
+}
+
+.doctor-profile-page .profile-card .btn-ghost {
+  background: #ffffff;
+  border-color: var(--profile-border);
+  color: var(--profile-text);
+}
+
+.doctor-profile-page .profile-card .btn-ghost:hover {
+  background: rgba(22, 163, 74, 0.08);
+  border-color: rgba(22, 163, 74, 0.28);
+}
+
+.doctor-profile-page .profile-card .btn-ghost:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.doctor-profile-page .profile-card .btn-primary:disabled,
+.doctor-profile-page .profile-card .btn-ghost:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+@media (max-width: 1200px) {
+  .doctor-profile-page .profile-form-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .doctor-profile-page .profile-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .doctor-profile-page .profile-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .doctor-profile-page .profile-head {
+    flex-direction: column;
+  }
+}

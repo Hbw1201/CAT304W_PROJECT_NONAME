@@ -7,7 +7,8 @@ let metagptSessionId = null;
 let metagptStep = 0;
 let metagptBusy = false;
 let metagptCompleted = false;
-let emptyQuestionRetries = 0;
+let NEXT_IN_FLIGHT = false;
+let LAST_NEXT_TS = 0;
 
 function pickQuestion(data) {
   return (
@@ -172,21 +173,6 @@ async function resolveNext(payload) {
   }
   let question = pickQuestion(data);
   const doneFlag = Boolean(data?.done || data?.finished || data?.end);
-  if (!doneFlag && (!question || !String(question).trim()) && emptyQuestionRetries < 1) {
-    emptyQuestionRetries += 1;
-    ui.setStatus?.("Processing", "No question returned, retrying...");
-    data = await requestJson("/api/screen/metagpt/next", payload);
-    if (isNeedsRestart(data)) {
-      return { data, needsRestart: true };
-    }
-    if (isRepeatQuestion(data)) {
-      return { data, repeatQuestion: true };
-    }
-    if (isNeedsClarification(data)) {
-      return { data, needsClarification: true };
-    }
-    question = pickQuestion(data);
-  }
   const isDone =
     Boolean(data?.done || data?.finished || data?.end) ||
     !question ||
@@ -217,7 +203,6 @@ async function startMetagptSession() {
     metagptSessionId = data.session_id;
     metagptStep = Number(data.step || 1);
     metagptCompleted = false;
-    emptyQuestionRetries = 0;
     ui.setReadyToGenerate?.(false);
     ui.setMetaSessionId?.(metagptSessionId);
 
@@ -259,15 +244,34 @@ async function submitAnswer(answer) {
     return;
   }
   ui.clearError?.();
+  const now = Date.now();
+  if (NEXT_IN_FLIGHT) {
+    console.warn("[metagpt] next blocked: in flight");
+    return;
+  }
+  if (now - LAST_NEXT_TS < 800) {
+    console.warn("[metagpt] next blocked: debounce");
+    return;
+  }
+  LAST_NEXT_TS = now;
+  NEXT_IN_FLIGHT = true;
   metagptBusy = true;
   ui.setMetaBusy?.(true);
   ui.setStatus?.("Processing", "Submitting answer...");
+  if (ui.sendBtn) ui.sendBtn.disabled = true;
+  if (ui.input) ui.input.disabled = true;
+  let nextStatus = "ok";
   try {
     const payload = {
       session_id: metagptSessionId,
       answer: trimmed,
       step: metagptStep,
     };
+    console.info("[metagpt] next start", {
+      ts: now,
+      sessionIdPresent: Boolean(metagptSessionId),
+      answerLen: trimmed.length,
+    });
     ui.recordAnswer?.(ui.getCurrentQuestion?.() || "", trimmed, "metagpt");
     const { data, question, isDone, needsClarification, needsRestart, repeatQuestion } =
       await resolveNext(payload);
@@ -277,6 +281,7 @@ async function submitAnswer(answer) {
         "Session expired. Please start screening again.";
       ui.appendSystemMessage?.(restartText);
       await startMetagptSession();
+      nextStatus = "needs_restart";
       return;
     }
     if (repeatQuestion) {
@@ -285,6 +290,7 @@ async function submitAnswer(answer) {
       ui.resetAnswer?.();
       ui.setReadyToGenerate?.(false);
       ui.setStatus?.("Idle", "Repeating the previous question");
+      nextStatus = "repeat_question";
       return;
     }
     if (needsClarification) {
@@ -292,6 +298,7 @@ async function submitAnswer(answer) {
       ui.resetAnswer?.();
       ui.setReadyToGenerate?.(false);
       ui.setStatus?.("Idle", "Awaiting a more specific answer");
+      nextStatus = "needs_clarification";
       return;
     }
     if (isDone) {
@@ -303,9 +310,9 @@ async function submitAnswer(answer) {
           markReady("All questions completed. Ready to generate report.");
         }, 1000);
       }, 500);
+      nextStatus = "done";
       return;
     }
-    emptyQuestionRetries = 0;
     metagptStep += 1;
     const ttsUrl = pickTtsUrl(data);
     ui.appendAIMessage?.(question, { ttsUrl });
@@ -314,7 +321,14 @@ async function submitAnswer(answer) {
     ui.setProgress?.(metagptStep, META_TOTAL);
     ui.setStatus?.("Idle", `Question ${metagptStep} ready`);
   } catch (err) {
+    nextStatus = "error";
     if (err?.authExpired || err?.status === 401 || err?.status === 403) {
+      return;
+    }
+    if (err?.data?.error === "session_state_missing") {
+      ui.appendSystemMessage?.("Session expired. Restarting screening.");
+      await startMetagptSession();
+      nextStatus = "session_missing";
       return;
     }
     if (isNeedsClarification(err?.data)) {
@@ -367,6 +381,10 @@ async function submitAnswer(answer) {
     ui.setError?.(message);
     ui.appendSystemMessage?.(message);
   } finally {
+    console.info("[metagpt] next end", { ts: Date.now(), status: nextStatus });
+    NEXT_IN_FLIGHT = false;
+    if (ui.input) ui.input.disabled = false;
+    if (ui.sendBtn) ui.sendBtn.disabled = false;
     metagptBusy = false;
     ui.setMetaBusy?.(false);
   }
